@@ -64,6 +64,34 @@ namespace Haven.Properties {
         ///   Looks up a localized string similar to ply
         ///format ascii 1.0
         ///comment mesh2rdm output
+        ///element vertex 660
+        ///property float x
+        ///property float y
+        ///property float z
+        ///element face 220
+        ///property list uchar int vertex_indices
+        ///end_header
+        ///-390.000000 882.644958 -500.000000
+        ///-390.000000 900.000000 -496.000000
+        ///-400.000000 889.999939 -490.000000
+        ///-400.000000 889.999939 -490.000000
+        ///-390.000000 900.000000 -496.000000
+        ///-385.743500 895.775024 0.000000
+        ///-400.000000 889.999939 -490.000000
+        ///-385.743500 895.775024 0.000000
+        ///-395.743500 885.775085 0.000000
+        ///-400.000000 889.999939 - [rest of string was truncated]&quot;;.
+        /// </summary>
+        internal static string ModelCBOX {
+            get {
+                return ResourceManager.GetString("ModelCBOX", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to ply
+        ///format ascii 1.0
+        ///comment mesh2rdm output
         ///element vertex 36
         ///property float x
         ///property float y
@@ -79,12 +107,39 @@ namespace Haven.Properties {
         ///-400.000000 400.000000 -400.000000
         ///-400.000000 -400.000000 400.000000
         ///400.000000 -400.000000 400.000000
-        ///-400.000000 -400.000000 -400.000000
-        ///-400.000000 -400. [rest of string was truncated]&quot;;.
+        ///-400.000000 -400.000000 -400.000000 [rest of string was truncated]&quot;;.
         /// </summary>
         internal static string ModelCube {
             get {
                 return ResourceManager.GetString("ModelCube", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to ply
+        ///format ascii 1.0
+        ///comment mesh2rdm output
+        ///element vertex 7500
+        ///property float x
+        ///property float y
+        ///property float z
+        ///element face 2500
+        ///property list uchar int vertex_indices
+        ///end_header
+        ///-823.943542 423.810486 -48.693802
+        ///-838.230530 427.243408 -50.887699
+        ///-823.201477 427.882294 -53.639400
+        ///-838.230530 427.243408 -50.887699
+        ///-823.943542 423.810486 -48.693802
+        ///-833.036133 402.350220 -48.007401
+        ///-823.201477 427.882294 -53.639400
+        ///-838.230530 427.243408 -50.887699
+        ///-820.979004 426.858429 -67.292305
+        ///-820.979004 426.858429 [rest of string was truncated]&quot;;.
+        /// </summary>
+        internal static string ModelDoll {
+            get {
+                return ResourceManager.GetString("ModelDoll", resourceCulture);
             }
         }
         
@@ -109,8 +164,7 @@ namespace Haven.Properties {
         ///20.293200 0.000000 33.710300
         ///68.672600 0.000000 17.337599
         ///68.672600 0.000000 17.337599
-        ///20.293200 0.000000 33.710300
-        ///40.2678 [rest of string was truncated]&quot;;.
+        ///20.293200 0.0000 [rest of string was truncated]&quot;;.
         /// </summary>
         internal static string ModelGako {
             get {
@@ -138,8 +192,7 @@ namespace Haven.Properties {
         ///86.589996 109.303406 -34.053200
         ///71.835098 120.495293 -11.897800
         ///75.722298 119.466904 -24.523600
-        ///85.314102 105.866096 -18.663099
-        ///68.509201 [rest of string was truncated]&quot;;.
+        ///85.314102 105.866096 - [rest of string was truncated]&quot;;.
         /// </summary>
         internal static string ModelKerotan {
             get {
@@ -166,8 +219,7 @@ namespace Haven.Properties {
         ///1325.000000 100.000000 1879.999878
         ///1325.000000 100.000000 -2000.000000
         ///1325.000000 100.000000 -1879.999878
-        ///675.000000 100.000000 -2000.000000
-        ///675.000000 100. [rest of string was truncated]&quot;;.
+        ///675.000000 100.000000 -2000.0000 [rest of string was truncated]&quot;;.
         /// </summary>
         internal static string ModelTerminal {
             get {

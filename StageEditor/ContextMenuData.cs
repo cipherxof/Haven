@@ -35,6 +35,11 @@ namespace Haven
             ContextMenuDataLookup[obj] = this;
         }
 
+        public static void Clear()
+        {
+            ContextMenuDataLookup.Clear();
+        }
+
         public static ContextMenuData? FromObject(object? obj)
         {
             if (obj == null)

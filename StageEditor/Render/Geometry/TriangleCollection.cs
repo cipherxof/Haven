@@ -73,6 +73,17 @@ namespace Haven.Render
         }
 
         /// <summary>
+        /// 
+        /// </summary>
+        public void Clear()
+        {
+            this.Vertices = new Vector3d[0];
+            this.Indices = new int[0];
+            this.triangles.Clear();
+            this.normals.Clear();
+        }
+
+        /// <summary>
         /// Populates the list of triangles in this collection.
         /// </summary>
         protected void PopulateList()

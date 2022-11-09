@@ -1,6 +1,8 @@
 ﻿using OpenTK;
 using OpenTK.Graphics.OpenGL;
 using Haven.Parser;
+using System.Diagnostics;
+using Haven.Parser.Geom;
 
 namespace Haven.Render
 {
@@ -20,6 +22,11 @@ namespace Haven.Render
         /// Used to lookup meshes by their ID
         /// </summary>
         private static Dictionary<string, Mesh> IDLookup = new Dictionary<string, Mesh>();
+
+        /// <summary>
+        /// 
+        /// </summary>
+        public static List<Mesh> MeshList = new List<Mesh>();
 
         /// <summary>
         /// Has the mesh been initialized yet.
@@ -106,11 +113,30 @@ namespace Haven.Render
             }
             set
             {
-                id = value;
+                id = FindNextID(value);
                 IDLookup[id] = this;
             }
         }
 
+        private string FindNextID(string key)
+        {
+            if (!IDLookup.ContainsKey(key))
+            {
+                return key;
+            }
+
+            for (int i = 1; i < 0xFF; i++)
+            {
+                var newId = $"{key} ({i})";
+
+                if (!IDLookup.ContainsKey(newId))
+                {
+                    return newId;
+                }
+            }
+
+            return key;
+        }
         /// <summary>
         /// Gets the collection of all the triangles of this Mesh.
         /// </summary>
@@ -143,6 +169,8 @@ namespace Haven.Render
         /// <param name="colors">Vertex colors of this mesh</param>
         public Mesh(Vector3d[] vertices, int[] triangleIndices, uint[] colors = null)
         {
+            MeshList.Add(this);
+
             this.vertices = vertices;
             this.triangleIndices = triangleIndices;
             this.Triangles = new TriangleCollection(vertices, triangleIndices);
@@ -266,7 +294,7 @@ namespace Haven.Render
         public static void ResetID()
         {
             idGen = 0;
-            IDLookup = new Dictionary<string, Mesh>();
+            IDLookup.Clear();
         }
 
         /// <summary>
@@ -334,6 +362,15 @@ namespace Haven.Render
             if (ShowAABB || Gizmos.ShowAABB) 
                 this.AABB.Draw();
 
+        }
+
+       public void Delete()
+        {
+            this.Visible = false;
+            this.vertices = new Vector3d[0];
+            this.triangleIndices = new int[0];
+            this.normals = new Vector3d[0];
+            this.Triangles.Clear();
         }
 
         /// <summary>
@@ -462,299 +499,64 @@ namespace Haven.Render
         /// <param name="indicies"></param>
         /// <param name="id"></param>
         /// <returns></returns>
-        public static List<Mesh> GetGeomMeshesFromIndicies(GeomFile geomFile, List<GeomIndex> indicies, string id = "")
+        public static List<Mesh> GetGeomBlockMeshes(GeomFile geomFile, List<GeoBlock> blocks, Color color, string id = "")
         {
             List<Vector3d> verts = new List<Vector3d>();
             List<int> faces = new List<int>();
             List<Mesh> meshes = new List<Mesh>();
 
-            for (int y = 0; y < indicies.Count; y++)
+            for (int y = 0; y < blocks.Count; y++)
             {
-                var index = indicies[y];
-                var indexId = index.Type;
-                var indexChunks = index.Chunks;
-                var indexTotalLength = index.Size;
-                var indexLines = index.Lines;
-                var indexPad = index.Pad;
-                var indexUnk = index.Field010;
-                var vertexOffset = index.VertexOffset;
+                var block = blocks[y];
 
-                if (vertexOffset == 0)
-                {
+                if (block.VertexOffset == 0 || block.VertexOffset > geomFile.Stream.Length)
                     continue;
-                }
 
-                var faceOffset = index.FaceOffset;
+                var vertexData = geomFile.BlockVertexData[block];
 
-                geomFile.Stream.Seek(vertexOffset, SeekOrigin.Begin);
+                geomFile.Stream.Seek(block.VertexOffset + ((vertexData.PositionStart * 0x10) + 0x10), SeekOrigin.Begin);
 
-                var lines = geomFile.Reader.ReadUInt32BE();
-                var objectStart = geomFile.Reader.ReadUInt32BE();
-                var idStart = geomFile.Reader.ReadUInt32BE(); ;
-                var posStart = geomFile.Reader.ReadUInt32BE();
+                var posX = geomFile.Reader.ReadSingle();
+                var posY = geomFile.Reader.ReadSingle();
+                var posZ = geomFile.Reader.ReadSingle();
+                var posW = geomFile.Reader.ReadSingle();
 
-                geomFile.Stream.Seek(vertexOffset + ((posStart * 0x10) + 0x10), SeekOrigin.Begin);
+                geomFile.Stream.Seek(block.VertexOffset + ((vertexData.VertexStart * 0x10) + 0x10), SeekOrigin.Begin);
 
-                var posX = geomFile.Reader.ReadSingleBE();
-                var posY = geomFile.Reader.ReadSingleBE();
-                var posZ = geomFile.Reader.ReadSingleBE();
-                var posUnk = geomFile.Reader.ReadSingleBE();
-
-                geomFile.Stream.Seek(vertexOffset + ((objectStart * 0x10) + 0x10), SeekOrigin.Begin);
-
-                var objectLength = (lines - objectStart);
-
-                for (int n = 0; n < objectLength; n++)
+                for (int n = 0; n < vertexData.Data.Length; n++)
                 {
-                    var vx = geomFile.Reader.ReadSingleBE();
-                    var vy = geomFile.Reader.ReadSingleBE();
-                    var vz = geomFile.Reader.ReadSingleBE();
-                    var uk = geomFile.Reader.ReadUInt32BE();
+                    var vx = geomFile.Reader.ReadSingle();
+                    var vy = geomFile.Reader.ReadSingle();
+                    var vz = geomFile.Reader.ReadSingle();
+                    var vw = geomFile.Reader.ReadUInt32();
 
                     verts.Add(new Vector3d(vx + posX, vy + posY, vz + posZ));
                 }
 
-                geomFile.Stream.Seek(faceOffset, SeekOrigin.Begin);
+                var faceData = geomFile.BlockFaceData[block];
+                string name = block.VertexOffset.ToString("X4");
 
-                for (int n = 0; n < indexChunks && geomFile.Stream.Position < geomFile.Stream.Length; n++)
+                geomFile.Stream.Seek(block.FaceOffset, SeekOrigin.Begin);
+
+                foreach (var face in faceData)
                 {
-                    var noFacesInChunk = geomFile.Reader.ReadByte();
-                    var typeCheck = geomFile.Reader.ReadByte();
-
-                    if (typeCheck != 0)
+                    if (DictionaryFile.Lookup.ContainsKey(face.Name))
                     {
-                        var unknown2 = geomFile.Reader.ReadByte();
-                        var unknown3 = geomFile.Reader.ReadByte();
-
-                        if (unknown3 == 4)
-                        {
-                            geomFile.Stream.Seek(0x3c, SeekOrigin.Current);
-                        }
-                        else
-                        {
-                            var thisOnesLength = geomFile.Reader.ReadUInt32BE();
-                            thisOnesLength = ((thisOnesLength * 0x10) - 0x08);
-                            geomFile.Stream.Seek(thisOnesLength, SeekOrigin.Current);
-                        }
-
-                        continue;
+                        name = DictionaryFile.GetHashString(face.Name);
                     }
 
-                    geomFile.Stream.Seek(0x1e, SeekOrigin.Current);
+                    if (face.GetPrimType() != Geom.Primitive.GEO_POLY)
+                        continue;
 
-                    for (int z = 0; z < noFacesInChunk; z++)
+                    foreach (var poly in face.Poly)
                     {
-                        var fa = geomFile.Reader.ReadByte() + 1;
-                        var fb = geomFile.Reader.ReadByte() + 1;
-                        var fc = geomFile.Reader.ReadByte() + 1;
-                        var fd = geomFile.Reader.ReadByte() + 1;
-                        var extraBit = geomFile.Reader.ReadByte();
+                        var fa = poly.Data[0] + 1;
+                        var fb = poly.Data[1] + 1;
+                        var fc = poly.Data[2] + 1;
+                        var fd = poly.Data[3] + 1;
+                        var extraBit = poly.Data[4];
 
-                        if (extraBit == 170)
-                        {
-                            fa = fa + 512;
-                            fb = fb + 512;
-                            fc = fc + 512;
-                            fd = fd + 512;
-                        }
-                        else if (extraBit == 169)
-                        {
-                            fa = fa + 256;
-                            fb = fb + 512;
-                            fc = fc + 512;
-                            fd = fd + 512;
-                        }
-                        else if (extraBit == 168)
-                        {
-                            fb = fb + 512;
-                            fc = fc + 512;
-                            fd = fd + 512;
-                        }
-                        else if (extraBit == 166)
-                        {
-                            fa = fa + 512;
-                            fb = fb + 256;
-                            fc = fc + 512;
-                            fd = fd + 512;
-                        }
-                        else if (extraBit == 165)
-                        {
-                            fa = fa + 256;
-                            fb = fb + 256;
-                            fc = fc + 512;
-                            fd = fd + 512;
-                        }
-                        else if (extraBit == 162)
-                        {
-                            fa = fa + 512;
-                            fc = fc + 512;
-                            fd = fd + 512;
-                        }
-                        else if (extraBit == 161)
-                        {
-                            fa = fa + 256;
-                            fc = fc + 512;
-                            fd = fd + 512;
-                        }
-                        else if (extraBit == 154)
-                        {
-                            fa = fa + 512;
-                            fb = fb + 512;
-                            fc = fc + 256;
-                            fd = fd + 512;
-                        }
-                        else if (extraBit == 149)
-                        {
-                            fa = fa + 256;
-                            fb = fb + 256;
-                            fc = fc + 256;
-                            fd = fd + 512;
-                        }
-                        else if (extraBit == 150)
-                        {
-                            fa = fa + 512;
-                            fb = fb + 256;
-                            fc = fc + 256;
-                            fd = fd + 512;
-                        }
-                        else if (extraBit == 145)
-                        {
-                            fa = fa + 256;
-                            fc = fc + 256;
-                            fd = fd + 512;
-                        }
-                        else if (extraBit == 106)
-                        {
-                            fa = fa + 512;
-                            fb = fb + 512;
-                            fc = fc + 512;
-                            fd = fd + 256;
-                        }
-                        else if (extraBit == 105)
-                        {
-                            fa = fa + 256;
-                            fb = fb + 512;
-                            fc = fc + 512;
-                            fd = fd + 256;
-                        }
-                        else if (extraBit == 102)
-                        {
-                            fa = fa + 512;
-                            fb = fb + 256;
-                            fc = fc + 512;
-                            fd = fd + 256;
-                        }
-                        else if (extraBit == 101)
-                        {
-                            fa = fa + 256;
-                            fb = fb + 256;
-                            fc = fc + 512;
-                            fd = fd + 256;
-                        }
-                        else if (extraBit == 90)
-                        {
-                            fa = fa + 512;
-                            fb = fb + 512;
-                            fc = fc + 256;
-                            fd = fd + 256;
-                        }
-                        else if (extraBit == 89)
-                        {
-                            fa = fa + 256;
-                            fb = fb + 512;
-                            fc = fc + 256;
-                            fd = fd + 256;
-                        }
-                        else if (extraBit == 86)
-                        {
-                            fa = fa + 512;
-                            fb = fb + 256;
-                            fc = fc + 256;
-                            fd = fd + 256;
-                        }
-                        else if (extraBit == 85)
-                        {
-                            fa = fa + 256;
-                            fb = fb + 256;
-                            fc = fc + 256;
-                            fd = fd + 256;
-                        }
-                        else if (extraBit == 84)
-                        {
-                            fb = fb + 256;
-                            fc = fc + 256;
-                            fd = fd + 256;
-                        }
-                        else if (extraBit == 81)
-                        {
-                            fa = fa + 256;
-                            fc = fc + 256;
-                            fd = fd + 256;
-                        }
-                        else if (extraBit == 80)
-                        {
-                            fc = fc + 256;
-                            fd = fd + 256;
-                        }
-                        else if (extraBit == 69)
-                        {
-                            fa = fa + 256;
-                            fb = fb + 256;
-                            fd = fd + 256;
-                        }
-                        else if (extraBit == 68)
-                        {
-                            fb = fb + 256;
-                            fd = fd + 256;
-                        }
-                        else if (extraBit == 65)
-                        {
-                            fa = fa + 256;
-                            fd = fd + 256;
-                        }
-                        else if (extraBit == 64)
-                        {
-                            fd = fd + 256;
-                        }
-                        else if (extraBit == 41)
-                        {
-                            fa = fa + 256;
-                            fb = fb + 512;
-                            fc = fc + 512;
-                        }
-                        else if (extraBit == 21)
-                        {
-                            fa = fa + 256;
-                            fb = fb + 256;
-                            fc = fc + 256;
-                        }
-                        else if (extraBit == 20)
-                        {
-                            fb = fb + 256;
-                            fc = fc + 256;
-                        }
-                        else if (extraBit == 17)
-                        {
-                            fa = fa + 256;
-                            fc = fc + 256;
-                        }
-                        else if (extraBit == 16)
-                        {
-                            fc = fc + 256;
-                        }
-                        else if (extraBit == 5)
-                        {
-                            fa = fa + 256;
-                            fb = fb + 256;
-                        }
-                        else if (extraBit == 4)
-                        {
-                            fb = fb + 256;
-                        }
-                        else if (extraBit == 1)
-                        {
-                            fa = fa + 256;
-                        }
+                        Utils.FaceBitCalculation(extraBit, ref fa, ref fb, ref fc, ref fd);
 
                         faces.Add(fa - 1);
                         faces.Add(fb - 1);
@@ -763,17 +565,12 @@ namespace Haven.Render
                         faces.Add(fa - 1);
                         faces.Add(fc - 1);
                         faces.Add(fd - 1);
-
-                        geomFile.Stream.Seek(0x3, SeekOrigin.Current);
-                    }
-                    if (noFacesInChunk % 2 == 1)
-                    {
-                        geomFile.Stream.Seek(0x8, SeekOrigin.Current);
                     }
                 }
 
                 Mesh mesh = new Mesh(verts.ToArray(), faces.ToArray());
-                mesh.ID = id != "" ? id : vertexOffset.ToString("X4");
+                mesh.ID = id != "" ? id : name;
+                mesh.SetColor(color, false);
                 meshes.Add(mesh);
                 verts = new List<Vector3d>();
                 faces = new List<int>();
@@ -792,7 +589,7 @@ namespace Haven.Render
         {
             List<Mesh> meshes = new List<Mesh>();
 
-            geomFile.GeomGroups.ForEach(group => meshes.AddRange(GetGeomMeshesFromIndicies(geomFile, geomFile.GeomGroupsIndex[group])));
+            geomFile.GeomGroups.ForEach(group => meshes.AddRange(GetGeomBlockMeshes(geomFile, geomFile.GeomGroupBlocks[group], Color.Gray)));
 
             return meshes;
         }
@@ -802,11 +599,11 @@ namespace Haven.Render
         /// </summary>
         /// <param name="geomFile"></param>
         /// <returns></returns>
-        public static List<Mesh> GetGeomObjectMeshes(GeomFile geomFile)
+        public static List<Mesh> GetGeomRefMeshes(GeomFile geomFile)
         {
             List<Mesh> meshes = new List<Mesh>();
 
-            geomFile.GeomObjects.ForEach(obj => meshes.AddRange(GetGeomMeshesFromIndicies(geomFile, geomFile.GeomObjectsIndex[obj], DictionaryFile.GetHashString(obj.Hash))));
+            geomFile.GeomRefs.ForEach(obj => meshes.AddRange(GetGeomBlockMeshes(geomFile, geomFile.GeomRefBlocks[obj], Color.Gray, DictionaryFile.GetHashString(obj.Hash))));
 
             return meshes;
         }

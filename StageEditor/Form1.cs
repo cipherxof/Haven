@@ -5,6 +5,12 @@ using OpenTK;
 using Haven.Parser;
 using Haven.Render;
 using Haven.Properties;
+using static OpenTK.Graphics.OpenGL.GL;
+using System.Windows.Forms;
+using OpenTK.Input;
+using System.IO;
+using System.Reflection.Metadata;
+using System.Security.Cryptography;
 
 namespace Haven
 {
@@ -13,12 +19,11 @@ namespace Haven
         public Stage? CurrentStage;
         public Scene Scene;
         public GeomFile? Geom;
-
-        List<Mesh> MeshGroups = new List<Mesh>();
-        List<Mesh> MeshObjects = new List<Mesh>();
-        List<Mesh> MeshProps = new List<Mesh>();
-
-        public static Dictionary<GeomProp, Mesh> GeomPropMeshLookup = new Dictionary<GeomProp, Mesh>();
+        public List<Mesh> MeshGroups = new List<Mesh>();
+        public List<Mesh> MeshObjects = new List<Mesh>();
+        public List<Mesh> MeshProps = new List<Mesh>();
+        public List<ContextMenuStrip> ContextMenuStrips = new List<ContextMenuStrip>();
+        public Dictionary<GeomProp, Mesh> GeomPropMeshLookup = new Dictionary<GeomProp, Mesh>();
 
         public MainForm()
         {
@@ -45,13 +50,35 @@ namespace Haven
             if (Geom != null)
             {
                 Geom.CloseStream();
+                Geom.Clear();
             }
+            MeshGroups = new List<Mesh>();
+            MeshObjects = new List<Mesh>();
+            MeshProps = new List<Mesh>();
+            GeomPropMeshLookup = new Dictionary<GeomProp, Mesh>();
             CurrentStage = null;
             Geom = null;
             Scene.Children.Clear();
             treeViewFiles.Nodes.Clear();
             treeViewGeom.Nodes.Clear();
             Mesh.ResetID();
+
+            foreach (var mesh in Mesh.MeshList)
+            {
+                mesh.Delete();
+            }
+
+            Mesh.MeshList.Clear();
+
+            foreach (var item in ContextMenuStrips)
+            {
+                item.ItemClicked -= PropNode_ItemClicked;
+                item.Items.Clear();
+                item.Dispose();
+            }
+
+            ContextMenuData.Clear();
+            ContextMenuStrips = new List<ContextMenuStrip>();
         }
 
         private async Task SetupGeom(string path)
@@ -68,7 +95,7 @@ namespace Haven
                 await Task.Run(() => Geom = new GeomFile(copyPath));
 
                 MeshGroups = await Task.Run(() => Mesh.GetGeomGroupMeshes(Geom));
-                MeshObjects = await Task.Run(() => Mesh.GetGeomObjectMeshes(Geom));
+                MeshObjects = await Task.Run(() => Mesh.GetGeomRefMeshes(Geom));
 
                 await Task.Run(() =>
                 {
@@ -103,6 +130,14 @@ namespace Haven
                 else if (id.Contains("_TGT_01"))
                 {
                     return Resources.ModelKerotan;
+                }
+                else if (id.Contains("_CBOX"))
+                {
+                    return Resources.ModelCBOX;
+                }
+                else if (id.Contains("_DOLL_"))
+                {
+                    return Resources.ModelDoll;
                 }
             }
 
@@ -154,11 +189,15 @@ namespace Haven
             nodeProps.Checked = false;
             nodeObjects.Checked = false;
 
+            MeshGroups = MeshGroups.OrderBy(x => x.ID).ToList();
+
             foreach (var mesh in MeshGroups)
             {
                 var node = nodeMeshes.Nodes.Add(mesh.ID);
                 node.Checked = true;
             }
+
+            MeshObjects = MeshObjects.OrderBy(x => x.ID).ToList();
 
             foreach (var mesh in MeshObjects)
             {
@@ -166,7 +205,9 @@ namespace Haven
                 node.Checked = false;
             }
 
-            foreach (var prop in Geom.GeomProps)
+            var propsList = Geom.GeomProps.OrderBy(x => DictionaryFile.GetHashString(x.Hash)).ToList();
+
+            foreach (var prop in propsList)
             {
                 Mesh? mesh;
 
@@ -182,8 +223,10 @@ namespace Haven
                 ToolStripMenuItem editLabel = new ToolStripMenuItem();
                 editLabel.Text = "Edit";
                 docMenu.ItemClicked += PropNode_ItemClicked;
+                
                 docMenu.Items.AddRange(new ToolStripMenuItem[] { editLabel });
                 node.ContextMenuStrip = docMenu;
+                ContextMenuStrips.Add(docMenu);
 
                 new ContextMenuData(docMenu, node, mesh, prop);
             }
@@ -222,8 +265,18 @@ namespace Haven
                     treeViewGeom.Nodes.Add("Props");
                     treeViewGeom.Nodes.Add("Objects");
 
-                    labelStatus.Text = "Decrypting...";
-                    await CurrentStage.Decrypt();
+                    DialogResult dialogResult = MessageBox.Show("Do you want to decrypt these files?", "Notice", MessageBoxButtons.YesNo);
+
+                    if (dialogResult == DialogResult.Yes)
+                    {
+                        labelStatus.Text = "Decrypting...";
+                        await CurrentStage.Decrypt();
+                    }
+                    else if (dialogResult == DialogResult.No)
+                    {
+                        labelStatus.Text = "Copying...";
+                        await CurrentStage.Copy();
+                    }
 
                     labelStatus.Text = "Unpacking...";
                     await CurrentStage.Unpack();
@@ -235,6 +288,13 @@ namespace Haven
                         await SetupGeom($"stage/{CurrentStage.Geom.Name}.dec");
 
                         PopulateGeomTreeView();
+                    }
+
+                    var centerStage = Mesh.FromID("PRP_STAGE_CENTER");
+
+                    if (centerStage != null)
+                    {
+                        Scene.Camera.Position = new Vector3d(centerStage.TransformedCenter.X, centerStage.TransformedCenter.Y, centerStage.TransformedCenter.Z);
                     }
 
                     SetEnabled(true);
@@ -295,8 +355,7 @@ namespace Haven
                     await CurrentStage.Pack();
 
                     labelStatus.Text = "Saving geom...";
-                    Geom.Save(CurrentStage.Geom.GetLocalPath());
-                    MessageBox.Show(CurrentStage.Geom.GetLocalPath());
+                    Geom?.Save(CurrentStage.Geom.GetLocalPath());
 
                     labelStatus.Text = "Encrypting...";
                     await CurrentStage.Encrypt(fbd.SelectedPath);
@@ -341,7 +400,7 @@ namespace Haven
             Scene = new Scene(glControl);
         }
 
-        private void MainForm_Load(object sender, EventArgs e)
+        private async void MainForm_Load(object sender, EventArgs e)
         {
             tabPageGeom.Show();
             SetEnabled(false);
@@ -473,5 +532,133 @@ namespace Haven
         {
             // todo
         }
+
+        private async void encryptFileToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            using (OpenFileDialog openFileDialog = new OpenFileDialog())
+            {
+                openFileDialog.Filter = "All files (*.*)|*.*";
+                openFileDialog.FilterIndex = 1;
+                openFileDialog.RestoreDirectory = true;
+
+                if (openFileDialog.ShowDialog() == DialogResult.OK)
+                {
+                    var path = openFileDialog.FileName;
+                    var dir = Path.GetDirectoryName(path);
+                    var key = Directory.GetParent(dir).Name + "/" + new DirectoryInfo(dir).Name;
+                    await Utils.EncryptFileAsync(path, key);
+                }
+            }
+        }
+
+        private async void decryptFileToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            using (OpenFileDialog openFileDialog = new OpenFileDialog())
+            {
+                openFileDialog.Filter = "All files (*.*)|*.*";
+                openFileDialog.FilterIndex = 1;
+                openFileDialog.RestoreDirectory = true;
+
+                if (openFileDialog.ShowDialog() == DialogResult.OK)
+                {
+                    var path = openFileDialog.FileName;
+                    var dir = Path.GetDirectoryName(path);
+                    var key = Directory.GetParent(dir).Name + "/" + new DirectoryInfo(dir).Name;
+                    await Utils.DecryptFileAsync(path, key);
+                }
+            }
+        }
+
+        private void mergeToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            var baseFilePath = string.Empty;
+            var mergeFilePath = string.Empty;
+
+            using (OpenFileDialog openFileDialog = new OpenFileDialog())
+            {
+                openFileDialog.Filter = "geom files (*.geom)|*.geom|All files (*.*)|*.*";
+                openFileDialog.FilterIndex = 1;
+                openFileDialog.RestoreDirectory = true;
+
+                if (openFileDialog.ShowDialog() == DialogResult.OK)
+                {
+                    baseFilePath = openFileDialog.FileName;
+                }
+            }
+
+            if (baseFilePath == string.Empty)
+                return;
+
+            using (OpenFileDialog openFileDialog = new OpenFileDialog())
+            {
+                openFileDialog.Filter = "geom files (*.geom)|*.geom|All files (*.*)|*.*";
+                openFileDialog.FilterIndex = 1;
+                openFileDialog.RestoreDirectory = true;
+
+                if (openFileDialog.ShowDialog() == DialogResult.OK)
+                {
+                    mergeFilePath = openFileDialog.FileName;
+                }
+            }
+
+            try
+            {
+                var baseGeom = new GeomFile(baseFilePath);
+                var mergeGeom = new GeomFile(mergeFilePath);
+                baseGeom.Merge(mergeGeom);
+                mergeGeom.CloseStream();
+
+                using (SaveFileDialog saveFileDialog = new SaveFileDialog())
+                {
+                    saveFileDialog.Filter = "geom files (*.geom)|*.geom|All files (*.*)|*.*";
+                    saveFileDialog.FilterIndex = 1;
+                    saveFileDialog.RestoreDirectory = true;
+
+                    if (saveFileDialog.ShowDialog() == DialogResult.OK)
+                    {
+                        baseGeom.Save(saveFileDialog.FileName);
+                    }
+                }
+
+                baseGeom.CloseStream();
+            }
+            catch(Exception exception)
+            {
+                // leaks if failed
+                MessageBox.Show(exception.Message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        private void toolStripMenuItem2_Click(object sender, EventArgs e)
+        {
+            var baseFilePath = string.Empty;
+
+            using (OpenFileDialog openFileDialog = new OpenFileDialog())
+            {
+                openFileDialog.Filter = "geom files (*.geom)|*.geom|All files (*.*)|*.*";
+                openFileDialog.FilterIndex = 2;
+                openFileDialog.RestoreDirectory = true;
+
+                if (openFileDialog.ShowDialog() == DialogResult.OK)
+                {
+                    baseFilePath = openFileDialog.FileName;
+                }
+            }
+
+            using (SaveFileDialog saveFileDialog = new SaveFileDialog())
+            {
+                saveFileDialog.Filter = "geom files (*.geom)|*.geom|All files (*.*)|*.*";
+                saveFileDialog.FilterIndex = 1;
+                saveFileDialog.RestoreDirectory = true;
+
+                if (saveFileDialog.ShowDialog() == DialogResult.OK)
+                {
+                    var baseGeom = new GeomFile(baseFilePath);
+                    baseGeom.Save(saveFileDialog.FileName);
+                    baseGeom.CloseStream();
+                }
+            }
+        }
+
     }
 }

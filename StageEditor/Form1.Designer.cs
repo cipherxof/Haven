@@ -42,6 +42,13 @@
             this.toolStrip1 = new System.Windows.Forms.ToolStrip();
             this.btnLoadStage = new System.Windows.Forms.ToolStripButton();
             this.btnSave = new System.Windows.Forms.ToolStripButton();
+            this.toolStripDropDownButtonTools = new System.Windows.Forms.ToolStripDropDownButton();
+            this.solidEyeToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            this.encryptFileToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            this.decryptFileToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            this.toolStripMenuItem1 = new System.Windows.Forms.ToolStripMenuItem();
+            this.mergeToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            this.toolStripMenuItem2 = new System.Windows.Forms.ToolStripMenuItem();
             this.labelStatus = new System.Windows.Forms.Label();
             this.timerRefresh = new System.Windows.Forms.Timer(this.components);
             this.labelCamPos = new System.Windows.Forms.Label();
@@ -105,7 +112,7 @@
             this.tabPageGeom.Controls.Add(this.glControl);
             this.tabPageGeom.Location = new System.Drawing.Point(4, 24);
             this.tabPageGeom.Name = "tabPageGeom";
-            this.tabPageGeom.Size = new System.Drawing.Size(696, 382);
+            this.tabPageGeom.Size = new System.Drawing.Size(876, 482);
             this.tabPageGeom.TabIndex = 1;
             this.tabPageGeom.Text = "Geom";
             this.tabPageGeom.UseVisualStyleBackColor = true;
@@ -114,7 +121,7 @@
             // 
             this.btnExportMesh.Location = new System.Drawing.Point(8, 11);
             this.btnExportMesh.Name = "btnExportMesh";
-            this.btnExportMesh.Size = new System.Drawing.Size(177, 23);
+            this.btnExportMesh.Size = new System.Drawing.Size(208, 23);
             this.btnExportMesh.TabIndex = 9;
             this.btnExportMesh.Text = "Export Model";
             this.btnExportMesh.UseVisualStyleBackColor = true;
@@ -126,7 +133,7 @@
             this.tbSpawnsFilter.Location = new System.Drawing.Point(8, 40);
             this.tbSpawnsFilter.Name = "tbSpawnsFilter";
             this.tbSpawnsFilter.PlaceholderText = "Search...";
-            this.tbSpawnsFilter.Size = new System.Drawing.Size(177, 23);
+            this.tbSpawnsFilter.Size = new System.Drawing.Size(208, 23);
             this.tbSpawnsFilter.TabIndex = 8;
             this.tbSpawnsFilter.TextChanged += new System.EventHandler(this.tbSpawnsFilter_TextChanged);
             // 
@@ -136,7 +143,7 @@
             | System.Windows.Forms.AnchorStyles.Left)));
             this.treeViewGeom.Location = new System.Drawing.Point(8, 69);
             this.treeViewGeom.Name = "treeViewGeom";
-            this.treeViewGeom.Size = new System.Drawing.Size(177, 310);
+            this.treeViewGeom.Size = new System.Drawing.Size(208, 410);
             this.treeViewGeom.TabIndex = 6;
             this.treeViewGeom.AfterCheck += new System.Windows.Forms.TreeViewEventHandler(this.treeViewGeom_AfterCheck);
             this.treeViewGeom.AfterSelect += new System.Windows.Forms.TreeViewEventHandler(this.treeViewGeom_AfterSelect);
@@ -148,10 +155,10 @@
             | System.Windows.Forms.AnchorStyles.Left) 
             | System.Windows.Forms.AnchorStyles.Right)));
             this.glControl.BackColor = System.Drawing.Color.Black;
-            this.glControl.Location = new System.Drawing.Point(192, 11);
+            this.glControl.Location = new System.Drawing.Point(223, 11);
             this.glControl.Margin = new System.Windows.Forms.Padding(4, 3, 4, 3);
             this.glControl.Name = "glControl";
-            this.glControl.Size = new System.Drawing.Size(500, 368);
+            this.glControl.Size = new System.Drawing.Size(644, 468);
             this.glControl.TabIndex = 2;
             this.glControl.VSync = true;
             this.glControl.Load += new System.EventHandler(this.glControl_Load);
@@ -160,7 +167,8 @@
             // 
             this.toolStrip1.Items.AddRange(new System.Windows.Forms.ToolStripItem[] {
             this.btnLoadStage,
-            this.btnSave});
+            this.btnSave,
+            this.toolStripDropDownButtonTools});
             this.toolStrip1.Location = new System.Drawing.Point(0, 0);
             this.toolStrip1.Name = "toolStrip1";
             this.toolStrip1.Size = new System.Drawing.Size(884, 25);
@@ -169,24 +177,80 @@
             // 
             // btnLoadStage
             // 
-            this.btnLoadStage.DisplayStyle = System.Windows.Forms.ToolStripItemDisplayStyle.Image;
+            this.btnLoadStage.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
             this.btnLoadStage.Image = ((System.Drawing.Image)(resources.GetObject("btnLoadStage.Image")));
             this.btnLoadStage.ImageTransparentColor = System.Drawing.Color.Magenta;
             this.btnLoadStage.Name = "btnLoadStage";
-            this.btnLoadStage.Size = new System.Drawing.Size(23, 22);
-            this.btnLoadStage.Text = "Load Stage";
+            this.btnLoadStage.Size = new System.Drawing.Size(53, 22);
+            this.btnLoadStage.Text = "Load";
             this.btnLoadStage.Click += new System.EventHandler(this.btnLoadStage_Click);
             // 
             // btnSave
             // 
-            this.btnSave.DisplayStyle = System.Windows.Forms.ToolStripItemDisplayStyle.Image;
             this.btnSave.Enabled = false;
             this.btnSave.Image = ((System.Drawing.Image)(resources.GetObject("btnSave.Image")));
             this.btnSave.ImageTransparentColor = System.Drawing.Color.Magenta;
             this.btnSave.Name = "btnSave";
-            this.btnSave.Size = new System.Drawing.Size(23, 22);
-            this.btnSave.Text = "Save Stage";
+            this.btnSave.Size = new System.Drawing.Size(65, 22);
+            this.btnSave.Text = "Save as";
             this.btnSave.Click += new System.EventHandler(this.btnSave_Click);
+            // 
+            // toolStripDropDownButtonTools
+            // 
+            this.toolStripDropDownButtonTools.DropDownItems.AddRange(new System.Windows.Forms.ToolStripItem[] {
+            this.solidEyeToolStripMenuItem,
+            this.toolStripMenuItem1});
+            this.toolStripDropDownButtonTools.Image = ((System.Drawing.Image)(resources.GetObject("toolStripDropDownButtonTools.Image")));
+            this.toolStripDropDownButtonTools.ImageTransparentColor = System.Drawing.Color.Magenta;
+            this.toolStripDropDownButtonTools.Name = "toolStripDropDownButtonTools";
+            this.toolStripDropDownButtonTools.Size = new System.Drawing.Size(63, 22);
+            this.toolStripDropDownButtonTools.Text = "Tools";
+            // 
+            // solidEyeToolStripMenuItem
+            // 
+            this.solidEyeToolStripMenuItem.DropDownItems.AddRange(new System.Windows.Forms.ToolStripItem[] {
+            this.encryptFileToolStripMenuItem,
+            this.decryptFileToolStripMenuItem});
+            this.solidEyeToolStripMenuItem.Name = "solidEyeToolStripMenuItem";
+            this.solidEyeToolStripMenuItem.Size = new System.Drawing.Size(118, 22);
+            this.solidEyeToolStripMenuItem.Text = "SolidEye";
+            // 
+            // encryptFileToolStripMenuItem
+            // 
+            this.encryptFileToolStripMenuItem.Name = "encryptFileToolStripMenuItem";
+            this.encryptFileToolStripMenuItem.Size = new System.Drawing.Size(136, 22);
+            this.encryptFileToolStripMenuItem.Text = "Encrypt File";
+            this.encryptFileToolStripMenuItem.Click += new System.EventHandler(this.encryptFileToolStripMenuItem_Click);
+            // 
+            // decryptFileToolStripMenuItem
+            // 
+            this.decryptFileToolStripMenuItem.Name = "decryptFileToolStripMenuItem";
+            this.decryptFileToolStripMenuItem.Size = new System.Drawing.Size(136, 22);
+            this.decryptFileToolStripMenuItem.Text = "Decrypt File";
+            this.decryptFileToolStripMenuItem.Click += new System.EventHandler(this.decryptFileToolStripMenuItem_Click);
+            // 
+            // toolStripMenuItem1
+            // 
+            this.toolStripMenuItem1.DropDownItems.AddRange(new System.Windows.Forms.ToolStripItem[] {
+            this.mergeToolStripMenuItem,
+            this.toolStripMenuItem2});
+            this.toolStripMenuItem1.Name = "toolStripMenuItem1";
+            this.toolStripMenuItem1.Size = new System.Drawing.Size(118, 22);
+            this.toolStripMenuItem1.Text = "Geom";
+            // 
+            // mergeToolStripMenuItem
+            // 
+            this.mergeToolStripMenuItem.Name = "mergeToolStripMenuItem";
+            this.mergeToolStripMenuItem.Size = new System.Drawing.Size(141, 22);
+            this.mergeToolStripMenuItem.Text = "Merge";
+            this.mergeToolStripMenuItem.Click += new System.EventHandler(this.mergeToolStripMenuItem_Click);
+            // 
+            // toolStripMenuItem2
+            // 
+            this.toolStripMenuItem2.Name = "toolStripMenuItem2";
+            this.toolStripMenuItem2.Size = new System.Drawing.Size(141, 22);
+            this.toolStripMenuItem2.Text = "Endian Swap";
+            this.toolStripMenuItem2.Click += new System.EventHandler(this.toolStripMenuItem2_Click);
             // 
             // labelStatus
             // 
@@ -208,7 +272,7 @@
             this.labelCamPos.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left) 
             | System.Windows.Forms.AnchorStyles.Right)));
             this.labelCamPos.AutoSize = true;
-            this.labelCamPos.Location = new System.Drawing.Point(196, 541);
+            this.labelCamPos.Location = new System.Drawing.Point(224, 541);
             this.labelCamPos.Name = "labelCamPos";
             this.labelCamPos.RightToLeft = System.Windows.Forms.RightToLeft.No;
             this.labelCamPos.Size = new System.Drawing.Size(0, 15);
@@ -257,5 +321,12 @@
         private TextBox tbSpawnsFilter;
         private Label labelCamPos;
         private Button btnExportMesh;
+        private ToolStripDropDownButton toolStripDropDownButtonTools;
+        private ToolStripMenuItem solidEyeToolStripMenuItem;
+        private ToolStripMenuItem encryptFileToolStripMenuItem;
+        private ToolStripMenuItem decryptFileToolStripMenuItem;
+        private ToolStripMenuItem toolStripMenuItem1;
+        private ToolStripMenuItem mergeToolStripMenuItem;
+        private ToolStripMenuItem toolStripMenuItem2;
     }
 }

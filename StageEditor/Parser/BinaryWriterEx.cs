@@ -6,46 +6,52 @@ using System.Threading.Tasks;
 
 class BinaryWriterEx : BinaryWriter
 {
-    public BinaryWriterEx(Stream stream) : base(stream) { }
+    public bool BigEndian;
 
-    public void WriteInt32BE(int value)
+    public BinaryWriterEx(Stream stream, bool bigEndian = false) : base(stream) 
+    {
+        BigEndian = bigEndian;
+    }
+
+    public override void Write(int value)
     {
         byte[] bytes = BitConverter.GetBytes(value);
-        Array.Reverse(bytes);
+        if (BigEndian) Array.Reverse(bytes);
         base.Write(BitConverter.ToInt32(bytes, 0));
     }
 
-    public void WriteUInt16BE(UInt16 value)
+    public override void Write(short value)
     {
         byte[] bytes = BitConverter.GetBytes(value);
-        Array.Reverse(bytes);
+        if (BigEndian) Array.Reverse(bytes);
+        base.Write(BitConverter.ToInt16(bytes, 0));
+    }
+
+    public override void Write(ushort value)
+    {
+        byte[] bytes = BitConverter.GetBytes(value);
+        if (BigEndian) Array.Reverse(bytes);
         base.Write(BitConverter.ToUInt16(bytes, 0));
     }
 
-    public void WriteUInt32BE(UInt32 value)
+    public override void Write(uint value)
     {
         byte[] bytes = BitConverter.GetBytes(value);
-        Array.Reverse(bytes);
+        if (BigEndian) Array.Reverse(bytes);
         base.Write(BitConverter.ToUInt32(bytes, 0));
     }
 
-    public void WriteUInt64BE(UInt64 value)
+    public override void Write(ulong value)
     {
         byte[] bytes = BitConverter.GetBytes(value);
-        Array.Reverse(bytes);
+        if (BigEndian) Array.Reverse(bytes);
         base.Write(BitConverter.ToUInt64(bytes, 0));
     }
 
-    public void WriteSingleBE(float value)
+    public override void Write(float value)
     {
         byte[] bytes = BitConverter.GetBytes(value);
-        Array.Reverse(bytes);
+        if (BigEndian) Array.Reverse(bytes);
         base.Write(BitConverter.ToSingle(bytes, 0));
-    }
-
-    public void WriteBytes(byte[] bytes)
-    {
-        Array.Reverse(bytes);
-        base.Write(bytes);
     }
 }

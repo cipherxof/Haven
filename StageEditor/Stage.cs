@@ -54,6 +54,24 @@ namespace Haven
         }
 
         /// <summary>
+        /// Copies all of the files in the stage.
+        /// </summary>
+        /// <returns></returns>
+        public async Task Copy()
+        {
+            List<Task> tasks = new List<Task>();
+
+            Parallel.ForEach(Files, file => {
+                var destFile = $"stage\\{file.Name}.dec";
+                if (File.Exists(destFile))
+                    File.Delete(destFile);
+                File.Copy(file.SourceFile, destFile);
+            });
+
+            await Task.WhenAll(tasks);
+        }
+
+        /// <summary>
         /// Encrypts all of the files in the stage.
         /// </summary>
         /// <param name="output"></param>

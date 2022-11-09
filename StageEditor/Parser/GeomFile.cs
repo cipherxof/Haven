@@ -3,16 +3,13 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
-using System.Text;
-using System.Threading.Tasks;
 using System.Diagnostics;
-using System.Drawing;
+using Haven.Parser.Geom;
 using static System.Windows.Forms.VisualStyles.VisualStyleElement.ProgressBar;
-using System.Security.Policy;
 
 namespace Haven.Parser
 {
-    public enum ChunkType
+    public enum GeoChunkType
     {
         TYPE_0 = 0,
         TYPE_1 = 1,
@@ -22,91 +19,34 @@ namespace Haven.Parser
     }
 
     [StructLayout(LayoutKind.Sequential)]
-    public struct Geom
+    public class GeomUnknown5 // TYPE_5
     {
-        public GeomHeader Header;
+        int Field000;
+        int EntriesCount;
+        int Field008;
+        int Field00C;
+        int Field010;
+        int Field014;
+        int Field018;
+        int Field01C;
+        GeomUnknownEntries[] Entries;
     }
 
     [StructLayout(LayoutKind.Sequential)]
-    public struct GeomHeader
+    public class GeomUnknownEntries // TYPE_5
     {
-        public uint Version;
-        public uint FileSize;
-        public int ChunkCount;
-        public int Pad;
-        public float X;
-        public float Y;
-        public float Z;
-        public float Trans;
-        public GeomChunk[] Chunks;
+        float Field000;
+        float Field004;
+        float Field008;
+        float Field00C;
+        int Field010;
+        int Field014;
+        int Field018;
+        float Field01C;
     }
 
     [StructLayout(LayoutKind.Sequential)]
-    public struct GeomChunk
-    {
-        public ushort Type;
-        public ushort Pad;
-        public int Size;
-        public int DataOffset;
-    }
-
-    [StructLayout(LayoutKind.Sequential)]
-    public class GeomGroup
-    {
-        public float BaseX;
-        public float BaseY;
-        public float BaseZ;
-        public int MaterialOffset;
-        public float MaxX;
-        public float MaxY;
-        public float MaxZ;
-        public int HeadSize;
-        public int Field024;
-        public int Field028;
-        public int Field02C;
-        public int TotalSize;
-        public int Flag;
-        public int Field038;
-        public int Field03C;
-        public int DataOffset;
-        public int IndexOffset;
-    }
-
-    [StructLayout(LayoutKind.Sequential)]
-    public class GeomObject
-    {
-        public float Field000;
-        public float Field004;
-        public float Field008;
-        public uint Type;
-        public float Field010;
-        public float Field014;
-        public float Field018;
-        public uint Pad;
-
-        [MarshalAs(UnmanagedType.ByValArray, SizeConst = 0x40)]
-        public byte[] Field020;
-
-        public uint Field03C;
-        public uint Field040;
-        public int IndexOffset;
-        public uint Hash;
-    }
-
-    [StructLayout(LayoutKind.Sequential)]
-    public class GeomIndex
-    {
-        public byte Type;
-        public byte Chunks;
-        public ushort Size;
-        public ushort Lines;
-        public ushort Pad;
-        public uint Field010;
-        public uint VertexOffset;
-        public uint FaceOffset;
-    }
-
-    public class GeomProp
+    public class GeomProp // GEO_EFFECT
     {
         public int Size;
         public int Flag;
@@ -134,68 +74,66 @@ namespace Haven.Parser
         }
     }
 
+    public class GeomRefRegionLink
+    {
+        public uint[] Offsets = new uint[0x1C];
+    }
+
     public class GeomFile
     {
         public readonly Stream Stream;
         public readonly BinaryReaderEx Reader;
-        public readonly Geom Geom;
-        public readonly List<GeomGroup> GeomGroups = new List<GeomGroup>();
-        public readonly List<GeomObject> GeomObjects = new List<GeomObject>();
+        public readonly GeoDef Header;
+
+        public readonly List<GeoGroup> GeomGroups = new List<GeoGroup>();
+        public readonly List<GeoRef> GeomRefs = new List<GeoRef>();
         public readonly List<GeomProp> GeomProps = new List<GeomProp>();
         public readonly List<GeomPropGroup> GeomPropGroups = new List<GeomPropGroup>();
-        public readonly Dictionary<GeomGroup, List<GeomIndex>> GeomGroupsIndex = new Dictionary<GeomGroup, List<GeomIndex>>();
-        public readonly Dictionary<GeomObject, List<GeomIndex>> GeomObjectsIndex = new Dictionary<GeomObject, List<GeomIndex>>();
+        public readonly List<GeoBlock> GeomBlocks = new List<GeoBlock>();
+
+        // yikes
+        public readonly Dictionary<GeoGroup, List<GeoBlock>> GeomGroupBlocks = new Dictionary<GeoGroup, List<GeoBlock>>();
+        public readonly Dictionary<GeoGroup, GeoMaterialHeader> GroupMaterialData = new Dictionary<GeoGroup, GeoMaterialHeader>();
+        public readonly Dictionary<GeoGroup, List<GeoRadix>> GroupRadixData = new Dictionary<GeoGroup, List<GeoRadix>>();
+        public readonly Dictionary<GeoBlock, GeoMaterialHeader> GeomRefBlockMaterial = new Dictionary<GeoBlock, GeoMaterialHeader>();
+        public readonly Dictionary<GeoBlock, List<Geom.Geom>> BlockFaceData = new Dictionary<GeoBlock, List<Geom.Geom>>();
+        public readonly Dictionary<GeoBlock, GeoVertexHeader> BlockVertexData = new Dictionary<GeoBlock, GeoVertexHeader>();
+        public readonly Dictionary<GeoRef, List<GeoBlock>> GeomRefBlocks = new Dictionary<GeoRef, List<GeoBlock>>();
+        
+        private GeomRefRegionLink GeomRefRegionLinks = new GeomRefRegionLink();
+
+        // temp
+        public List<GeoBlock> GeomBlocksUnk = new List<GeoBlock>();
+        public byte[] GeomChunk5 = new byte[0];
+        public byte[] GeomChunk7 = new byte[0];
+        public uint UnkHash = 0;
 
         public GeomFile(string path)
         {
-            Geom = new Geom();
             Stream = new FileStream(path, FileMode.Open, FileAccess.Read);
-            Reader = new BinaryReaderEx(Stream);
+            Reader = new BinaryReaderEx(Stream, IsBigEndian());
+            Header = new GeoDef(Reader);
 
-            Geom.Header.Version = Reader.ReadUInt32BE();
-
-            if (Geom.Header.Version != 0x0BF68BFE)
-                throw new Exception("Invalid geom version! This can happen if the geom failed to decrypt, please ensure it's in the proper folder hierarchy.");
-
-            Geom.Header.FileSize = Reader.ReadUInt32BE();
-            Geom.Header.ChunkCount = Reader.ReadInt32BE();
-            Geom.Header.Pad = Reader.ReadInt32BE();
-            Geom.Header.X = Reader.ReadSingleBE();
-            Geom.Header.Y = Reader.ReadSingleBE();
-            Geom.Header.Z = Reader.ReadSingleBE();
-            Geom.Header.Trans = Reader.ReadSingleBE();
-
-            Geom.Header.Chunks = new GeomChunk[Geom.Header.ChunkCount];
-
-            for (int i = 0; i < Geom.Header.ChunkCount; i++)
-            {
-                GeomChunk chunk = Geom.Header.Chunks[i];
-                chunk.Type = Reader.ReadUInt16BE();
-                chunk.Pad = Reader.ReadUInt16BE();
-                chunk.Size = Reader.ReadInt32BE();
-                chunk.DataOffset = Reader.ReadInt32BE();
-                Geom.Header.Chunks[i] = chunk;
-            }
-
-            for (int i = 0; i < Geom.Header.ChunkCount - 1; i++)
-            {
-                GeomChunk chunk = Geom.Header.Chunks[i];
-                GeomChunk nextChunk = Geom.Header.Chunks[i + 1];
-                
-                var newSize = nextChunk.DataOffset - chunk.DataOffset;
-
-                if (newSize > chunk.Size)
-                {
-                    Geom.Header.Chunks[i].Size = newSize;
-                }
-            }
-
-            Stream.Seek(36, SeekOrigin.Current);
+            Stream.Seek(0x8, SeekOrigin.Current);
+            UnkHash = Reader.ReadUInt32();
+            Stream.Seek(0x18, SeekOrigin.Current);
 
             LoadGroups();
-            WriteDebugFile();
             LoadProps();
             LoadObjects();
+            LoadChunk5();
+            LoadChunk7();
+        }
+
+        public bool IsBigEndian()
+        {
+            var pos = Stream.Position;
+            Stream.Seek(0, SeekOrigin.Begin);
+            byte[] magic = new byte[4];
+            Stream.Read(magic, 0, 4);
+            var bigEndian = magic[0] == 0x0B && magic[1] == 0xF6 && magic[2] == 0x8B;
+            Stream.Seek(pos, SeekOrigin.Begin);
+            return bigEndian;
         }
 
         public void CloseStream()
@@ -204,59 +142,68 @@ namespace Haven.Parser
             Stream.Close();
         }
 
-        public GeomChunk? GetChunkFromType(ChunkType type)
+        public void Clear()
         {
-            for (int i = 0; i < Geom.Header.ChunkCount; i++)
-            {
-                if (Geom.Header.Chunks[i].Type == (ushort)type)
-                {
-                    return Geom.Header.Chunks[i];
-                }
-            }
-
-            return null;
+            GeomGroups.Clear();
+            GeomRefs.Clear();
+            GeomProps.Clear();
+            GeomPropGroups.Clear();
+            GeomBlocks.Clear();
+            GeomGroupBlocks.Clear();
+            GeomRefBlocks.Clear();
+            GeomRefBlockMaterial.Clear();
+            BlockFaceData.Clear();
+            BlockVertexData.Clear();
+            GroupMaterialData.Clear();
+            GroupRadixData.Clear();
         }
 
-        private GeomIndex ReadIndex()
+        public GeoChunk? GetChunkFromType(GeoChunkType type)
         {
-            GeomIndex index = new GeomIndex();
-            index.Type = Reader.ReadByte();
-            index.Chunks = Reader.ReadByte();
-            index.Size = Reader.ReadUInt16BE();
-            index.Lines = Reader.ReadUInt16BE();
-            index.Pad = Reader.ReadUInt16BE();
-            index.Field010 = Reader.ReadUInt32BE();
-            index.VertexOffset = Reader.ReadUInt32BE();
-            index.FaceOffset = Reader.ReadUInt32BE();
-            return index;
+            return Header.Chunks.Find(c => c.Type == (ushort)type);
+        }
+
+        private GeoBlock? FindBlockFromOffsets(List<GeoBlock> list, int vertexOffset, int faceOffset)
+        {
+            return list.Find(block => block.VertexOffset == vertexOffset && block.FaceOffset == faceOffset);
+        }
+
+        private void ReadBlockData(GeoBlock block)
+        {
+            Stream.Seek(block.FaceOffset, SeekOrigin.Begin);
+
+            BlockFaceData[block] = new List<Geom.Geom>();
+
+            for (int n = 0; n < block.GeomCount; n++)
+            {
+                var face = new Geom.Geom(Reader);
+
+                BlockFaceData[block].Add(face);
+            }
+
+            if (block.VertexOffset > 0)
+            {
+                if (block.VertexOffset > Stream.Length)
+                {
+                    Debug.WriteLine("Invalid VertexOffset! {0:X}", block.VertexOffset);
+                    return;
+                }
+
+                Stream.Seek(block.VertexOffset, SeekOrigin.Begin);
+
+                var vert = new GeoVertexHeader(Reader);
+                BlockVertexData[block] = vert;
+            }
         }
 
         private void LoadGroups()
         {
             while (true)
             {
-                GeomGroup group = new GeomGroup();
-
-                group.BaseX = Reader.ReadSingleBE();
-                group.BaseY = Reader.ReadSingleBE();
-                group.BaseZ = Reader.ReadSingleBE();
-                group.MaterialOffset = Reader.ReadInt32BE();
-                group.MaxX = Reader.ReadSingleBE();
-                group.MaxY = Reader.ReadSingleBE();
-                group.MaxZ = Reader.ReadSingleBE();
-                group.HeadSize = Reader.ReadInt32BE();
-                group.Field024 = Reader.ReadInt32BE();
-                group.Field028 = Reader.ReadInt32BE();
-                group.Field02C = Reader.ReadInt32BE();
-                group.TotalSize = Reader.ReadInt32BE();
-                group.Flag = Reader.ReadInt32BE();
-                group.Field038 = Reader.ReadInt16BE();
-                group.Field03C = Reader.ReadInt16BE();
-                group.DataOffset = Reader.ReadInt32BE();
-                group.IndexOffset = Reader.ReadInt32BE();
+                GeoGroup group = new GeoGroup(Reader);
 
                 GeomGroups.Add(group);
-                GeomGroupsIndex[group] = new List<GeomIndex>();
+                GeomGroupBlocks[group] = new List<GeoBlock>();
 
                 if (group.Flag == 1)
                     break;
@@ -264,41 +211,87 @@ namespace Haven.Parser
 
             for (int i = 0; i < GeomGroups.Count; i++)
             {
-                GeomGroup group = GeomGroups[i];
+                GeoGroup group = GeomGroups[i];
 
-                int indexLength = group.IndexOffset - group.DataOffset;
-                indexLength = group.TotalSize - indexLength;
+                Stream.Seek(group.DataOffset, SeekOrigin.Begin);
+                GroupRadixData[group] = ReadRadix(group);
+
+                int indexLength = group.BlockOffset - group.DataOffset;
+                indexLength = group.HeadSize - indexLength;
                 indexLength = indexLength / 16;
                 indexLength = indexLength / 2;
 
-                Stream.Seek(group.IndexOffset, SeekOrigin.Begin);
+                Stream.Seek(group.BlockOffset, SeekOrigin.Begin);
 
                 for (int y = 0; y < indexLength; y++)
                 {
                     var pos = Stream.Position;
 
-                    GeomIndex index = ReadIndex();
-                    GeomGroupsIndex[group].Add(index);
+                    GeoBlock block = new GeoBlock(Reader);
+                    GeomGroupBlocks[group].Add(block);
+                    GeomBlocks.Add(block);
+                    ReadBlockData(block);
 
                     Stream.Seek(pos + 0x20, SeekOrigin.Begin);
+                }
+
+                if (group.MaterialOffset > 0)
+                {
+                    Stream.Seek(group.MaterialOffset, SeekOrigin.Begin);
+
+                    GroupMaterialData[group] = new GeoMaterialHeader(Reader);
                 }
             }
         }
 
-        private void LoadPropEntry(GeomChunk chunk, long offset, int entrySize, GeomPropGroup group)
+        private void LoadChunk5()
         {
+            GeoChunk? chunk = GetChunkFromType(GeoChunkType.TYPE_5);
+            GeomChunk5 = new byte[0];
+
+            if (chunk == null)
+                return;
+
+            Stream.Seek(chunk.DataOffset, SeekOrigin.Begin);
+            GeomChunk5 = Reader.ReadBytes(chunk.Size);
+        }
+
+        private void LoadChunk7()
+        {
+            GeoChunk? chunk = GetChunkFromType(GeoChunkType.TYPE_7);
+            GeomChunk7 = new byte[0];
+
+            if (chunk == null)
+                return;
+
+            Stream.Seek(chunk.DataOffset, SeekOrigin.Begin);
+            GeomChunk7 = Reader.ReadBytes((int)(Stream.Length - Stream.Position));
+            chunk.Size = GeomChunk7.Length;
+        }
+
+        private void LoadPropEntry(GeoChunk chunk, long offset, int entrySize, GeomPropGroup group)
+        {
+            if (offset > chunk.DataOffset + chunk.Size) return;
+
             Stream.Seek(offset, SeekOrigin.Begin);
 
             while (Stream.Position < chunk.DataOffset + chunk.Size && Stream.Position < offset + entrySize)
             {
                 var prop = new GeomProp();
-                prop.Size = Reader.ReadInt32BE();
-                prop.Flag = Reader.ReadInt32BE();
-                prop.Hash = Reader.ReadUInt32BE();
-                prop.Field00C = Reader.ReadUInt16BE();
+                prop.Size = Reader.ReadInt32();
+                prop.Flag = Reader.ReadInt32();
+                prop.Hash = Reader.ReadUInt32();
+                prop.Field00C = Reader.ReadUInt16();
                 prop.Field010 = Reader.ReadByte();
                 prop.Field014 = Reader.ReadByte();
                 prop.Data = new byte[0];
+
+                if (Stream.Position >= chunk.DataOffset + chunk.Size)
+                {
+                    group.Children.Add(prop);
+                    GeomProps.Add(prop);
+                    break;
+                }
 
                 if (prop.Flag > 0)
                 {
@@ -306,7 +299,6 @@ namespace Haven.Parser
                     GeomPropGroups.Add(group);
                     GeomProps.Add(prop);
 
-                    //Debug.WriteLine($"GROUP {DictionaryFile.GetHashString(prop.Hash)} {prop.Size}");
                     LoadPropEntry(chunk, Stream.Position, prop.Size, newPropGroup);
 
                     continue;
@@ -316,21 +308,19 @@ namespace Haven.Parser
                 {
                     var bytesRemaining = entrySize <= 0 ? 0x10 : (int)(entrySize - ((Stream.Position - offset) + 0x10));
 
-                    //Debug.WriteLine($"{DictionaryFile.GetHashString(prop.Hash)} {bytesRemaining}");
-
                     if (bytesRemaining < 0 || bytesRemaining + Stream.Position > chunk.DataOffset + chunk.Size)
                     {
                         group.Children.Add(prop);
                         GeomProps.Add(prop);
-                        return;
+                        break;
                     }
 
                     if (bytesRemaining >= 0x10)
                     {
-                        prop.X = Reader.ReadSingleBE();
-                        prop.Z = Reader.ReadSingleBE();
-                        prop.Y = Reader.ReadSingleBE();
-                        prop.W = Reader.ReadSingleBE();
+                        prop.X = Reader.ReadSingle();
+                        prop.Z = Reader.ReadSingle();
+                        prop.Y = Reader.ReadSingle();
+                        prop.W = Reader.ReadSingle();
 
                         bytesRemaining -= 0x10;
                     }
@@ -342,10 +332,10 @@ namespace Haven.Parser
                 }
                 else if (prop.Size >= 0x20)
                 {
-                    prop.X = Reader.ReadSingleBE();
-                    prop.Z = Reader.ReadSingleBE();
-                    prop.Y = Reader.ReadSingleBE();
-                    prop.W = Reader.ReadSingleBE();
+                    prop.X = Reader.ReadSingle();
+                    prop.Z = Reader.ReadSingle();
+                    prop.Y = Reader.ReadSingle();
+                    prop.W = Reader.ReadSingle();
                     prop.Data = Reader.ReadBytes(prop.Size - 0x20);
                 }
                 else if (prop.Size - 0x10 > 0)
@@ -355,19 +345,15 @@ namespace Haven.Parser
 
                 group.Children.Add(prop);
                 GeomProps.Add(prop);
-
-                //Debug.WriteLine($"{DictionaryFile.GetHashString(prop.Hash)} {prop.X} {prop.Y} {prop.Z} {prop.Size}");
             }
         }
 
         private void LoadProps()
         {
-            var chunkData = GetChunkFromType(ChunkType.TYPE_6);
+            GeoChunk? chunk = GetChunkFromType(GeoChunkType.TYPE_6);
 
-            if (chunkData == null)
+            if (chunk == null)
                 return;
-
-            GeomChunk chunk = chunkData.Value;
 
             GeomPropGroup root = new GeomPropGroup(0, 0);
             GeomPropGroups.Add(root);
@@ -376,52 +362,78 @@ namespace Haven.Parser
 
         private void LoadObjects()
         {
-            var chunkData = GetChunkFromType(ChunkType.TYPE_1);
+            GeoChunk? chunk = GetChunkFromType(GeoChunkType.TYPE_1);
 
-            if (chunkData == null)
+            if (chunk == null)
                 return;
-
-            GeomChunk chunk = chunkData.Value;
 
             Stream.Seek(chunk.DataOffset, SeekOrigin.Begin);
 
-            var strSize = Marshal.SizeOf(typeof(GeomObject));
+            int geoRefSize = 0x70;
 
-            while (Stream.Position < chunk.DataOffset + chunk.Size + strSize)
+            while (Stream.Position < chunk.DataOffset + chunk.Size + geoRefSize)
             {
-                GeomObject obj = new GeomObject();
+                GeoRef obj = new GeoRef(Reader);
 
-                obj.Field000 = Reader.ReadSingleBE();
-                obj.Field004 = Reader.ReadSingleBE();
-                obj.Field008 = Reader.ReadSingleBE();
-                obj.Type = Reader.ReadUInt32BE();
-
-                if (obj.Type == 0)
+                if (obj.BlockCount == 0)
                     break;
 
-                obj.Field010 = Reader.ReadSingleBE();
-                obj.Field014 = Reader.ReadSingleBE();
-                obj.Field018 = Reader.ReadSingleBE();
-                obj.Pad = Reader.ReadUInt32BE();
-                obj.Field020 = Reader.ReadBytes(0x40);
-                obj.Field03C = Reader.ReadUInt32BE();
-                obj.Field040 = Reader.ReadUInt32BE();
-                obj.IndexOffset = Reader.ReadInt32BE();
-                obj.Hash = Reader.ReadUInt32BE();
-
-                GeomObjects.Add(obj);
-                GeomObjectsIndex[obj] = new List<GeomIndex>();
+                GeomRefs.Add(obj);
+                GeomRefBlocks[obj] = new List<GeoBlock>();
             }
 
-            for (int i = 0; i < GeomObjects.Count; i++)
+            Stream.Seek(-0x70, SeekOrigin.Current);
+
+            // region link
+            for (int i = 0; i < GeomRefRegionLinks.Offsets.Length; i++)
             {
-                GeomObject obj = GeomObjects[i];
+                GeomRefRegionLinks.Offsets[i] = Reader.ReadUInt32();
+            }
 
-                Stream.Seek(obj.IndexOffset, SeekOrigin.Begin);
+            List<GeoBlock> ObjectBlocks = new List<GeoBlock>();
 
-                GeomIndex index = ReadIndex();
+            for (int i = 0; i < GeomRefs.Count; i++)
+            {
+                GeoRef obj = GeomRefs[i];
 
-                GeomObjectsIndex[obj].Add(index);
+                Stream.Seek(obj.BlockOffset, SeekOrigin.Begin);
+
+                for (int n = 0; n < obj.BlockCount; n++)
+                {
+                    GeoBlock block = new GeoBlock(Reader);
+
+                    if (block.Flag != 0x10)
+                    {
+                        var mats = new GeoMaterialHeader(Reader);
+                        GeomRefBlockMaterial[block] = mats;
+                    }
+
+                    GeomBlocks.Add(block);
+                    ObjectBlocks.Add(block);
+                    GeomRefBlocks[obj].Add(block);
+
+                }
+
+                foreach (var block in ObjectBlocks)
+                {
+                    ReadBlockData(block);
+                }
+            }
+
+            GeomBlocksUnk = new List<GeoBlock>();
+
+            for (int i = 0; i < GeomRefRegionLinks.Offsets.Length; i++)
+            {
+                var offset = GeomRefRegionLinks.Offsets[i];
+
+                if (offset > 0)
+                {
+                    Stream.Seek(offset, SeekOrigin.Begin);
+                    GeoBlock block = new GeoBlock(Reader);
+                    GeomBlocks.Add(block);
+                    GeomBlocksUnk.Add(block);
+                    ReadBlockData(block);
+                }
             }
         }
 
@@ -429,10 +441,10 @@ namespace Haven.Parser
         {
             foreach (var spawn in GeomProps)
             {
-                writer.WriteInt32BE(spawn.Size);
-                writer.WriteInt32BE(spawn.Flag);
-                writer.WriteUInt32BE(spawn.Hash);
-                writer.WriteUInt16BE(spawn.Field00C);
+                writer.Write(spawn.Size);
+                writer.Write(spawn.Flag);
+                writer.Write(spawn.Hash);
+                writer.Write(spawn.Field00C);
                 writer.Write(spawn.Field010);
                 writer.Write(spawn.Field014);
 
@@ -441,68 +453,323 @@ namespace Haven.Parser
 
                 if (spawn.X != 0 || spawn.Y != 0 || spawn.Z != 0 || spawn.W != 0) // todo: find the correct logic for this
                 {
-                    writer.WriteSingleBE(spawn.X);
-                    writer.WriteSingleBE(spawn.Z);
-                    writer.WriteSingleBE(spawn.Y);
-                    writer.WriteSingleBE(spawn.W);
+                    writer.Write(spawn.X);
+                    writer.Write(spawn.Z);
+                    writer.Write(spawn.Y);
+                    writer.Write(spawn.W);
                 }
 
                 writer.Write(spawn.Data);
             }
         }
 
-        public void Save(string path)
+        private void WriteBlockData(GeoBlock block, BinaryWriterEx writer)
+        {
+            var pos = writer.BaseStream.Position;
+
+            if (block.FaceOffset > 0)
+            {
+                var faces = BlockFaceData[block];
+                writer.BaseStream.Seek(block.Offset, SeekOrigin.Begin);
+                block.FaceOffset = (int)pos;
+                WriteBlock(block, writer);
+                writer.BaseStream.Seek(pos, SeekOrigin.Begin);
+
+                foreach (var face in faces)
+                {
+                    face.WriteTo(writer);
+                }
+            }
+
+            if (block.VertexOffset > 0)
+            {
+                pos = writer.BaseStream.Position;
+                writer.BaseStream.Seek(block.Offset, SeekOrigin.Begin);
+                block.VertexOffset = (int)pos;
+                WriteBlock(block, writer);
+                writer.BaseStream.Seek(pos, SeekOrigin.Begin);
+
+                BlockVertexData[block].WriteTo(writer);
+            }
+        }
+
+        private void WriteBlock(GeoBlock block, BinaryWriterEx writer)
+        {
+            block.Offset = (int)writer.BaseStream.Position;
+
+            block.WriteTo(writer);
+
+            if (GeomRefBlockMaterial.ContainsKey(block))
+            {
+                if (block.MaterialOffset > 0)
+                {
+                    block.MaterialOffset = (int)writer.BaseStream.Position;
+                }
+                GeomRefBlockMaterial[block].WriteTo(writer);
+            }
+        }
+
+        public List<GeoRadix> ReadRadix(GeoGroup group)
+        {
+            var radixList = new List<GeoRadix>();
+
+            Stream.Seek(group.DataOffset, SeekOrigin.Begin);
+
+            int blockIndex = (group.MaxX * group.MaxY * group.MaxZ) - 1;
+
+            while(blockIndex >= 0)
+            {
+                var radixOffset = blockIndex * group.RadixSize + group.DataOffset;
+
+                Stream.Seek(radixOffset, SeekOrigin.Begin);
+
+                var radix = new GeoRadix(Reader, group);
+                radixList.Add(radix);
+
+                blockIndex = blockIndex - 1;
+            }
+
+            radixList.Reverse();
+
+            return radixList;
+        }
+
+        private void WriteGroup(GeoGroup group, BinaryWriterEx writer)
+        {
+            List<GeoBlock> list = new List<GeoBlock>();
+
+            var radixList = GroupRadixData[group];
+            var pos = writer.BaseStream.Position;
+            group.DataOffset = (int)pos;
+
+            foreach (var radix in radixList)
+            {
+                radix.WriteTo(writer);
+            }
+
+            int bytes = radixList.Count * group.RadixSize;
+            int len = (bytes + 0x10 - 1) / 0x10 * 0x10;
+            int pad = (len - bytes);
+            writer.Write(new byte[pad]);
+
+            var blocks = GeomGroupBlocks[group];
+
+            group.BlockOffset = (int)writer.BaseStream.Position;
+
+            foreach (var block in blocks)
+            {
+                WriteBlock(block, writer);
+
+                var blockData = FindBlockFromOffsets(GeomGroupBlocks[group], block.VertexOffset, block.FaceOffset);
+
+                if (blockData == null)
+                {
+                    continue;
+                }
+
+                list.Add(blockData);
+            }
+
+            group.HeadSize = (int)(writer.BaseStream.Position - pos);
+
+            list.Sort((n1, n2) => n1.FaceOffset.CompareTo(n2.FaceOffset));
+
+            foreach (var block in list)
+            {
+                WriteBlockData(block, writer);
+            }
+
+            if (group.MaterialOffset > 0)
+            {
+                group.MaterialOffset = (int)writer.BaseStream.Position;
+                var mats = GroupMaterialData[group];
+
+                mats.WriteTo(writer);
+
+                pos = writer.BaseStream.Position;
+                writer.BaseStream.Seek(group.BlockOffset, SeekOrigin.Begin);
+                foreach (var block in blocks)
+                {
+                    WriteBlock(block, writer);
+                }
+                writer.BaseStream.Seek(pos, SeekOrigin.Begin);
+            }
+        }
+
+        private void WriteHeader(BinaryWriterEx writer)
+        {
+            writer.Write(Header.Version);
+            writer.Write((uint)writer.BaseStream.Length);
+            writer.Write(Header.Chunks.Count);
+            writer.Write(Header.Pad);
+            writer.Write(Header.X);
+            writer.Write(Header.Y);
+            writer.Write(Header.Z);
+            writer.Write(Header.Trans);
+
+            for (int i = 0; i < Header.Chunks.Count; i++)
+            {
+                GeoChunk chunk = Header.Chunks[i];
+
+                writer.Write(chunk.Type);
+                writer.Write(chunk.Pad);
+                writer.Write(chunk.Size);
+                writer.Write(chunk.DataOffset);
+            }
+
+            writer.Write(0x08000000);
+            writer.Write(0);
+            writer.Write(UnkHash);
+            writer.Write(new byte[0x18]);
+        }
+
+        public void Shit(GeomFile geomFile)
+        {
+            GeomProps.Clear();
+            GeomProps.AddRange(geomFile.GeomProps);
+            GeomPropGroups.Clear();
+            GeomPropGroups.AddRange(geomFile.GeomPropGroups);
+
+            GeomChunk5 = geomFile.GeomChunk5;
+            GeomChunk7 = geomFile.GeomChunk7;
+        }
+
+        public void Merge(GeomFile geomFile)
+        {
+            GeomGroups.Clear();
+            GeomGroups.AddRange(geomFile.GeomGroups);
+            geomFile.GeomGroupBlocks.ToList().ForEach(x => GeomGroupBlocks.Add(x.Key, x.Value));
+            geomFile.GroupRadixData.ToList().ForEach(x => GroupRadixData.Add(x.Key, x.Value));
+            geomFile.GroupMaterialData.ToList().ForEach(x => GroupMaterialData.Add(x.Key, x.Value));
+            geomFile.BlockFaceData.ToList().ForEach(x => BlockFaceData.Add(x.Key, x.Value));
+            geomFile.BlockVertexData.ToList().ForEach(x => BlockVertexData.Add(x.Key, x.Value));
+        }
+
+        private void WriteGroupsHeader(BinaryWriterEx writer)
+        {
+            foreach (var group in GeomGroups)
+            {
+                group.WriteTo(writer);
+            }
+        }
+
+        public void Save(string path, bool bigEndian = true)
         {
             var stream = new FileStream(path, FileMode.OpenOrCreate, FileAccess.Write);
-            var writer = new BinaryWriterEx(stream);
+            var writer = new BinaryWriterEx(stream, bigEndian);
+            long position = 0;
 
             stream.SetLength(0);
-            Stream.Seek(0, SeekOrigin.Begin);
 
-            var chunkData = GetChunkFromType(ChunkType.TYPE_6);
+            WriteHeader(writer);
 
-            if (chunkData == null)
-                return;
+            // chunk 0
+            GeoChunk chunk = Header.Chunks[0];
+            chunk.DataOffset = (int)stream.Position;
+            WriteGroupsHeader(writer);
 
-            GeomChunk chunk = chunkData.Value;
-
-            var bytes = Reader.ReadBytes(chunk.DataOffset);
-            Array.Reverse(bytes);
-            writer.WriteBytes(bytes);
-            WriteProps(stream, writer);
-
-            Stream.Seek(chunk.DataOffset + chunk.Size, SeekOrigin.Begin);
-            int bytesRemaining = (int)(Stream.Length - Stream.Position);
-            if (bytesRemaining > 0)
+            for (int i = 0; i < GeomGroups.Count; i++)
             {
-                bytes = Reader.ReadBytes(bytesRemaining);
-                Array.Reverse(bytes);
-                writer.WriteBytes(bytes);
+                GeomGroups[i].Flag = (i == GeomGroups.Count - 1) ? 1 : 0;
+                WriteGroup(GeomGroups[i], writer);
             }
+
+            position = stream.Position;
+            stream.Seek(chunk.DataOffset, SeekOrigin.Begin);
+            WriteGroupsHeader(writer);
+            stream.Seek(position, SeekOrigin.Begin);
+
+            chunk.Size = (int)stream.Position - chunk.DataOffset;
+
+            // chunk 1
+            chunk = GetChunkFromType(GeoChunkType.TYPE_1);
+            var oldOffset = chunk.DataOffset;
+            chunk.DataOffset = (int)stream.Position;
+            int diff = chunk.DataOffset - oldOffset;
+
+            foreach (var obj in GeomRefs)
+            {
+                obj.BlockOffset += diff;
+                obj.WriteTo(writer);
+            }
+
+            for (int i = 0; i < GeomRefRegionLinks.Offsets.Length; i++)
+            {
+                if (GeomRefRegionLinks.Offsets[i] != 0)
+                {
+                    GeomRefRegionLinks.Offsets[i] += (uint)diff;
+                }
+                writer.Write(GeomRefRegionLinks.Offsets[i]);
+            }
+
+            var list = new List<GeoBlock>();
+            for (int i = 0; i < GeomRefs.Count; i++)
+            {
+                GeoRef obj = GeomRefs[i];
+                var blocks = GeomRefBlocks[obj];
+
+                foreach (var block in blocks)
+                {
+                    WriteBlock(block, writer);
+
+                    var blockData = FindBlockFromOffsets(blocks, block.VertexOffset, block.FaceOffset);
+
+                    if (blockData == null)
+                    {
+                        Debug.WriteLine("null block?");
+                        continue;
+                    }
+
+                    list.Add(blockData);
+                }
+            }
+
+            list.Sort((n1, n2) => n1.FaceOffset.CompareTo(n2.FaceOffset));
+            foreach (var block in list)
+            {
+                WriteBlockData(block, writer);
+            }
+
+            foreach (var block in GeomBlocksUnk)
+            {
+                WriteBlock(block, writer);
+                WriteBlockData(block, writer);
+            }
+
+            chunk.Size = (int)stream.Position - chunk.DataOffset;
+
+            // chunk 5
+            chunk = GetChunkFromType(GeoChunkType.TYPE_5);
+            chunk.DataOffset = (int)stream.Position;
+            writer.Write(GeomChunk5);
+            chunk.Size = (int)stream.Position - chunk.DataOffset;
+
+            // chunk 6
+            chunk = GetChunkFromType(GeoChunkType.TYPE_6);
+            var pos = chunk.DataOffset;
+            chunk.DataOffset = (int)stream.Position;
+
+            if (chunk != null)
+            {
+                // write props
+                WriteProps(stream, writer);
+
+                chunk.Size = (int)stream.Position - chunk.DataOffset;
+            }
+
+            // chunk 7
+            chunk = GetChunkFromType(GeoChunkType.TYPE_7);
+            chunk.DataOffset = (int)stream.Position;
+            chunk.Size = GeomChunk7.Length;
+            writer.Write(GeomChunk7);
+
+            // Update header 
+            stream.Seek(0, SeekOrigin.Begin);
+            WriteHeader(writer);
 
             stream.Close();
             writer.Close();
         }
 
-        public void WriteDebugFile()
-        {
-            File.WriteAllText("debug_geom.txt", "");
-
-            for (int i = 0; i < Geom.Header.ChunkCount; i++)
-            {
-                GeomChunk chunk = Geom.Header.Chunks[i];
-                File.AppendAllText("debug_geom.txt", String.Format("Geom 0x{0:X}, Size: 0x{1:X}; Offset: 0x{2:X}" + Environment.NewLine, chunk.Type, chunk.Size, chunk.DataOffset));
-            }
-
-            foreach (var group in GeomGroups)
-            {
-                File.AppendAllText("debug_geom.txt", String.Format("GeomGroup 0x{0:X}, Index Start: 0x{1:X}; Total Size: 0x{2:X}, MaterialOffset: 0x{3:X}" + Environment.NewLine, group.DataOffset, group.IndexOffset, group.TotalSize, group.MaterialOffset));
-            }
-
-            foreach (var obj in GeomObjects)
-            {
-                File.AppendAllText("debug_geom.txt", String.Format("GeomObject 0x{0:X}, Index Start: 0x{1:X}, Type: 0x{2:X}" + Environment.NewLine, obj.Hash, obj.IndexOffset, obj.Type));
-            }
-        }
     }
 }
