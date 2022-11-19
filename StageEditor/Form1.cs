@@ -5,12 +5,7 @@ using OpenTK;
 using Haven.Parser;
 using Haven.Render;
 using Haven.Properties;
-using static OpenTK.Graphics.OpenGL.GL;
-using System.Windows.Forms;
-using OpenTK.Input;
-using System.IO;
-using System.Reflection.Metadata;
-using System.Security.Cryptography;
+
 
 namespace Haven
 {
@@ -146,6 +141,9 @@ namespace Haven
 
         private void GenerateGeomPropMeshes()
         {
+            if (Geom == null)
+                return;
+
             var hashCounter = new Dictionary<string, int>();
 
             foreach (var prop in Geom.GeomProps)
@@ -325,6 +323,9 @@ namespace Haven
                     var textEditor = new TextEditor(filename, false);
                     textEditor.ShowDialog();
                     break;
+                case StageFile.FileType.DLZ:
+                    Process.Start("explorer.exe", $"\"{Directory.GetCurrentDirectory()}\\stage\\_dlz");
+                    break;
                 case StageFile.FileType.QAR:
                 case StageFile.FileType.DAR:
                     try
@@ -403,23 +404,11 @@ namespace Haven
             Scene = new Scene(glControl);
         }
 
-        private async void MainForm_Load(object sender, EventArgs e)
+        private void MainForm_Load(object sender, EventArgs e)
         {
             tabPageGeom.Show();
             SetEnabled(false);
             DictionaryFile.Load("bin/dictionary.txt");
-
-            //var a = new GeomFile(@"E:\Backups\mgo2\Metal Gear Solid Arcade 3D  2011\I36-2011012100\I36-2011012100\contents\cdrom.img\stage\n003b\n003b.geom");
-            //a.Save("swapped.geom");
-            //a.CloseStream();
-
-            var g = new GeomFile(@"swapped.geom");
-            var m = new GeomFile(@"C:\Users\Me\Documents\GitHub\rpcs3\bin\dev_hdd0\game\NPMG00020\USRDIR\o\dl\p\stage\n003a\n003a.geom.dec");
-            m.Merge(g);
-            m.Save("swapped_merge.geom");
-            g.CloseStream();
-            m.CloseStream();
-            //Shit
         }
 
         private void treeViewGeom_AfterSelect(object sender, TreeViewEventArgs e)

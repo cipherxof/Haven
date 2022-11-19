@@ -93,9 +93,19 @@ namespace Haven
         {
             List<Task> tasks = new List<Task>();
 
+            if (!Directory.Exists("stage/_dlz"))
+                Directory.CreateDirectory("stage/_dlz");
+
             foreach (var file in Files)
             {
                 string ext = Path.GetExtension(file.SourceFile);
+                Debug.WriteLine(file.SourceFile);
+
+                if (ext == ".dlz")
+                {
+                    tasks.Add(Utils.RunProcessAsync("bin/mgs4tool.exe", $"-dlzextract stage/{file.Name}.dec stage/_dlz/{file.Name.Replace(".dlz", ".dld")}"));
+                    continue;
+                }
 
                 if (ext != ".qar" && ext != ".dar") 
                     continue;
@@ -122,6 +132,12 @@ namespace Haven
             foreach (var file in Files)
             {
                 string ext = Path.GetExtension(file.SourceFile);
+
+                if (ext == ".dlz")
+                {
+                    await Utils.RunProcessAsync("bin/mgs4tool.exe", $"-dlzcreate stage/_dlz/{file.Name.Replace(".dlz", ".dld")} stage/{file.Name}");
+                    continue;
+                }
 
                 if (ext != ".qar" && ext != ".dar")
                     continue;
