@@ -205,6 +205,9 @@ namespace Haven
                 node.Checked = false;
             }
 
+            if (Geom == null) 
+                return;
+
             var propsList = Geom.GeomProps.OrderBy(x => DictionaryFile.GetHashString(x.Hash)).ToList();
 
             foreach (var prop in propsList)
@@ -405,6 +408,18 @@ namespace Haven
             tabPageGeom.Show();
             SetEnabled(false);
             DictionaryFile.Load("bin/dictionary.txt");
+
+            //var a = new GeomFile(@"E:\Backups\mgo2\Metal Gear Solid Arcade 3D  2011\I36-2011012100\I36-2011012100\contents\cdrom.img\stage\n003b\n003b.geom");
+            //a.Save("swapped.geom");
+            //a.CloseStream();
+
+            var g = new GeomFile(@"swapped.geom");
+            var m = new GeomFile(@"C:\Users\Me\Documents\GitHub\rpcs3\bin\dev_hdd0\game\NPMG00020\USRDIR\o\dl\p\stage\n003a\n003a.geom.dec");
+            m.Merge(g);
+            m.Save("swapped_merge.geom");
+            g.CloseStream();
+            m.CloseStream();
+            //Shit
         }
 
         private void treeViewGeom_AfterSelect(object sender, TreeViewEventArgs e)
@@ -544,9 +559,7 @@ namespace Haven
                 if (openFileDialog.ShowDialog() == DialogResult.OK)
                 {
                     var path = openFileDialog.FileName;
-                    var dir = Path.GetDirectoryName(path);
-                    var key = Directory.GetParent(dir).Name + "/" + new DirectoryInfo(dir).Name;
-                    await Utils.EncryptFileAsync(path, key);
+                    await Utils.EncryptFileAsync(path, Utils.GetPathKey(path));
                 }
             }
         }
@@ -562,9 +575,7 @@ namespace Haven
                 if (openFileDialog.ShowDialog() == DialogResult.OK)
                 {
                     var path = openFileDialog.FileName;
-                    var dir = Path.GetDirectoryName(path);
-                    var key = Directory.GetParent(dir).Name + "/" + new DirectoryInfo(dir).Name;
-                    await Utils.DecryptFileAsync(path, key);
+                    await Utils.DecryptFileAsync(path, Utils.GetPathKey(path));
                 }
             }
         }
@@ -643,6 +654,10 @@ namespace Haven
                 {
                     baseFilePath = openFileDialog.FileName;
                 }
+                else
+                {
+                    return;
+                }
             }
 
             using (SaveFileDialog saveFileDialog = new SaveFileDialog())
@@ -660,5 +675,9 @@ namespace Haven
             }
         }
 
+        private void stringHashUtilityToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            new StringHashEditor().ShowDialog();
+        }
     }
 }

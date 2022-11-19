@@ -99,7 +99,7 @@ namespace Haven.Render
         // Get the projection matrix using the same method we have used up until this point
         public Matrix4d GetProjectionMatrix()
         {
-            return Matrix4d.CreatePerspectiveFieldOfView(_fov, AspectRatio, 1000f, 200000f);
+            return Matrix4d.CreatePerspectiveFieldOfView(_fov, AspectRatio, 500f, 200000f);
         }
 
         // This function is going to update the direction vertices using some of the math learned in the web tutorials.

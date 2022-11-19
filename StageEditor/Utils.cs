@@ -5,6 +5,7 @@ using System.Diagnostics;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using System.Windows.Forms;
 
 namespace Haven
 {
@@ -60,6 +61,17 @@ namespace Haven
         {
             await RunProcessAsync("bin/SolidEye.exe", $"-enc \"{path}\" -k {key} -o \"{Path.GetDirectoryName(path)}\"");
         }
+
+        public static string GetPathKey(string path)
+        {
+            var dir = Path.GetDirectoryName(path);
+
+            if (dir == null)
+                return "";
+
+            return Directory.GetParent(dir)?.Name + "/" + new DirectoryInfo(dir).Name;
+        }
+
         public static void FaceBitCalculation(int extraBit, ref int fa, ref int fb, ref int fc, ref int fd)
         {
             if (extraBit == 170)

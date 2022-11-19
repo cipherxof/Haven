@@ -52,6 +52,7 @@
             this.labelStatus = new System.Windows.Forms.Label();
             this.timerRefresh = new System.Windows.Forms.Timer(this.components);
             this.labelCamPos = new System.Windows.Forms.Label();
+            this.stringHashUtilityToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.tabControl.SuspendLayout();
             this.tabPageFiles.SuspendLayout();
             this.tabPageGeom.SuspendLayout();
@@ -199,7 +200,8 @@
             // 
             this.toolStripDropDownButtonTools.DropDownItems.AddRange(new System.Windows.Forms.ToolStripItem[] {
             this.solidEyeToolStripMenuItem,
-            this.toolStripMenuItem1});
+            this.toolStripMenuItem1,
+            this.stringHashUtilityToolStripMenuItem});
             this.toolStripDropDownButtonTools.Image = ((System.Drawing.Image)(resources.GetObject("toolStripDropDownButtonTools.Image")));
             this.toolStripDropDownButtonTools.ImageTransparentColor = System.Drawing.Color.Magenta;
             this.toolStripDropDownButtonTools.Name = "toolStripDropDownButtonTools";
@@ -212,7 +214,7 @@
             this.encryptFileToolStripMenuItem,
             this.decryptFileToolStripMenuItem});
             this.solidEyeToolStripMenuItem.Name = "solidEyeToolStripMenuItem";
-            this.solidEyeToolStripMenuItem.Size = new System.Drawing.Size(118, 22);
+            this.solidEyeToolStripMenuItem.Size = new System.Drawing.Size(180, 22);
             this.solidEyeToolStripMenuItem.Text = "SolidEye";
             // 
             // encryptFileToolStripMenuItem
@@ -235,7 +237,7 @@
             this.mergeToolStripMenuItem,
             this.toolStripMenuItem2});
             this.toolStripMenuItem1.Name = "toolStripMenuItem1";
-            this.toolStripMenuItem1.Size = new System.Drawing.Size(118, 22);
+            this.toolStripMenuItem1.Size = new System.Drawing.Size(180, 22);
             this.toolStripMenuItem1.Text = "Geom";
             // 
             // mergeToolStripMenuItem
@@ -278,6 +280,13 @@
             this.labelCamPos.Size = new System.Drawing.Size(0, 15);
             this.labelCamPos.TabIndex = 3;
             this.labelCamPos.TextAlign = System.Drawing.ContentAlignment.BottomRight;
+            // 
+            // stringHashUtilityToolStripMenuItem
+            // 
+            this.stringHashUtilityToolStripMenuItem.Name = "stringHashUtilityToolStripMenuItem";
+            this.stringHashUtilityToolStripMenuItem.Size = new System.Drawing.Size(180, 22);
+            this.stringHashUtilityToolStripMenuItem.Text = "String Hash";
+            this.stringHashUtilityToolStripMenuItem.Click += new System.EventHandler(this.stringHashUtilityToolStripMenuItem_Click);
             // 
             // MainForm
             // 
@@ -328,5 +337,6 @@
         private ToolStripMenuItem toolStripMenuItem1;
         private ToolStripMenuItem mergeToolStripMenuItem;
         private ToolStripMenuItem toolStripMenuItem2;
+        private ToolStripMenuItem stringHashUtilityToolStripMenuItem;
     }
 }

@@ -361,7 +361,6 @@ namespace Haven.Render
 
             if (ShowAABB || Gizmos.ShowAABB) 
                 this.AABB.Draw();
-
         }
 
        public void Delete()
@@ -501,79 +500,87 @@ namespace Haven.Render
         /// <returns></returns>
         public static List<Mesh> GetGeomBlockMeshes(GeomFile geomFile, List<GeoBlock> blocks, Color color, string id = "")
         {
+
             List<Vector3d> verts = new List<Vector3d>();
             List<int> faces = new List<int>();
             List<Mesh> meshes = new List<Mesh>();
 
-            for (int y = 0; y < blocks.Count; y++)
+            try
             {
-                var block = blocks[y];
-
-                if (block.VertexOffset == 0 || block.VertexOffset > geomFile.Stream.Length)
-                    continue;
-
-                var vertexData = geomFile.BlockVertexData[block];
-
-                geomFile.Stream.Seek(block.VertexOffset + ((vertexData.PositionStart * 0x10) + 0x10), SeekOrigin.Begin);
-
-                var posX = geomFile.Reader.ReadSingle();
-                var posY = geomFile.Reader.ReadSingle();
-                var posZ = geomFile.Reader.ReadSingle();
-                var posW = geomFile.Reader.ReadSingle();
-
-                geomFile.Stream.Seek(block.VertexOffset + ((vertexData.VertexStart * 0x10) + 0x10), SeekOrigin.Begin);
-
-                for (int n = 0; n < vertexData.Data.Length; n++)
+                for (int y = 0; y < blocks.Count; y++)
                 {
-                    var vx = geomFile.Reader.ReadSingle();
-                    var vy = geomFile.Reader.ReadSingle();
-                    var vz = geomFile.Reader.ReadSingle();
-                    var vw = geomFile.Reader.ReadUInt32();
+                    var block = blocks[y];
 
-                    verts.Add(new Vector3d(vx + posX, vy + posY, vz + posZ));
-                }
-
-                var faceData = geomFile.BlockFaceData[block];
-                string name = block.VertexOffset.ToString("X4");
-
-                geomFile.Stream.Seek(block.FaceOffset, SeekOrigin.Begin);
-
-                foreach (var face in faceData)
-                {
-                    if (DictionaryFile.Lookup.ContainsKey(face.Name))
-                    {
-                        name = DictionaryFile.GetHashString(face.Name);
-                    }
-
-                    if (face.GetPrimType() != Geom.Primitive.GEO_POLY)
+                    if (block.VertexOffset == 0 || block.VertexOffset > geomFile.Stream.Length)
                         continue;
 
-                    foreach (var poly in face.Poly)
+                    var vertexData = geomFile.BlockVertexData[block];
+
+                    geomFile.Stream.Seek(block.VertexOffset + ((vertexData.PositionStart * 0x10) + 0x10), SeekOrigin.Begin);
+
+                    var posX = geomFile.Reader.ReadSingle();
+                    var posY = geomFile.Reader.ReadSingle();
+                    var posZ = geomFile.Reader.ReadSingle();
+                    var posW = geomFile.Reader.ReadSingle();
+
+                    geomFile.Stream.Seek(block.VertexOffset + ((vertexData.VertexStart * 0x10) + 0x10), SeekOrigin.Begin);
+
+                    for (int n = 0; n < vertexData.Data.Length; n++)
                     {
-                        var fa = poly.Data[0] + 1;
-                        var fb = poly.Data[1] + 1;
-                        var fc = poly.Data[2] + 1;
-                        var fd = poly.Data[3] + 1;
-                        var extraBit = poly.Data[4];
+                        var vx = geomFile.Reader.ReadSingle();
+                        var vy = geomFile.Reader.ReadSingle();
+                        var vz = geomFile.Reader.ReadSingle();
+                        var vw = geomFile.Reader.ReadUInt32();
 
-                        Utils.FaceBitCalculation(extraBit, ref fa, ref fb, ref fc, ref fd);
-
-                        faces.Add(fa - 1);
-                        faces.Add(fb - 1);
-                        faces.Add(fc - 1);
-
-                        faces.Add(fa - 1);
-                        faces.Add(fc - 1);
-                        faces.Add(fd - 1);
+                        verts.Add(new Vector3d(vx + posX, vy + posY, vz + posZ));
                     }
-                }
 
-                Mesh mesh = new Mesh(verts.ToArray(), faces.ToArray());
-                mesh.ID = id != "" ? id : name;
-                mesh.SetColor(color, false);
-                meshes.Add(mesh);
-                verts = new List<Vector3d>();
-                faces = new List<int>();
+                    var faceData = geomFile.BlockFaceData[block];
+                    string name = block.VertexOffset.ToString("X4");
+
+                    geomFile.Stream.Seek(block.FaceOffset, SeekOrigin.Begin);
+
+                    foreach (var face in faceData)
+                    {
+                        if (DictionaryFile.Lookup.ContainsKey(face.Name))
+                        {
+                            name = DictionaryFile.GetHashString(face.Name);
+                        }
+
+                        if (face.GetPrimType() != Geom.Primitive.GEO_POLY)
+                            continue;
+
+                        foreach (var poly in face.Poly)
+                        {
+                            var fa = poly.Data[0] + 1;
+                            var fb = poly.Data[1] + 1;
+                            var fc = poly.Data[2] + 1;
+                            var fd = poly.Data[3] + 1;
+                            var extraBit = poly.Data[4];
+
+                            Utils.FaceBitCalculation(extraBit, ref fa, ref fb, ref fc, ref fd);
+
+                            faces.Add(fa - 1);
+                            faces.Add(fb - 1);
+                            faces.Add(fc - 1);
+
+                            faces.Add(fa - 1);
+                            faces.Add(fc - 1);
+                            faces.Add(fd - 1);
+                        }
+                    }
+
+                    Mesh mesh = new Mesh(verts.ToArray(), faces.ToArray());
+                    mesh.ID = id != "" ? id : name;
+                    mesh.SetColor(color, false);
+                    meshes.Add(mesh);
+                    verts = new List<Vector3d>();
+                    faces = new List<int>();
+
+                }
+            }
+            catch(Exception e)
+            {
 
             }
 
@@ -590,6 +597,8 @@ namespace Haven.Render
             List<Mesh> meshes = new List<Mesh>();
 
             geomFile.GeomGroups.ForEach(group => meshes.AddRange(GetGeomBlockMeshes(geomFile, geomFile.GeomGroupBlocks[group], Color.Gray)));
+
+            //meshes = new List<Mesh>() { CombineMeshes(meshes) };
 
             return meshes;
         }

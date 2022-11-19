@@ -623,20 +623,8 @@ namespace Haven.Parser
             writer.Write(new byte[0x18]);
         }
 
-        public void Shit(GeomFile geomFile)
-        {
-            GeomProps.Clear();
-            GeomProps.AddRange(geomFile.GeomProps);
-            GeomPropGroups.Clear();
-            GeomPropGroups.AddRange(geomFile.GeomPropGroups);
-
-            GeomChunk5 = geomFile.GeomChunk5;
-            GeomChunk7 = geomFile.GeomChunk7;
-        }
-
         public void Merge(GeomFile geomFile)
         {
-            GeomGroups.Clear();
             GeomGroups.AddRange(geomFile.GeomGroups);
             geomFile.GeomGroupBlocks.ToList().ForEach(x => GeomGroupBlocks.Add(x.Key, x.Value));
             geomFile.GroupRadixData.ToList().ForEach(x => GroupRadixData.Add(x.Key, x.Value));

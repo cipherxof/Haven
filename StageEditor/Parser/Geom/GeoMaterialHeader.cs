@@ -14,6 +14,15 @@ namespace Haven.Parser.Geom
         public byte ColorSize;
         public List<uint> Data;
 
+        public GeoMaterialHeader(byte materialOffset, byte materialSize, byte colorOffset, byte colorSize, List<uint> data)
+        {
+            MaterialOffset = materialOffset;
+            MaterialSize = materialSize;
+            ColorOffset = colorOffset;
+            ColorSize = colorSize;
+            Data = data;
+        }
+
         public GeoMaterialHeader(BinaryReader reader)
         {
             var matStart = reader.BaseStream.Position;
@@ -60,6 +69,9 @@ namespace Haven.Parser.Geom
 
             for (int i = 0; i < pad; i++)
                 Data.Add(0);
+
+            //for (int i = 0; i < 4; i++)
+            //    Data.Add(0);
         }
 
         public void WriteTo(BinaryWriter writer)
