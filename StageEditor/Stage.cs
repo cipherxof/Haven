@@ -48,7 +48,12 @@ namespace Haven
         {
             List<Task> tasks = new List<Task>();
 
-            Files.ForEach(file => tasks.Add(Utils.RunProcessAsync("bin/SolidEye.exe", $"-dec {file.SourceFile} -k {Key} -o \"stage\"")));
+            Files.ForEach(file => {
+                if (file.Archive != null)
+                    return;
+
+                tasks.Add(Utils.RunProcessAsync("bin/SolidEye.exe", $"-dec {file.SourceFile} -k {Key} -o \"stage\""));
+            });
 
             await Task.WhenAll(tasks);
         }
@@ -62,6 +67,9 @@ namespace Haven
             List<Task> tasks = new List<Task>();
 
             Parallel.ForEach(Files, file => {
+                if (file.Archive != null)
+                    return;
+
                 var destFile = $"stage\\{file.Name}.dec";
                 if (File.Exists(destFile))
                     File.Delete(destFile);
@@ -80,7 +88,12 @@ namespace Haven
         {
             List<Task> tasks = new List<Task>();
 
-            Files.ForEach(file => tasks.Add(Utils.RunProcessAsync("bin/SolidEye.exe", $"-enc \"{file.GetLocalPath()}\" -k {Key} -o \"{output}\"")));
+            Files.ForEach(file => {
+                if (file.Archive != null)
+                    return;
+
+                tasks.Add(Utils.RunProcessAsync("bin/SolidEye.exe", $"-enc \"{file.GetLocalPath()}\" -k {Key} -o \"{output}\""));
+            });
 
             await Task.WhenAll(tasks);
         }
@@ -99,7 +112,6 @@ namespace Haven
             foreach (var file in Files)
             {
                 string ext = Path.GetExtension(file.SourceFile);
-                Debug.WriteLine(file.SourceFile);
 
                 if (ext == ".dlz")
                 {
@@ -107,7 +119,7 @@ namespace Haven
                     continue;
                 }
 
-                if (ext != ".qar" && ext != ".dar") 
+                if (ext != ".qar" && ext != ".dar")
                     continue;
 
                 ext = ext.Replace(".", "");
@@ -121,6 +133,36 @@ namespace Haven
             }
 
             await Task.WhenAll(tasks);
+
+            List<StageFile> addFiles = new List<StageFile>();
+
+            foreach (var file in Files)
+            {
+                if (file.Type != StageFile.FileType.QAR && file.Type != StageFile.FileType.DAR)
+                    continue;
+
+                DirectoryInfo d = new DirectoryInfo(file.GetUnpackedDir());
+
+                if (d.Exists)
+                {
+                    FileInfo[] unpackedFiles = d.GetFiles();
+
+                    foreach (FileInfo unpackedFile in unpackedFiles)
+                    {
+                        var stageFile = new StageFile(unpackedFile.FullName);
+                        stageFile.Archive = file;
+                        if (File.Exists(unpackedFile.FullName))
+                        {
+                            addFiles.Add(stageFile);
+                        }
+                    }
+                }
+            }
+
+            foreach (var file in addFiles)
+            {
+                Files.Add(file);
+            }
         }
 
         /// <summary>
@@ -135,7 +177,7 @@ namespace Haven
 
                 if (ext == ".dlz")
                 {
-                    await Utils.RunProcessAsync("bin/mgs4tool.exe", $"-dlzcreate stage/_dlz/{file.Name.Replace(".dlz", ".dld")} stage/{file.Name}");
+                    await Utils.RunProcessAsync("bin/mgs4tool.exe", $"-dlzcreate stage/_dlz/{file.Name.Replace(".dlz", ".dld")} stage/{file.Name}.dec");
                     continue;
                 }
 
@@ -148,12 +190,17 @@ namespace Haven
                 if (File.Exists(dst))
                     File.Delete(dst);
 
+                Debug.WriteLine($"-p \"stage/_{file.Name}/{ext}\" -f {ext} -o \"stage\"");
+
                 await Utils.RunProcessAsync("bin/SolidEye.exe", $"-p \"stage/_{file.Name}/{ext}\" -f {ext} -o \"stage\"");
 
                 string dst2 = file.GetLocalPath();
 
                 if (File.Exists(dst2))
                     File.Delete(dst2);
+
+                Debug.WriteLine(dst);
+                Debug.WriteLine(dst2);
 
                 File.Move(dst, dst2);
             }
@@ -173,7 +220,9 @@ namespace Haven
             PTL,
             QAR,
             VFP,
-            NNI
+            NNI,
+            TXN,
+            DCI
         }
 
         private static Dictionary<string, FileType> Lookup = new Dictionary<string, FileType>()
@@ -187,11 +236,15 @@ namespace Haven
             { ".qar", FileType.QAR },
             { ".vfp", FileType.VFP },
             { ".nni", FileType.NNI },
+            { ".txn", FileType.TXN },
+            { ".dci", FileType.DCI },
         };
 
         public string Name { get; set; }
         public string SourceFile { get; set; }
         public FileType Type { get; set; }
+
+        public StageFile? Archive;
 
         /// <summary>
         /// Initialzes a new stage file.
@@ -210,7 +263,22 @@ namespace Haven
         /// <returns>The local path of the decrypted file.</returns>
         public string GetLocalPath()
         {
+            if (Archive != null)
+            {
+                return $"{Archive.GetUnpackedDir()}\\{Name}";
+            }
             return $"stage\\{Name}.dec";
+        }
+
+        /// <summary>
+        /// </summary>
+        /// <returns>The local path of the decrypted file.</returns>
+        public string GetUnpackedDir()
+        {
+            if (Type == FileType.DLZ)
+                return $"stage\\_dlz";
+
+            return $"stage\\_{Name}\\{Path.GetExtension(SourceFile).Replace(".", "")}";
         }
 
         /// <summary>

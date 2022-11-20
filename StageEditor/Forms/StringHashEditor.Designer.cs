@@ -116,6 +116,7 @@
             this.FormBorderStyle = System.Windows.Forms.FormBorderStyle.FixedSingle;
             this.MinimizeBox = false;
             this.Name = "StringHashEditor";
+            this.StartPosition = System.Windows.Forms.FormStartPosition.CenterParent;
             this.Text = "StringHashEditor";
             this.groupBox1.ResumeLayout(false);
             this.groupBox1.PerformLayout();

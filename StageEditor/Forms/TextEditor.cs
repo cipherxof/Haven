@@ -25,15 +25,13 @@ namespace Haven
 
         private void TextEditor_Load(object sender, EventArgs e)
         {
-            var stageFile = $"stage/{Filename}.dec";
-
-            if (!File.Exists(stageFile))
+            if (!File.Exists(Filename))
             {
                 MessageBox.Show("?");
                 return;
             }
 
-            textEditorText.Text = File.ReadAllText(stageFile).Replace("\n", Environment.NewLine);
+            textEditorText.Text = File.ReadAllText(Filename).Replace("\n", Environment.NewLine);
             textEditorText.Select(0, 0);
             btnSave.Enabled = !ReadOnly;
         }

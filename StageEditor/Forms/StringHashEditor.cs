@@ -27,7 +27,7 @@ namespace Haven
             }
             try
             {
-                uint hash = Convert.ToUInt32(tbStringHashLookup.Text.Replace("0x", ""), 16);
+                uint hash = Convert.ToUInt32(tbStringHashLookup.Text.Replace("0x", "").Replace(" ", ""), 16);
                 tbStringHashResult.Text = DictionaryFile.GetHashString(hash);
             }
             catch(Exception exception)

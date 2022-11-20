@@ -5,6 +5,9 @@ using OpenTK;
 using Haven.Parser;
 using Haven.Render;
 using Haven.Properties;
+using static OpenTK.Graphics.OpenGL.GL;
+using System.Xml.Linq;
+using System.Windows.Forms;
 
 
 namespace Haven
@@ -19,10 +22,83 @@ namespace Haven
         public List<Mesh> MeshProps = new List<Mesh>();
         public List<ContextMenuStrip> ContextMenuStrips = new List<ContextMenuStrip>();
         public Dictionary<GeomProp, Mesh> GeomPropMeshLookup = new Dictionary<GeomProp, Mesh>();
+        public Dictionary<TreeNode, StageFile> StageFileLookup = new Dictionary<TreeNode, StageFile>();
+
+        public bool Decrypted = false;
+        public ContextMenuStrip ContextMenuFiles = new ContextMenuStrip();
+        public ToolStripMenuItem MenuItemOpen = new ToolStripMenuItem();
+        public ToolStripMenuItem MenuItemEdit = new ToolStripMenuItem();
 
         public MainForm()
         {
             InitializeComponent();
+        }
+
+        private void MainForm_Load(object sender, EventArgs e)
+        {
+            tabPageGeom.Show();
+            SetEnabled(false);
+            DictionaryFile.Load("bin/dictionary.txt");
+
+            var menuItems = new List<ToolStripMenuItem>();
+
+            MenuItemEdit.Text = "Edit";
+            menuItems.Add(MenuItemEdit);
+
+            MenuItemOpen.Text = "Open in Explorer";
+            menuItems.Add(MenuItemOpen);
+
+            ContextMenuFiles.ItemClicked += ContextMenuFiles_ItemClicked;
+            ContextMenuFiles.Items.AddRange(menuItems.ToArray());
+        }
+
+        private void ContextMenuFiles_ItemClicked(object? sender, ToolStripItemClickedEventArgs e)
+        {
+            if (treeViewFiles.SelectedNode == null || CurrentStage == null)
+                return;
+
+            StageFile stageFile = StageFileLookup[treeViewFiles.SelectedNode];
+
+            if (stageFile == null)
+                return;
+
+            if (e.ClickedItem == MenuItemOpen)
+            {
+                switch (stageFile.Type)
+                {
+                    case StageFile.FileType.QAR:
+                    case StageFile.FileType.DAR:
+                        Utils.ExplorerOpenDirectory(stageFile.GetUnpackedDir());
+                        break;
+                    default:
+                        Utils.ExplorerSelectFile(stageFile.GetLocalPath());
+                        break;
+                }
+            }
+            else if (e.ClickedItem == MenuItemEdit) 
+            {
+                switch (stageFile.Type)
+                {
+                    case StageFile.FileType.DLZ:
+                        new DldEditor(stageFile, CurrentStage).ShowDialog();
+                        break;
+                    case StageFile.FileType.TXN:
+                        new TxnEditor(stageFile.GetLocalPath(), CurrentStage).ShowDialog();
+                        break;
+                    case StageFile.FileType.CNF:
+                    case StageFile.FileType.NNI:
+                        new TextEditor(stageFile.GetLocalPath(), false).ShowDialog();
+                        break;
+                    default:
+                        MessageBox.Show("Unsupported file type", "Information", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                        break;
+                }
+            }
+        }
+
+        private void glControl_Load(object sender, EventArgs e)
+        {
+            Scene = new Scene(glControl);
         }
 
         private void SetEnabled(bool flag)
@@ -74,6 +150,12 @@ namespace Haven
 
             ContextMenuData.Clear();
             ContextMenuStrips = new List<ContextMenuStrip>();
+
+            if (Directory.Exists("stage"))
+            {
+                Directory.Delete("stage", true);
+            }
+            Directory.CreateDirectory("stage");
         }
 
         private async Task SetupGeom(string path)
@@ -144,8 +226,6 @@ namespace Haven
             if (Geom == null)
                 return;
 
-            var hashCounter = new Dictionary<string, int>();
-
             foreach (var prop in Geom.GeomProps)
             {
                 if (prop.X == 0 && prop.Y == 0 && prop.Z == 0 && prop.W == 0)
@@ -156,21 +236,9 @@ namespace Haven
                 mesh.ColorStatic = Color.Green;
                 mesh.SetColor(Color.Green, false);
                 mesh.Visible = false;
-
-                if (Mesh.FromID(id) != null)
-                {
-                    if (!hashCounter.ContainsKey(id))
-                        hashCounter[id] = 0;
-
-                    hashCounter[id]++;
-
-                    id = $"{id} ({hashCounter[id]})";
-                }
-
                 mesh.ID = id;
                 MeshProps.Add(mesh);
                 Scene.Children.Add(mesh);
-
                 GeomPropMeshLookup[prop] = mesh;
             }
         }
@@ -246,27 +314,9 @@ namespace Haven
                     Reset();
                     CurrentStage = new Stage(fbd.SelectedPath);
 
-                    foreach (var file in CurrentStage.Files)
-                    {
-                        string ext = Path.GetExtension(file.Name);
-
-                        if (ext == ".dec" || ext == ".enc")
-                            continue;
-
-                        FileInfo fi = new FileInfo(file.Name);
-                        TreeNode tds = treeViewFiles.Nodes.Add(fi.Name);
-                        tds.Tag = fi.FullName;
-                        tds.StateImageIndex = 0;
-
-                        if (ext == ".qar" || ext == ".dar")
-                            tds.StateImageIndex = 1;
-                    }
-
-                    treeViewGeom.Nodes.Add("Meshes");
-                    treeViewGeom.Nodes.Add("Props");
-                    treeViewGeom.Nodes.Add("Objects");
-
                     DialogResult dialogResult = MessageBox.Show("Do you want to decrypt these files?", "Notice", MessageBoxButtons.YesNo);
+
+                    Decrypted = dialogResult == DialogResult.Yes;
 
                     if (dialogResult == DialogResult.Yes)
                     {
@@ -281,6 +331,48 @@ namespace Haven
 
                     labelStatus.Text = "Unpacking...";
                     await CurrentStage.Unpack();
+
+                    foreach (var file in CurrentStage.Files)
+                    {
+                        string ext = Path.GetExtension(file.Name);
+
+                        if (ext == ".dec" || ext == ".enc")
+                            continue;
+
+                        FileInfo fi = new FileInfo(file.Name);
+                        TreeNode? tds = null;
+
+                        if (file.Archive != null)
+                        {
+                            var parent = treeViewFiles.Nodes.Find(file.Archive.Name, false);
+
+                            if (parent.Length > 0)
+                            {
+                                tds = parent[0].Nodes.Add(fi.Name);
+                                tds.Name = fi.Name;
+                                StageFileLookup[tds] = file;
+                            }
+                        }
+                        else
+                        {
+                            tds = treeViewFiles.Nodes.Add(fi.Name);
+                            tds.Name = fi.Name;
+                            StageFileLookup[tds] = file;
+                        }
+
+                        if (tds != null)
+                        {
+                            tds.Tag = fi.FullName;
+                            tds.StateImageIndex = 0;
+
+                            if (ext == ".qar" || ext == ".dar")
+                                tds.StateImageIndex = 1;
+                        }
+                    }
+
+                    treeViewGeom.Nodes.Add("Meshes");
+                    treeViewGeom.Nodes.Add("Props");
+                    treeViewGeom.Nodes.Add("Objects");
 
                     if (CurrentStage.Geom != null)
                     {
@@ -307,42 +399,6 @@ namespace Haven
             }
         }
 
-        private void treeViewFiles_NodeMouseDoubleClick(object sender, TreeNodeMouseClickEventArgs e)
-        {
-            string filename = e.Node.Text;
-            string ext = Path.GetExtension(filename);
-            var fileType = StageFile.GetTypeFromExt(ext);
-
-            switch (fileType)
-            {
-                case StageFile.FileType.GEOM:
-                    tabControl.SelectedTab = tabPageGeom;
-                    break;
-                case StageFile.FileType.CNF:
-                case StageFile.FileType.NNI:
-                    var textEditor = new TextEditor(filename, false);
-                    textEditor.ShowDialog();
-                    break;
-                case StageFile.FileType.DLZ:
-                    Process.Start("explorer.exe", $"\"{Directory.GetCurrentDirectory()}\\stage\\_dlz");
-                    break;
-                case StageFile.FileType.QAR:
-                case StageFile.FileType.DAR:
-                    try
-                    {
-                        Process.Start("explorer.exe", $"\"{Directory.GetCurrentDirectory()}\\stage\\_{filename}\\{ext.Replace(".", "")}\"");
-                    }
-                    catch (Win32Exception win32Exception)
-                    {
-                        MessageBox.Show(win32Exception.Message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                    }
-                    break;
-                default:
-                    MessageBox.Show("Unsupported file type", "Information", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                    break;
-            }
-        }
-
         private async void btnSave_Click(object sender, EventArgs e)
         {
             if (CurrentStage == null) return;
@@ -361,9 +417,16 @@ namespace Haven
                     labelStatus.Text = "Saving geom...";
                     Geom?.Save(CurrentStage.Geom.GetLocalPath());
 
-                    labelStatus.Text = "Encrypting...";
-                    await CurrentStage.Encrypt(fbd.SelectedPath);
-
+                    if (Decrypted)
+                    {
+                        labelStatus.Text = "Encrypting...";
+                        await CurrentStage.Encrypt(fbd.SelectedPath);
+                    }
+                    else
+                    {
+                        labelStatus.Text = "Copying...";
+                        await CurrentStage.Encrypt(fbd.SelectedPath);
+                    }
                     var files = Directory.GetFiles(fbd.SelectedPath);
 
                     foreach (var file in files)
@@ -397,18 +460,6 @@ namespace Haven
             {
                 labelCamPos.Text = "";
             }
-        }
-
-        private void glControl_Load(object sender, EventArgs e)
-        {
-            Scene = new Scene(glControl);
-        }
-
-        private void MainForm_Load(object sender, EventArgs e)
-        {
-            tabPageGeom.Show();
-            SetEnabled(false);
-            DictionaryFile.Load("bin/dictionary.txt");
         }
 
         private void treeViewGeom_AfterSelect(object sender, TreeViewEventArgs e)
@@ -510,25 +561,26 @@ namespace Haven
 
         private void btnExportMesh_Click(object sender, EventArgs e)
         {
-            SaveFileDialog saveFileDialog1 = new SaveFileDialog();
-
-            saveFileDialog1.Filter = "PLY files (*.ply)|*.ply";
-            saveFileDialog1.RestoreDirectory = true;
-
-            if (saveFileDialog1.ShowDialog() == DialogResult.OK)
+            using (SaveFileDialog saveFileDialog1 = new SaveFileDialog())
             {
-                List<Mesh> meshes = new List<Mesh>();
+                saveFileDialog1.Filter = "PLY files (*.ply)|*.ply";
+                saveFileDialog1.RestoreDirectory = true;
 
-                foreach (var child in Scene.Children)
+                if (saveFileDialog1.ShowDialog() == DialogResult.OK)
                 {
-                    if (!child.Visible)
-                        continue;
+                    List<Mesh> meshes = new List<Mesh>();
 
-                    meshes.Add(child as Mesh);
+                    foreach (var child in Scene.Children)
+                    {
+                        if (!child.Visible)
+                            continue;
+
+                        meshes.Add(child as Mesh);
+                    }
+
+                    Mesh mesh = Mesh.CombineMeshes(meshes);
+                    mesh.SaveMesh(saveFileDialog1.FileName);
                 }
-
-                Mesh mesh = Mesh.CombineMeshes(meshes);
-                mesh.SaveMesh(saveFileDialog1.FileName);
             }
         }
 
@@ -667,6 +719,29 @@ namespace Haven
         private void stringHashUtilityToolStripMenuItem_Click(object sender, EventArgs e)
         {
             new StringHashEditor().ShowDialog();
+        }
+
+        private void treeViewFiles_NodeMouseClick(object sender, TreeNodeMouseClickEventArgs e)
+        {
+            //MessageBox.Show("test");
+        }
+
+        private void treeViewFiles_MouseUp(object sender, MouseEventArgs e)
+        {
+            if (e.Button == MouseButtons.Right)
+            {
+                // Select the clicked node
+                treeViewFiles.SelectedNode = treeViewFiles.GetNodeAt(e.X, e.Y);
+
+                if (treeViewFiles.SelectedNode != null)
+                {
+                    string[] canEdit = new string[] { ".nni", ".cnf", ".txn", ".dlz" };
+                    string filename = treeViewFiles.SelectedNode.Text;
+                    MenuItemEdit.Enabled = canEdit.Contains(Path.GetExtension(filename));
+
+                    ContextMenuFiles.Show(treeViewFiles, e.Location);
+                }
+            }
         }
     }
 }

@@ -76,7 +76,7 @@ namespace Haven.Parser
 
     public class GeomRefRegionLink
     {
-        public uint[] Offsets = new uint[0x1C];
+        public uint[] Offsets = new uint[0x1C]; // this can actually be larger
     }
 
     public class GeomFile
@@ -123,6 +123,8 @@ namespace Haven.Parser
             LoadObjects();
             LoadChunk5();
             LoadChunk7();
+
+            //CloseStream();
         }
 
         public bool IsBigEndian()
@@ -191,8 +193,15 @@ namespace Haven.Parser
 
                 Stream.Seek(block.VertexOffset, SeekOrigin.Begin);
 
-                var vert = new GeoVertexHeader(Reader);
-                BlockVertexData[block] = vert;
+                try
+                {
+                    var vert = new GeoVertexHeader(Reader);
+                    BlockVertexData[block] = vert;
+                }
+                catch
+                {
+
+                }
             }
         }
 

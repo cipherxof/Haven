@@ -54,4 +54,13 @@ class BinaryWriterEx : BinaryWriter
         if (BigEndian) Array.Reverse(bytes);
         base.Write(BitConverter.ToSingle(bytes, 0));
     }
+
+    public void Align(int size)
+    {
+        int skip = (size - ((int)BaseStream.Position % size));
+        if (skip != size)
+        {
+            BaseStream.Write(new byte[skip]);
+        }
+    }
 }

@@ -1,6 +1,7 @@
 ﻿using OpenTK.Input;
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Diagnostics;
 using System.Linq;
 using System.Text;
@@ -50,6 +51,32 @@ namespace Haven
             }
 
             return id;
+        }
+
+        public static void ExplorerSelectFile(string path)
+        {
+            try
+            {
+                string argument = "/select, \"" + path + "\"";
+
+                Process.Start("explorer.exe", argument);
+            }
+            catch
+            {
+                MessageBox.Show("ExplorerSelectFile", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        public static void ExplorerOpenDirectory(string path)
+        {
+            try
+            {
+                Process.Start("explorer.exe", path);
+            }
+            catch (Win32Exception win32Exception)
+            {
+                MessageBox.Show(win32Exception.Message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
         }
 
         public static async Task DecryptFileAsync(string path, string key)

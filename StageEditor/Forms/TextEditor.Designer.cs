@@ -77,6 +77,7 @@
             this.Controls.Add(this.textEditorText);
             this.MinimumSize = new System.Drawing.Size(720, 500);
             this.Name = "TextEditor";
+            this.StartPosition = System.Windows.Forms.FormStartPosition.CenterParent;
             this.Text = "TextEditor";
             this.Load += new System.EventHandler(this.TextEditor_Load);
             this.toolStrip1.ResumeLayout(false);

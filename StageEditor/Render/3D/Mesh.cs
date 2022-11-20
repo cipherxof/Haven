@@ -369,7 +369,10 @@ namespace Haven.Render
             this.vertices = new Vector3d[0];
             this.triangleIndices = new int[0];
             this.normals = new Vector3d[0];
-            this.Triangles.Clear();
+            if (this.Triangles != null)
+            {
+                this.Triangles.Clear();
+            }
         }
 
         /// <summary>

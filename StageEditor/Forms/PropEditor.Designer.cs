@@ -106,7 +106,7 @@
             this.btnSpawnEditUseCam.UseVisualStyleBackColor = true;
             this.btnSpawnEditUseCam.Click += new System.EventHandler(this.btnSpawnEditUseCam_Click);
             // 
-            // SpawnEditor
+            // PropEditor
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
@@ -121,7 +121,8 @@
             this.Controls.Add(this.tbSpawnEditX);
             this.FormBorderStyle = System.Windows.Forms.FormBorderStyle.FixedSingle;
             this.MaximizeBox = false;
-            this.Name = "SpawnEditor";
+            this.Name = "PropEditor";
+            this.StartPosition = System.Windows.Forms.FormStartPosition.CenterParent;
             this.Text = "SpawnEditor";
             this.Load += new System.EventHandler(this.SpawnEditor_Load);
             this.ResumeLayout(false);

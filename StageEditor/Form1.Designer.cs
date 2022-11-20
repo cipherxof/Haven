@@ -49,10 +49,10 @@
             this.toolStripMenuItem1 = new System.Windows.Forms.ToolStripMenuItem();
             this.mergeToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.toolStripMenuItem2 = new System.Windows.Forms.ToolStripMenuItem();
+            this.stringHashUtilityToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.labelStatus = new System.Windows.Forms.Label();
             this.timerRefresh = new System.Windows.Forms.Timer(this.components);
             this.labelCamPos = new System.Windows.Forms.Label();
-            this.stringHashUtilityToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.tabControl.SuspendLayout();
             this.tabPageFiles.SuspendLayout();
             this.tabPageGeom.SuspendLayout();
@@ -81,7 +81,7 @@
             this.tabPageFiles.Padding = new System.Windows.Forms.Padding(3);
             this.tabPageFiles.Size = new System.Drawing.Size(876, 482);
             this.tabPageFiles.TabIndex = 0;
-            this.tabPageFiles.Text = "Files";
+            this.tabPageFiles.Text = "Main";
             this.tabPageFiles.UseVisualStyleBackColor = true;
             // 
             // treeViewFiles
@@ -95,15 +95,17 @@
             this.treeViewFiles.Size = new System.Drawing.Size(876, 482);
             this.treeViewFiles.StateImageList = this.imageListFileTypes;
             this.treeViewFiles.TabIndex = 0;
-            this.treeViewFiles.NodeMouseDoubleClick += new System.Windows.Forms.TreeNodeMouseClickEventHandler(this.treeViewFiles_NodeMouseDoubleClick);
+            this.treeViewFiles.NodeMouseClick += new System.Windows.Forms.TreeNodeMouseClickEventHandler(this.treeViewFiles_NodeMouseClick);
+            this.treeViewFiles.MouseUp += new System.Windows.Forms.MouseEventHandler(this.treeViewFiles_MouseUp);
             // 
             // imageListFileTypes
             // 
             this.imageListFileTypes.ColorDepth = System.Windows.Forms.ColorDepth.Depth8Bit;
             this.imageListFileTypes.ImageStream = ((System.Windows.Forms.ImageListStreamer)(resources.GetObject("imageListFileTypes.ImageStream")));
             this.imageListFileTypes.TransparentColor = System.Drawing.Color.Transparent;
-            this.imageListFileTypes.Images.SetKeyName(0, "FileSystemEditor[1].png");
-            this.imageListFileTypes.Images.SetKeyName(1, "FolderSuppressed[1].png");
+            this.imageListFileTypes.Images.SetKeyName(0, "File");
+            this.imageListFileTypes.Images.SetKeyName(1, "Folder");
+            this.imageListFileTypes.Images.SetKeyName(2, "Mesh");
             // 
             // tabPageGeom
             // 
@@ -214,7 +216,7 @@
             this.encryptFileToolStripMenuItem,
             this.decryptFileToolStripMenuItem});
             this.solidEyeToolStripMenuItem.Name = "solidEyeToolStripMenuItem";
-            this.solidEyeToolStripMenuItem.Size = new System.Drawing.Size(180, 22);
+            this.solidEyeToolStripMenuItem.Size = new System.Drawing.Size(135, 22);
             this.solidEyeToolStripMenuItem.Text = "SolidEye";
             // 
             // encryptFileToolStripMenuItem
@@ -237,7 +239,7 @@
             this.mergeToolStripMenuItem,
             this.toolStripMenuItem2});
             this.toolStripMenuItem1.Name = "toolStripMenuItem1";
-            this.toolStripMenuItem1.Size = new System.Drawing.Size(180, 22);
+            this.toolStripMenuItem1.Size = new System.Drawing.Size(135, 22);
             this.toolStripMenuItem1.Text = "Geom";
             // 
             // mergeToolStripMenuItem
@@ -253,6 +255,13 @@
             this.toolStripMenuItem2.Size = new System.Drawing.Size(141, 22);
             this.toolStripMenuItem2.Text = "Endian Swap";
             this.toolStripMenuItem2.Click += new System.EventHandler(this.toolStripMenuItem2_Click);
+            // 
+            // stringHashUtilityToolStripMenuItem
+            // 
+            this.stringHashUtilityToolStripMenuItem.Name = "stringHashUtilityToolStripMenuItem";
+            this.stringHashUtilityToolStripMenuItem.Size = new System.Drawing.Size(135, 22);
+            this.stringHashUtilityToolStripMenuItem.Text = "String Hash";
+            this.stringHashUtilityToolStripMenuItem.Click += new System.EventHandler(this.stringHashUtilityToolStripMenuItem_Click);
             // 
             // labelStatus
             // 
@@ -280,13 +289,6 @@
             this.labelCamPos.Size = new System.Drawing.Size(0, 15);
             this.labelCamPos.TabIndex = 3;
             this.labelCamPos.TextAlign = System.Drawing.ContentAlignment.BottomRight;
-            // 
-            // stringHashUtilityToolStripMenuItem
-            // 
-            this.stringHashUtilityToolStripMenuItem.Name = "stringHashUtilityToolStripMenuItem";
-            this.stringHashUtilityToolStripMenuItem.Size = new System.Drawing.Size(180, 22);
-            this.stringHashUtilityToolStripMenuItem.Text = "String Hash";
-            this.stringHashUtilityToolStripMenuItem.Click += new System.EventHandler(this.stringHashUtilityToolStripMenuItem_Click);
             // 
             // MainForm
             // 
