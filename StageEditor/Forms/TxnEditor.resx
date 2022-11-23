@@ -83,9 +83,9 @@
   <data name="btnTxnAdd.Image" type="System.Drawing.Bitmap, System.Drawing" mimetype="application/x-microsoft.net.object.bytearray.base64">
     <value>
         iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAABGdBTUEAALGPC/xhBQAAACBjSFJNAAB6
-        JgAAgIQAAPoAAACA6AAAdTAAAOpgAAA6mAAAF3CculE8AAAACXBIWXMAAA68AAAOvAGVvHJJAAAALElE
-        QVQ4T2OgKZBvkP8PZZIHRg0gwQCQQlIxVCt+QLRCXGDUACoYQAfAwAAADmsrdnmTTREAAAAASUVORK5C
-        YII=
+        JgAAgIQAAPoAAACA6AAAdTAAAOpgAAA6mAAAF3CculE8AAAACXBIWXMAAA7CAAAOwgEVKEqAAAAAWklE
+        QVQ4T2OgGVBUVFwBxPvx4BVQpdgBSJGUlJQwLgyShyrFDkgyAMh5AMT/8eAHhAz4LycnJ4kLg+RHDRgM
+        BoA0oGFESgRyCBoAVYodUMMAgikRqpTagIEBAABneZFeCA6HAAAAAElFTkSuQmCC
 </value>
   </data>
   <data name="btnTxnSave.Image" type="System.Drawing.Bitmap, System.Drawing" mimetype="application/x-microsoft.net.object.bytearray.base64">

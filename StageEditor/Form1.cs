@@ -8,7 +8,7 @@ using Haven.Properties;
 using static OpenTK.Graphics.OpenGL.GL;
 using System.Xml.Linq;
 using System.Windows.Forms;
-
+using Haven.Forms;
 
 namespace Haven
 {
@@ -79,18 +79,21 @@ namespace Haven
             {
                 switch (stageFile.Type)
                 {
+                    case StageFile.FileType.DCI:
+                        new DciEditor(stageFile, CurrentStage).ShowDialog();
+                        break;
                     case StageFile.FileType.DLZ:
                         new DldEditor(stageFile, CurrentStage).ShowDialog();
                         break;
                     case StageFile.FileType.TXN:
-                        new TxnEditor(stageFile.GetLocalPath(), CurrentStage).ShowDialog();
+                        new TxnEditor(stageFile, CurrentStage).ShowDialog();
                         break;
                     case StageFile.FileType.CNF:
                     case StageFile.FileType.NNI:
-                        new TextEditor(stageFile.GetLocalPath(), false).ShowDialog();
+                        new TextEditor(stageFile, false).ShowDialog();
                         break;
                     default:
-                        MessageBox.Show("Unsupported file type", "Information", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                        MessageBox.Show("Unsupported file type", "Information", MessageBoxButtons.OK, MessageBoxIcon.Information);
                         break;
                 }
             }
@@ -735,7 +738,7 @@ namespace Haven
 
                 if (treeViewFiles.SelectedNode != null)
                 {
-                    string[] canEdit = new string[] { ".nni", ".cnf", ".txn", ".dlz" };
+                    string[] canEdit = new string[] { ".nni", ".cnf", ".txn", ".dlz", ".dci" };
                     string filename = treeViewFiles.SelectedNode.Text;
                     MenuItemEdit.Enabled = canEdit.Contains(Path.GetExtension(filename));
 

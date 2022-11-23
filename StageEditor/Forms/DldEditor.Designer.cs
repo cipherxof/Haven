@@ -36,12 +36,13 @@
             this.ColumnHash = new System.Windows.Forms.DataGridViewTextBoxColumn();
             this.ColumnEntry = new System.Windows.Forms.DataGridViewTextBoxColumn();
             this.ColumnSize = new System.Windows.Forms.DataGridViewTextBoxColumn();
-            this.groupBox1 = new System.Windows.Forms.GroupBox();
-            this.btnDldDelete = new System.Windows.Forms.Button();
-            this.btnDldSave = new System.Windows.Forms.Button();
-            this.btnDldAdd = new System.Windows.Forms.Button();
+            this.toolStrip1 = new System.Windows.Forms.ToolStrip();
+            this.btnDldSave = new System.Windows.Forms.ToolStripButton();
+            this.btnDldAdd = new System.Windows.Forms.ToolStripButton();
+            this.btnDldDelete = new System.Windows.Forms.ToolStripButton();
+            this.btnReplace = new System.Windows.Forms.ToolStripButton();
             ((System.ComponentModel.ISupportInitialize)(this.dataGridDld)).BeginInit();
-            this.groupBox1.SuspendLayout();
+            this.toolStrip1.SuspendLayout();
             this.SuspendLayout();
             // 
             // dataGridDld
@@ -58,12 +59,12 @@
             this.ColumnHash,
             this.ColumnEntry,
             this.ColumnSize});
-            this.dataGridDld.Location = new System.Drawing.Point(12, 67);
+            this.dataGridDld.Location = new System.Drawing.Point(12, 37);
             this.dataGridDld.MinimumSize = new System.Drawing.Size(590, 330);
             this.dataGridDld.Name = "dataGridDld";
             this.dataGridDld.RowTemplate.Height = 25;
             this.dataGridDld.SelectionMode = System.Windows.Forms.DataGridViewSelectionMode.FullRowSelect;
-            this.dataGridDld.Size = new System.Drawing.Size(590, 353);
+            this.dataGridDld.Size = new System.Drawing.Size(590, 383);
             this.dataGridDld.TabIndex = 0;
             // 
             // ColumnExport
@@ -107,65 +108,61 @@
             this.ColumnSize.Name = "ColumnSize";
             this.ColumnSize.ReadOnly = true;
             // 
-            // groupBox1
+            // toolStrip1
             // 
-            this.groupBox1.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
-            | System.Windows.Forms.AnchorStyles.Right)));
-            this.groupBox1.Controls.Add(this.btnDldDelete);
-            this.groupBox1.Controls.Add(this.btnDldSave);
-            this.groupBox1.Controls.Add(this.btnDldAdd);
-            this.groupBox1.Location = new System.Drawing.Point(12, 12);
-            this.groupBox1.Name = "groupBox1";
-            this.groupBox1.Size = new System.Drawing.Size(590, 49);
-            this.groupBox1.TabIndex = 1;
-            this.groupBox1.TabStop = false;
-            this.groupBox1.Text = "Tools";
-            // 
-            // btnDldDelete
-            // 
-            this.btnDldDelete.Anchor = System.Windows.Forms.AnchorStyles.Right;
-            this.btnDldDelete.Image = ((System.Drawing.Image)(resources.GetObject("btnDldDelete.Image")));
-            this.btnDldDelete.ImageAlign = System.Drawing.ContentAlignment.MiddleLeft;
-            this.btnDldDelete.Location = new System.Drawing.Point(287, 20);
-            this.btnDldDelete.Name = "btnDldDelete";
-            this.btnDldDelete.Size = new System.Drawing.Size(125, 23);
-            this.btnDldDelete.TabIndex = 5;
-            this.btnDldDelete.Text = "Delete Selected";
-            this.btnDldDelete.UseVisualStyleBackColor = true;
-            this.btnDldDelete.Click += new System.EventHandler(this.btnDldDelete_Click);
+            this.toolStrip1.Items.AddRange(new System.Windows.Forms.ToolStripItem[] {
+            this.btnDldSave,
+            this.btnDldAdd,
+            this.btnDldDelete,
+            this.btnReplace});
+            this.toolStrip1.Location = new System.Drawing.Point(0, 0);
+            this.toolStrip1.Name = "toolStrip1";
+            this.toolStrip1.Size = new System.Drawing.Size(614, 25);
+            this.toolStrip1.TabIndex = 2;
+            this.toolStrip1.Text = "toolStrip1";
             // 
             // btnDldSave
             // 
-            this.btnDldSave.Anchor = System.Windows.Forms.AnchorStyles.Right;
             this.btnDldSave.Image = ((System.Drawing.Image)(resources.GetObject("btnDldSave.Image")));
-            this.btnDldSave.ImageAlign = System.Drawing.ContentAlignment.MiddleLeft;
-            this.btnDldSave.Location = new System.Drawing.Point(504, 20);
+            this.btnDldSave.ImageTransparentColor = System.Drawing.Color.Magenta;
             this.btnDldSave.Name = "btnDldSave";
-            this.btnDldSave.Size = new System.Drawing.Size(80, 23);
-            this.btnDldSave.TabIndex = 4;
+            this.btnDldSave.Size = new System.Drawing.Size(51, 22);
             this.btnDldSave.Text = "Save";
-            this.btnDldSave.UseVisualStyleBackColor = true;
-            this.btnDldSave.Click += new System.EventHandler(this.btnTxnSave_Click);
+            this.btnDldSave.Click += new System.EventHandler(this.btnDldSave_Click);
             // 
             // btnDldAdd
             // 
-            this.btnDldAdd.Anchor = System.Windows.Forms.AnchorStyles.Right;
             this.btnDldAdd.Image = ((System.Drawing.Image)(resources.GetObject("btnDldAdd.Image")));
-            this.btnDldAdd.ImageAlign = System.Drawing.ContentAlignment.MiddleLeft;
-            this.btnDldAdd.Location = new System.Drawing.Point(418, 20);
+            this.btnDldAdd.ImageTransparentColor = System.Drawing.Color.Magenta;
             this.btnDldAdd.Name = "btnDldAdd";
-            this.btnDldAdd.Size = new System.Drawing.Size(80, 23);
-            this.btnDldAdd.TabIndex = 3;
-            this.btnDldAdd.Text = "Add";
-            this.btnDldAdd.UseVisualStyleBackColor = true;
+            this.btnDldAdd.Size = new System.Drawing.Size(63, 22);
+            this.btnDldAdd.Text = "Import";
             this.btnDldAdd.Click += new System.EventHandler(this.btnDldAdd_Click);
+            // 
+            // btnDldDelete
+            // 
+            this.btnDldDelete.Image = ((System.Drawing.Image)(resources.GetObject("btnDldDelete.Image")));
+            this.btnDldDelete.ImageTransparentColor = System.Drawing.Color.Magenta;
+            this.btnDldDelete.Name = "btnDldDelete";
+            this.btnDldDelete.Size = new System.Drawing.Size(60, 22);
+            this.btnDldDelete.Text = "Delete";
+            this.btnDldDelete.Click += new System.EventHandler(this.btnDldDelete_Click);
+            // 
+            // btnReplace
+            // 
+            this.btnReplace.Image = ((System.Drawing.Image)(resources.GetObject("btnReplace.Image")));
+            this.btnReplace.ImageTransparentColor = System.Drawing.Color.Magenta;
+            this.btnReplace.Name = "btnReplace";
+            this.btnReplace.Size = new System.Drawing.Size(68, 22);
+            this.btnReplace.Text = "Replace";
+            this.btnReplace.Click += new System.EventHandler(this.btnReplace_Click);
             // 
             // DldEditor
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.ClientSize = new System.Drawing.Size(614, 432);
-            this.Controls.Add(this.groupBox1);
+            this.Controls.Add(this.toolStrip1);
             this.Controls.Add(this.dataGridDld);
             this.MinimumSize = new System.Drawing.Size(630, 471);
             this.Name = "DldEditor";
@@ -173,23 +170,26 @@
             this.Text = "DldEditor";
             this.Load += new System.EventHandler(this.DldEditor_Load);
             ((System.ComponentModel.ISupportInitialize)(this.dataGridDld)).EndInit();
-            this.groupBox1.ResumeLayout(false);
+            this.toolStrip1.ResumeLayout(false);
+            this.toolStrip1.PerformLayout();
             this.ResumeLayout(false);
+            this.PerformLayout();
 
         }
 
         #endregion
 
         private DataGridView dataGridDld;
-        private GroupBox groupBox1;
-        private Button btnDldAdd;
-        private Button btnDldSave;
         private DataGridViewButtonColumn ColumnExport;
         private DataGridViewTextBoxColumn ColumnIndex;
         private DataGridViewTextBoxColumn ColumnType;
         private DataGridViewTextBoxColumn ColumnHash;
         private DataGridViewTextBoxColumn ColumnEntry;
         private DataGridViewTextBoxColumn ColumnSize;
-        private Button btnDldDelete;
+        private ToolStrip toolStrip1;
+        private ToolStripButton btnDldSave;
+        private ToolStripButton btnDldAdd;
+        private ToolStripButton btnDldDelete;
+        private ToolStripButton btnReplace;
     }
 }

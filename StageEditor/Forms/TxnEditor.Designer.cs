@@ -126,14 +126,13 @@
             // btnTxnAdd
             // 
             this.btnTxnAdd.Anchor = System.Windows.Forms.AnchorStyles.Right;
-            this.btnTxnAdd.Enabled = false;
             this.btnTxnAdd.Image = ((System.Drawing.Image)(resources.GetObject("btnTxnAdd.Image")));
             this.btnTxnAdd.ImageAlign = System.Drawing.ContentAlignment.MiddleLeft;
             this.btnTxnAdd.Location = new System.Drawing.Point(678, 21);
             this.btnTxnAdd.Name = "btnTxnAdd";
             this.btnTxnAdd.Size = new System.Drawing.Size(80, 23);
             this.btnTxnAdd.TabIndex = 2;
-            this.btnTxnAdd.Text = "Add";
+            this.btnTxnAdd.Text = "Copy";
             this.btnTxnAdd.UseVisualStyleBackColor = true;
             this.btnTxnAdd.Click += new System.EventHandler(this.btnTxnAdd_Click);
             // 
@@ -208,14 +207,12 @@
             this.ColumnMaterial.FillWeight = 140.9036F;
             this.ColumnMaterial.HeaderText = "Material";
             this.ColumnMaterial.Name = "ColumnMaterial";
-            this.ColumnMaterial.ReadOnly = true;
             // 
             // ColumnObject
             // 
             this.ColumnObject.FillWeight = 93.27415F;
             this.ColumnObject.HeaderText = "Object";
             this.ColumnObject.Name = "ColumnObject";
-            this.ColumnObject.ReadOnly = true;
             // 
             // ColumnWidth
             // 

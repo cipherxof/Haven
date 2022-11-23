@@ -15,12 +15,14 @@ namespace Haven
         private string Filename;
         private bool ReadOnly;
 
-        public TextEditor(string filename, bool readOnly)
+        public TextEditor(StageFile stageFile, bool readOnly)
         {
-            Filename = filename;
+            InitializeComponent();
+
+            Filename = stageFile.GetLocalPath();
             ReadOnly = readOnly;
 
-            InitializeComponent();
+            Text = $"TxnEditor - {stageFile.Name}";
         }
 
         private void TextEditor_Load(object sender, EventArgs e)

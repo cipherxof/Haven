@@ -31,6 +31,8 @@ namespace Haven
             StageFile = stageFile;
             DldFile = new DldFile(Path);
             Stage = stage;
+
+            Text = $"DldEditor - {StageFile.Name}";
         }
 
         private void PopulateDataGrid()
@@ -59,42 +61,8 @@ namespace Haven
 
         private void DldEditor_Load(object sender, EventArgs e)
         {
+            dataGridDld.AllowUserToAddRows = false;
             PopulateDataGrid();
-        }
-
-
-        private void btnTxnSave_Click(object sender, EventArgs e)
-        {
-            var textures = new DldTexture[dataGridDld.RowCount - 1];
-
-            foreach (DataGridViewRow row in dataGridDld.Rows)
-            {
-                if (row.Cells["ColumnIndex"] == null || row.Cells["ColumnIndex"].Value == null || !RowTexture.ContainsKey(row))
-                    continue;
-
-                var indexString = row.Cells["ColumnIndex"].Value.ToString();
-
-                if (indexString == null)
-                    continue;
-
-                int index = int.Parse(indexString);
-
-                var texture = RowTexture[row];
-
-                uint hash;
-                uint entry;
-                uint.TryParse(row.Cells["ColumnEntry"].Value.ToString(),  out entry);
-                uint.TryParse(row.Cells["ColumnHash"].Value.ToString(), NumberStyles.HexNumber, CultureInfo.InvariantCulture, out hash);
-
-                texture.HashId = hash == 0 ? texture.HashId : hash;
-                texture.EntryNumber = entry;
-
-                textures[index] = texture;
-            }
-
-            var dld = new DldFile();
-            dld.Textures = textures.ToList();
-            dld.Save(Path);
         }
 
         private void btnDldAdd_Click(object sender, EventArgs e)
@@ -120,5 +88,77 @@ namespace Haven
             PopulateDataGrid();
         }
 
+        private void btnDldSave_Click(object sender, EventArgs e)
+        {
+            var textures = new DldTexture[dataGridDld.RowCount];
+
+            foreach (DataGridViewRow row in dataGridDld.Rows)
+            {
+                if (row.Cells["ColumnIndex"] == null || row.Cells["ColumnIndex"].Value == null || !RowTexture.ContainsKey(row))
+                    continue;
+
+                var indexString = row.Cells["ColumnIndex"].Value.ToString();
+
+                if (indexString == null)
+                    continue;
+
+                int index = int.Parse(indexString);
+
+                var texture = RowTexture[row];
+
+                uint hash;
+                uint entry;
+                uint.TryParse(row.Cells["ColumnEntry"].Value.ToString(), out entry);
+                uint.TryParse(row.Cells["ColumnHash"].Value.ToString(), NumberStyles.HexNumber, CultureInfo.InvariantCulture, out hash);
+
+                texture.HashId = hash == 0 ? texture.HashId : hash;
+                texture.EntryNumber = entry;
+
+                textures[index] = texture;
+            }
+
+            var dld = new DldFile();
+            dld.Textures = textures.ToList();
+            dld.Save(Path);
+        }
+
+        private void btnReplace_Click(object sender, EventArgs e)
+        {
+            var row = dataGridDld.SelectedRows[0];
+
+            if (row == null || !RowTexture.ContainsKey(row))
+                return;
+
+            using (OpenFileDialog openFileDialog = new OpenFileDialog())
+            {
+                openFileDialog.Filter = "DDS files (*.dds)|*.dds|All files (*.*)|*.*";
+                openFileDialog.FilterIndex = 1;
+                openFileDialog.RestoreDirectory = true;
+
+                if (openFileDialog.ShowDialog() != DialogResult.OK)
+                {
+                    return;
+                }
+
+                var texture = RowTexture[row];
+                var ext = System.IO.Path.GetExtension(openFileDialog.FileName);
+                var data = File.ReadAllBytes(openFileDialog.FileName);
+
+                if (ext == ".dds")
+                {
+                    if (texture.Type != 0x2001000)
+                    {
+                        MessageBox.Show("Importing a DDS with mipmaps is unsupported, please import a binary file instead!", "Warning", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    }
+
+                    data = data.Skip(0x80).ToArray();
+                }
+
+                texture.DataSize = (uint)data.Length;
+                texture.Data = data;
+                dataGridDld.Rows.Clear();
+                PopulateDataGrid();
+            }
+        }
     }
 }

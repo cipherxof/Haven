@@ -35,7 +35,7 @@ namespace Haven
         {
             using (OpenFileDialog openFileDialog = new OpenFileDialog())
             {
-                openFileDialog.Filter = "All files (*.*)|*.*";
+                openFileDialog.Filter = "DDS files (*.dds)|*.dds|All files (*.*)|*.*";
                 openFileDialog.FilterIndex = 1;
                 openFileDialog.RestoreDirectory = true;
 
@@ -55,7 +55,18 @@ namespace Haven
                 return;
             }
 
+            var ext = Path.GetExtension(filename).ToLower();
             var data = File.ReadAllBytes(filename);
+
+            if (ext == ".dds")
+            {
+                if (nupType.Value != 0x2001000)
+                {
+                    MessageBox.Show("Importing a DDS with mipmaps is unsupported, please import a binary file instead!", "Warning", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                }
+
+                data = data.Skip(0x80).ToArray();
+            }
 
             DldTexture texture = new DldTexture((uint)nupType.Value, (uint)nupHash.Value, 0, (uint)data.Length, (uint)nupMips.Value, (uint)nupEntry.Value, data);
             DldFile.Textures.Add(texture);

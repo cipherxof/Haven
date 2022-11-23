@@ -49,9 +49,16 @@ namespace Haven.Parser
             EntryNumber = reader.ReadUInt32();
             Padding = reader.ReadUInt32();
 
-            if (DataSize > 0 && DataSize + reader.BaseStream.Position <= reader.BaseStream.Length)
+            if (DataSize > 0)
             {
-                Data = reader.ReadBytes((int)DataSize);
+                if (DataSize + reader.BaseStream.Position <= reader.BaseStream.Length)
+                {
+                    Data = reader.ReadBytes((int)DataSize);
+                }
+                else
+                {
+                    Data = reader.ReadBytes((int)(reader.BaseStream.Length - reader.BaseStream.Position));
+                }
             }
         }
 

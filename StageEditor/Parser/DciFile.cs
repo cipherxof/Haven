@@ -63,6 +63,12 @@ namespace Haven.Parser
         public short DldEntry;
         public short TxnIndex;
 
+        public DciAlias(short dldEntry, short txnIndex)
+        {
+            DldEntry = dldEntry;
+            TxnIndex = txnIndex;
+        }
+
         public DciAlias(BinaryReader reader)
         {
             DldEntry = reader.ReadInt16();

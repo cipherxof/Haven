@@ -7,12 +7,13 @@ using System.ComponentModel;
 using System.Data;
 using System.Diagnostics;
 using System.Drawing;
+using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Security.Policy;
 using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Forms;
-using static System.Net.WebRequestMethods;
 
 namespace Haven
 {
@@ -27,13 +28,15 @@ namespace Haven
         //public Dictionary<string, DciFile> DciFiles = new Dictionary<string, DciFile>();
         public List<DciFile> DciFilesList = new List<DciFile>();
 
-        public TxnEditor(string path, Stage stage)
+        public TxnEditor(StageFile stageFile, Stage stage)
         {
             InitializeComponent();
 
-            Path = path;
-            Txn = new TxnFile(path);
+            Path = stageFile.GetLocalPath();
+            Txn = new TxnFile(Path);
             Stage = stage;
+
+            Text = $"TxnEditor - {stageFile.Name}";
         }
 
         private int GetIndexDldEntry(int txnIndex)
@@ -63,8 +66,30 @@ namespace Haven
             return txnIndex;
         }
 
+        private void AddRowTxnIndex(int txnIndex)
+        {
+            int rowIndex = dataGridTxn.Rows.Add();
+            var row = dataGridTxn.Rows[rowIndex];
+            var index1 = Txn.Indicies[txnIndex];
+            var index2 = Txn.Indicies2[txnIndex];
+
+            row.Cells["ColumnIndex"].Value = txnIndex;
+            row.Cells["ColumnMaterial"].Value = DictionaryFile.GetHashString(index2.MaterialId);
+            row.Cells["ColumnMaterial"].ToolTipText = index2.MaterialId.ToString("X4");
+            row.Cells["ColumnObject"].Value = DictionaryFile.GetHashString(index2.ObjectId);
+            row.Cells["ColumnObject"].ToolTipText = index2.ObjectId.ToString("X4");
+            row.Cells["ColumnWidth"].Value = index2.Width;
+            row.Cells["ColumnHeight"].Value = index2.Height;
+            row.Cells["ColumnFlags"].Value = index1.Flag;
+            row.Cells["ColumnOffset"].Value = index1.Offset.ToString("X4");
+            row.Cells["ColumnMipmaps"].Value = index1.MipMapOffset.ToString("X4");
+            row.Cells["ColumnExport"].Value = "Export";
+        }
+
         private void TxnEditor_Load(object sender, EventArgs e)
         {
+            dataGridTxn.AllowUserToAddRows = false;
+
             foreach (var file in Stage.Files)
             {
                 if (file.Type == StageFile.FileType.DLZ)
@@ -87,28 +112,49 @@ namespace Haven
 
             for (int i = 0; i < Txn.Indicies.Count; i++)
             {
-                var txnIndex1 = Txn.Indicies[i];
-                var txnIndex2 = Txn.Indicies2[i];
-
-                int rowIndex = dataGridTxn.Rows.Add();
-                var row = dataGridTxn.Rows[rowIndex];
-
-                row.Cells["ColumnIndex"].Value = i;
-                row.Cells["ColumnMaterial"].Value = DictionaryFile.GetHashString(txnIndex2.MaterialId);
-                row.Cells["ColumnMaterial"].ToolTipText = txnIndex2.MaterialId.ToString("X4");
-                row.Cells["ColumnObject"].Value = DictionaryFile.GetHashString(txnIndex2.ObjectId);
-                row.Cells["ColumnObject"].ToolTipText = txnIndex2.ObjectId.ToString("X4");
-                row.Cells["ColumnWidth"].Value = txnIndex2.Width;
-                row.Cells["ColumnHeight"].Value = txnIndex2.Width;
-                row.Cells["ColumnFlags"].Value = txnIndex1.Flag;
-                row.Cells["ColumnOffset"].Value = txnIndex1.Offset.ToString("X4");
-                row.Cells["ColumnMipmaps"].Value = txnIndex1.MipMapOffset.ToString("X4");
-                row.Cells["ColumnExport"].Value = "Export";
+                AddRowTxnIndex(i);
             }
         }
 
         private void btnTxnSave_Click(object sender, EventArgs e)
         {
+            foreach (DataGridViewRow row in dataGridTxn.Rows)
+            {
+                int txnIndex;
+
+                if (row.Cells["ColumnIndex"].Value == null || !int.TryParse(row.Cells["ColumnIndex"].Value.ToString(), out txnIndex))
+                    continue;
+
+                if (txnIndex >= Txn.Indicies.Count)
+                    continue;
+
+                if (!uint.TryParse(row.Cells["ColumnMaterial"].Value.ToString(), NumberStyles.HexNumber, CultureInfo.InvariantCulture, out Txn.Indicies2[txnIndex].MaterialId))
+                {
+                    var matString = row.Cells["ColumnMaterial"].Value.ToString();
+                    if (matString != null)
+                    {
+                        Txn.Indicies2[txnIndex].MaterialId = Utils.HashString(matString);
+                    }
+                }
+
+                if (!uint.TryParse(row.Cells["ColumnObject"].Value.ToString(), NumberStyles.HexNumber, CultureInfo.InvariantCulture, out Txn.Indicies2[txnIndex].ObjectId))
+                {
+                    var matString = row.Cells["ColumnObject"].Value.ToString();
+                    if (matString != null)
+                    {
+                        Txn.Indicies2[txnIndex].ObjectId = Utils.HashString(matString);
+                    }
+                }
+
+                ushort.TryParse(row.Cells["ColumnWidth"].Value.ToString(), out Txn.Indicies[txnIndex].Width);
+                ushort.TryParse(row.Cells["ColumnHeight"].Value.ToString(), out Txn.Indicies[txnIndex].Height);
+                ushort.TryParse(row.Cells["ColumnWidth"].Value.ToString(), out Txn.Indicies2[txnIndex].Width);
+                ushort.TryParse(row.Cells["ColumnHeight"].Value.ToString(), out Txn.Indicies2[txnIndex].Height);
+                ushort.TryParse(row.Cells["ColumnFlags"].Value.ToString(), out Txn.Indicies[txnIndex].Flag);
+                uint.TryParse(row.Cells["ColumnOffset"].ToolTipText, NumberStyles.HexNumber, CultureInfo.InvariantCulture, out Txn.Indicies[txnIndex].Offset);
+                uint.TryParse(row.Cells["ColumnMipmaps"].ToolTipText, NumberStyles.HexNumber, CultureInfo.InvariantCulture, out Txn.Indicies[txnIndex].MipMapOffset);
+            }
+
             Txn.Save(Path);
         }
 
@@ -271,7 +317,22 @@ namespace Haven
 
         private void btnTxnAdd_Click(object sender, EventArgs e)
         {
-            new DialogTxnAdd().ShowDialog();
+            if (dataGridTxn.SelectedRows.Count == 0)
+                return;
+
+            var row = dataGridTxn.SelectedRows[0];
+            var txnIndex = (int)row.Cells["ColumnIndex"].Value;
+
+            var index = Txn.Indicies[txnIndex];
+            var index2 = Txn.Indicies2[txnIndex];
+
+            var newIndex = new TxnIndex(index.Width, index.Height, index.FourCC, index.Flag, index.Offset, index.MipMapOffset);
+            var newIndex2 = new TxnIndex2(index2.MaterialId, index2.ObjectId, index2.Width, index2.Height, index2.PositionX, index2.PositionY, index2.Offset, index2.WeightX, index2.WeightY, index2.WeightX2, index2.WeightY2);
+
+            Txn.Indicies.Add(newIndex);
+            Txn.Indicies2.Add(newIndex2);
+
+            AddRowTxnIndex(Txn.Indicies.Count-1);
         }
     }
 }

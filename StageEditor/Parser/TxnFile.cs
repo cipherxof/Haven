@@ -18,6 +18,16 @@ namespace Haven.Parser
         public uint Offset;
         public uint MipMapOffset;
 
+        public TxnIndex(ushort width, ushort height, ushort fourCC, ushort flag, uint offset, uint mipmapOffset)
+        {
+            Width = width;
+            Height = height;
+            FourCC = fourCC;
+            Flag = flag;
+            Offset = offset;
+            MipMapOffset = mipmapOffset;
+        }
+
         public TxnIndex(BinaryReader reader)
         {
             Width = reader.ReadUInt16();
@@ -55,6 +65,24 @@ namespace Haven.Parser
         public float WeightX2;
         public float WeightY2;
         public uint NullBytes3;
+
+        public TxnIndex2(uint materialId, uint objectId, ushort width, ushort height, ushort positionX, ushort positionY, uint offset, float weightX, float weightY, float weightX2, float weightY2)
+        {
+            Unknown = 0;
+            MaterialId = materialId;
+            ObjectId = objectId;
+            Width = width;
+            Height = height;
+            PositionX = positionX;
+            PositionY = positionY;
+            Offset = offset;
+            NullBytes2 = 0;
+            WeightX = weightX;
+            WeightY = weightY;
+            WeightX2 = weightX2;
+            WeightY2 = weightY2;
+            NullBytes3 = 0;
+        }
 
         public TxnIndex2(BinaryReader reader) 
         {
@@ -145,6 +173,11 @@ namespace Haven.Parser
                     Header = new TxnHeader(reader);
                     Path = path;
 
+                    if (Header.TextureCount != Header.TextureCount2)
+                    {
+                        Debug.WriteLine($"TXN \"{Path}\" mismatching texture counts!");
+                    }
+
                     if (Header.NullBytes == 0)
                     {
                         for (int i = 0; i < Header.TextureCount; i++)
@@ -167,20 +200,30 @@ namespace Haven.Parser
             {
                 using (var writer = new BinaryWriterEx(stream, true))
                 {
-
+                    Header.TextureCount = (uint)Indicies.Count;
+                    Header.TextureCount2 = (uint)Indicies2.Count;
                     Header.WriteTo(writer);
 
+                    uint[] offsets = new uint[Indicies.Count];
+
+                    Header.IndexOffset = (uint)stream.Position;
                     for (int i = 0; i < Indicies.Count; i++)
                     {
+                        offsets[i] = (uint)stream.Position;
                         Indicies[i].WriteTo(writer);
                     }
 
+                    Header.IndexOffset2 = (uint)stream.Position;
                     for (int i = 0; i < Indicies2.Count; i++)
                     {
+                        Indicies2[i].Offset = offsets[i];
                         Indicies2[i].WriteTo(writer);
                     }
 
                     writer.Align(0x80);
+
+                    stream.Seek(0, SeekOrigin.Begin);
+                    Header.WriteTo(writer);
                 }
             }
         }
