@@ -66,6 +66,7 @@
             this.dataGridDld.SelectionMode = System.Windows.Forms.DataGridViewSelectionMode.FullRowSelect;
             this.dataGridDld.Size = new System.Drawing.Size(590, 383);
             this.dataGridDld.TabIndex = 0;
+            this.dataGridDld.CellContentClick += new System.Windows.Forms.DataGridViewCellEventHandler(this.dataGridDld_CellContentClick);
             // 
             // ColumnExport
             // 

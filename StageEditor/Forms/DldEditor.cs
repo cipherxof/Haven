@@ -160,5 +160,28 @@ namespace Haven
                 PopulateDataGrid();
             }
         }
+
+        private void dataGridDld_CellContentClick(object sender, DataGridViewCellEventArgs e)
+        {
+            var senderGrid = (DataGridView)sender;
+
+            if (senderGrid.Columns[e.ColumnIndex] is DataGridViewButtonColumn && e.RowIndex >= 0)
+            {
+                var texture = DldFile.Textures[e.RowIndex];
+
+                using (SaveFileDialog saveFileDialog1 = new SaveFileDialog())
+                {
+                    string filename = DictionaryFile.GetHashString(texture.HashId);
+                    saveFileDialog1.FileName = $"{filename}.bin";
+                    saveFileDialog1.Filter = "Binary files (*.bin)|*.bin";
+                    saveFileDialog1.RestoreDirectory = true;
+
+                    if (saveFileDialog1.ShowDialog() == DialogResult.OK)
+                    {
+                        File.WriteAllBytes(saveFileDialog1.FileName, texture.Data);
+                    }
+                }
+            }
+        }
     }
 }
