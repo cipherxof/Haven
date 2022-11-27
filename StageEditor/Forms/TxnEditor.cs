@@ -118,7 +118,7 @@ namespace Haven
 
         private void btnTxnSave_Click(object sender, EventArgs e)
         {
-            foreach (DataGridViewRow row in dataGridTxn.Rows)
+            /*foreach (DataGridViewRow row in dataGridTxn.Rows)
             {
                 int txnIndex;
 
@@ -153,7 +153,7 @@ namespace Haven
                 ushort.TryParse(row.Cells["ColumnFlags"].Value.ToString(), out Txn.Indicies[txnIndex].Flag);
                 uint.TryParse(row.Cells["ColumnOffset"].ToolTipText, NumberStyles.HexNumber, CultureInfo.InvariantCulture, out Txn.Indicies[txnIndex].Offset);
                 uint.TryParse(row.Cells["ColumnMipmaps"].ToolTipText, NumberStyles.HexNumber, CultureInfo.InvariantCulture, out Txn.Indicies[txnIndex].MipMapOffset);
-            }
+            }*/
 
             Txn.Save(Path);
         }
@@ -172,7 +172,20 @@ namespace Haven
 
                 int txnIndex = (int)senderGrid.Rows[e.RowIndex].Cells["ColumnIndex"].Value;
                 var txnIndexUpdated = GetIndexDldEntry(txnIndex);
-                var objectId = Txn.Indicies2[txnIndex].ObjectId;
+
+                var index2List = Txn.GetIndex2List(txnIndex);
+
+                if (index2List.Count == 0)
+                {
+                    MessageBox.Show($"....", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    return;
+                }
+                else if (index2List.Count > 1) 
+                {
+                    MessageBox.Show($"Multiple entires were found for this texture", "Information", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                }
+
+                var objectId = index2List[0].ObjectId;
                 var texture = CurrentDld.FindTexture(objectId, txnIndexUpdated, DldTextureType.MAIN);
 
                 if (texture == null)

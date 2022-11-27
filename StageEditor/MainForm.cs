@@ -15,7 +15,7 @@ namespace Haven
     public partial class MainForm : Form
     {
         public Stage? CurrentStage;
-        public Scene Scene;
+        public Scene? Scene;
         public GeomFile? Geom;
         public List<Mesh> MeshGroups = new List<Mesh>();
         public List<Mesh> MeshObjects = new List<Mesh>();

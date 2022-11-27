@@ -164,6 +164,8 @@ namespace Haven.Parser
         public readonly List<TxnIndex> Indicies = new List<TxnIndex>();
         public readonly List<TxnIndex2> Indicies2 = new List<TxnIndex2>();
 
+        public readonly Dictionary<TxnIndex2, int> IndexLookup = new Dictionary<TxnIndex2, int>();
+
         public TxnFile(string path)
         {
             using (var stream = new FileStream(path, FileMode.Open, FileAccess.Read))
@@ -180,18 +182,57 @@ namespace Haven.Parser
 
                     if (Header.NullBytes == 0)
                     {
+                        List<uint> offsets = new List<uint>();
+
+                        stream.Seek(Header.IndexOffset, SeekOrigin.Begin);
+
                         for (int i = 0; i < Header.TextureCount; i++)
                         {
+                            offsets.Add((uint)stream.Position);
                             Indicies.Add(new TxnIndex(reader));
                         }
 
+                        stream.Seek(Header.IndexOffset2, SeekOrigin.Begin);
+
                         for (int i = 0; i < Header.TextureCount2; i++)
                         {
-                            Indicies2.Add(new TxnIndex2(reader));
+                            var index2 = new TxnIndex2(reader);
+                            var index1 = offsets.FindIndex(offset => offset == index2.Offset);
+                            IndexLookup[index2] = index1;
+                            Indicies2.Add(index2);
                         }
                     }
                 }
             }
+        }
+
+        public int GetIndex(TxnIndex2 index2)
+        {
+            int result;
+            IndexLookup.TryGetValue(index2, out result);
+            return result;
+        }
+
+        public List<TxnIndex2> GetIndex2List(int index1)
+        {
+            List<TxnIndex2> result = new List<TxnIndex2>();
+
+            if (Indicies.Count <= index1)
+            {
+                return result;
+            }
+
+            int offset = 0x20 + (index1 * 0x10);
+
+            for (int i = 0; i < Indicies2.Count; i++)
+            {
+                if (offset == Indicies2[i].Offset)
+                {
+                    result.Add(Indicies2[i]);
+                }
+            }
+
+            return result;
         }
 
         public void Save(string path)
@@ -216,7 +257,8 @@ namespace Haven.Parser
                     Header.IndexOffset2 = (uint)stream.Position;
                     for (int i = 0; i < Indicies2.Count; i++)
                     {
-                        Indicies2[i].Offset = offsets[i];
+                        var index1 = GetIndex(Indicies2[i]);
+                        Indicies2[i].Offset = offsets[index1];
                         Indicies2[i].WriteTo(writer);
                     }
 
