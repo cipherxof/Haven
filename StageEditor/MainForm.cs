@@ -49,6 +49,9 @@ namespace Haven
             SetEnabled(false);
             DictionaryFile.Load("bin/dictionary.txt");
             SetupContextMenus();
+
+            var dlz = new DlzFile(@"C:\Users\Me\Documents\GitHub\rpcs3\bin\dev_hdd0\game\NPMG00020\USRDIR\o\stage\n023a\cache.dlz.dec");
+            dlz.Unpack(@"C:\Users\Me\Documents\GitHub\rpcs3\bin\dev_hdd0\game\NPMG00020\USRDIR\o\stage\n023a\cache.dld");
         }
 
         private void SetupContextMenus()

@@ -11,6 +11,7 @@
 
   <ItemGroup>
     <PackageReference Include="OpenTK.GLControl" Version="3.3.3" />
+    <PackageReference Include="Zlib.Portable.Signed" Version="1.11.0" />
   </ItemGroup>
 
   <ItemGroup>

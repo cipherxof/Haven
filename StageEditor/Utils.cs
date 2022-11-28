@@ -1,4 +1,5 @@
-﻿using OpenTK.Input;
+﻿using Ionic.Zlib;
+using OpenTK.Input;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
@@ -99,6 +100,57 @@ namespace Haven
             return Directory.GetParent(dir)?.Name + "/" + new DirectoryInfo(dir).Name;
         }
 
+        public static byte[] InflateBuffer(byte[] compressedBytes, int decompressedSize)
+        {
+            int bufferSize = 1024;
+            byte[] buffer = new byte[bufferSize];
+            ZlibCodec decompressor = new ZlibCodec();
+
+            byte[] decompressedBytes = new byte[decompressedSize];
+            MemoryStream ms = new MemoryStream(decompressedBytes);
+
+
+            int rc = decompressor.InitializeInflate(ZlibConstants.WindowBitsMax, false);
+            
+            decompressor.InputBuffer = compressedBytes;
+            decompressor.NextIn = 0;
+            decompressor.AvailableBytesIn = compressedBytes.Length;
+
+            decompressor.OutputBuffer = buffer;
+
+            // pass 1: inflate 
+            do
+            {
+                decompressor.NextOut = 0;
+                decompressor.AvailableBytesOut = buffer.Length;
+                rc = decompressor.Inflate(FlushType.None);
+
+                if (rc != ZlibConstants.Z_OK && rc != ZlibConstants.Z_STREAM_END)
+                         throw new Exception("inflating: " + decompressor.Message);
+
+                ms.Write(decompressor.OutputBuffer, 0, buffer.Length - decompressor.AvailableBytesOut);
+            }
+            while (decompressor.AvailableBytesIn > 0 || decompressor.AvailableBytesOut == 0);
+
+            // pass 2: finish and flush
+            do
+            {
+                decompressor.NextOut = 0;
+                decompressor.AvailableBytesOut = buffer.Length;
+                rc = decompressor.Inflate(FlushType.Finish);
+
+                if (rc != ZlibConstants.Z_STREAM_END && rc != ZlibConstants.Z_OK)
+                         throw new Exception("inflating: " + decompressor.Message);
+
+                if (buffer.Length - decompressor.AvailableBytesOut > 0)
+                         ms.Write(buffer, 0, buffer.Length - decompressor.AvailableBytesOut);
+            }
+            while (decompressor.AvailableBytesIn > 0 || decompressor.AvailableBytesOut == 0);
+
+            decompressor.EndInflate();
+
+            return decompressedBytes;
+        }
         public static void FaceBitCalculation(int extraBit, ref int fa, ref int fb, ref int fc, ref int fd)
         {
             if (extraBit == 170)
