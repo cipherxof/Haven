@@ -34,15 +34,43 @@ namespace Haven.Parser
                     stream.SetLength(0);
                     Header.WriteTo(writer);
 
+                    int volumeStart = 0x10;
+
                     foreach (var volume in Header.Volumes)
                     {
+                        int baseOffset = volumeStart + 0x28;
+
+                        volume.VolumeOneOffset = (int)stream.Position - baseOffset;
+
                         foreach (var volumeOne in volume.VolumeOnes)
                         {
                             volumeOne.WriteTo(writer);
                         }
+
+                        volumeStart += 0x30;
                     }
+
+                    stream.Seek(0, SeekOrigin.Begin);
+                    Header.WriteTo(writer);
                 }
             }
+        }
+
+        public void Merge(VlmFile vlm)
+        {
+            for (int i = 0; i < vlm.Header.Volumes.Count; i++)
+            {
+                vlm.Header.Volumes[i].AreaID += (Header.VolumeCount);
+
+                for (int n = 0; n < vlm.Header.Volumes[i].VolumeOnes.Count; n++)
+                {
+                    vlm.Header.Volumes[i].VolumeOnes[n].AreaID += (short)(Header.VolumeCount);
+                }
+            }
+
+            Header.VolumeCount += vlm.Header.VolumeCount;
+            Header.Size += (vlm.Header.Size - 0x10);
+            Header.Volumes.InsertRange(0, vlm.Header.Volumes);
         }
     }
 }

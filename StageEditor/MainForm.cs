@@ -49,9 +49,6 @@ namespace Haven
             SetEnabled(false);
             DictionaryFile.Load("bin/dictionary.txt");
             SetupContextMenus();
-
-            var vlm = new VlmFile(@"C:\Users\Me\Documents\GitHub\rpcs3\bin\dev_hdd0\game\NPMG00020\USRDIR\o\stage\n023a\newgeom\c87718.vlm");
-            vlm.Save("test.vlm");
         }
 
         private void SetupContextMenus()
@@ -731,6 +728,63 @@ namespace Haven
             }
         }
 
+        private void mergeVLMToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            var baseFilePath = string.Empty;
+            var mergeFilePath = string.Empty;
+
+            using (OpenFileDialog openFileDialog = new OpenFileDialog())
+            {
+                openFileDialog.Filter = "vlm files (*.vlm)|*.vlm|All files (*.*)|*.*";
+                openFileDialog.FilterIndex = 1;
+                openFileDialog.RestoreDirectory = true;
+
+                if (openFileDialog.ShowDialog() == DialogResult.OK)
+                {
+                    baseFilePath = openFileDialog.FileName;
+                }
+            }
+
+            if (baseFilePath == string.Empty)
+                return;
+
+            using (OpenFileDialog openFileDialog = new OpenFileDialog())
+            {
+                openFileDialog.Filter = "vlm files (*.vlm)|*.vlm|All files (*.*)|*.*";
+                openFileDialog.FilterIndex = 1;
+                openFileDialog.RestoreDirectory = true;
+
+                if (openFileDialog.ShowDialog() == DialogResult.OK)
+                {
+                    mergeFilePath = openFileDialog.FileName;
+                }
+            }
+
+            try
+            {
+                var vlmBase = new VlmFile(baseFilePath);
+                var vlmMerge = new VlmFile(mergeFilePath);
+                vlmBase.Merge(vlmMerge);
+
+                using (SaveFileDialog saveFileDialog = new SaveFileDialog())
+                {
+                    saveFileDialog.Filter = "vlm files (*.vlm)|*.vlm|All files (*.*)|*.*";
+                    saveFileDialog.FilterIndex = 1;
+                    saveFileDialog.RestoreDirectory = true;
+
+                    if (saveFileDialog.ShowDialog() == DialogResult.OK)
+                    {
+                        vlmBase.Save(saveFileDialog.FileName);
+                    }
+                }
+            }
+            catch (Exception exception)
+            {
+                // leaks if failed
+                MessageBox.Show(exception.Message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
         private void toolStripMenuItem2_Click(object sender, EventArgs e)
         {
             var baseFilePath = string.Empty;
@@ -809,5 +863,6 @@ namespace Haven
                 }
             }
         }
+
     }
 }
