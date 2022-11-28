@@ -5,9 +5,9 @@ using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Haven.Parser.Geom
+namespace Haven.Parser.Geom.Prim
 {
-    public class GeoRef
+    public class GeoPrimRef
     {
         public float SizeX;
         public float SizeY;
@@ -23,7 +23,7 @@ namespace Haven.Parser.Geom
         public int BlockOffset;
         public uint Hash;
 
-        public GeoRef(BinaryReader reader)
+        public GeoPrimRef(BinaryReader reader)
         {
             SizeX = reader.ReadSingle();
             SizeY = reader.ReadSingle();

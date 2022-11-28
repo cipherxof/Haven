@@ -6,6 +6,7 @@ using System.Runtime.InteropServices;
 using System.Diagnostics;
 using Haven.Parser.Geom;
 using static System.Windows.Forms.VisualStyles.VisualStyleElement.ProgressBar;
+using Haven.Parser.Geom.Prim;
 
 namespace Haven.Parser
 {
@@ -86,7 +87,7 @@ namespace Haven.Parser
         public readonly GeoDef Header;
 
         public readonly List<GeoGroup> GeomGroups = new List<GeoGroup>();
-        public readonly List<GeoRef> GeomRefs = new List<GeoRef>();
+        public readonly List<GeoPrimRef> GeomRefs = new List<GeoPrimRef>();
         public readonly List<GeomProp> GeomProps = new List<GeomProp>();
         public readonly List<GeomPropGroup> GeomPropGroups = new List<GeomPropGroup>();
         public readonly List<GeoBlock> GeomBlocks = new List<GeoBlock>();
@@ -98,7 +99,7 @@ namespace Haven.Parser
         public readonly Dictionary<GeoBlock, GeoMaterialHeader> GeomRefBlockMaterial = new Dictionary<GeoBlock, GeoMaterialHeader>();
         public readonly Dictionary<GeoBlock, List<Geom.Geom>> BlockFaceData = new Dictionary<GeoBlock, List<Geom.Geom>>();
         public readonly Dictionary<GeoBlock, GeoVertexHeader> BlockVertexData = new Dictionary<GeoBlock, GeoVertexHeader>();
-        public readonly Dictionary<GeoRef, List<GeoBlock>> GeomRefBlocks = new Dictionary<GeoRef, List<GeoBlock>>();
+        public readonly Dictionary<GeoPrimRef, List<GeoBlock>> GeomRefBlocks = new Dictionary<GeoPrimRef, List<GeoBlock>>();
         
         private GeomRefRegionLink GeomRefRegionLinks = new GeomRefRegionLink();
 
@@ -382,7 +383,7 @@ namespace Haven.Parser
 
             while (Stream.Position < chunk.DataOffset + chunk.Size + geoRefSize)
             {
-                GeoRef obj = new GeoRef(Reader);
+                GeoPrimRef obj = new GeoPrimRef(Reader);
 
                 if (obj.BlockCount == 0)
                     break;
@@ -403,7 +404,7 @@ namespace Haven.Parser
 
             for (int i = 0; i < GeomRefs.Count; i++)
             {
-                GeoRef obj = GeomRefs[i];
+                GeoPrimRef obj = GeomRefs[i];
 
                 Stream.Seek(obj.BlockOffset, SeekOrigin.Begin);
 
@@ -702,7 +703,7 @@ namespace Haven.Parser
             var list = new List<GeoBlock>();
             for (int i = 0; i < GeomRefs.Count; i++)
             {
-                GeoRef obj = GeomRefs[i];
+                GeoPrimRef obj = GeomRefs[i];
                 var blocks = GeomRefBlocks[obj];
 
                 foreach (var block in blocks)

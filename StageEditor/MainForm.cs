@@ -9,6 +9,7 @@ using static OpenTK.Graphics.OpenGL.GL;
 using System.Xml.Linq;
 using System.Windows.Forms;
 using Haven.Forms;
+using Haven.Parser.Geom;
 
 namespace Haven
 {
@@ -17,17 +18,25 @@ namespace Haven
         public Stage? CurrentStage;
         public Scene? Scene;
         public GeomFile? Geom;
+        public bool Decrypted = false;
+
         public List<Mesh> MeshGroups = new List<Mesh>();
         public List<Mesh> MeshObjects = new List<Mesh>();
         public List<Mesh> MeshProps = new List<Mesh>();
-        public List<ContextMenuStrip> ContextMenuStrips = new List<ContextMenuStrip>();
+
         public Dictionary<GeomProp, Mesh> GeomPropMeshLookup = new Dictionary<GeomProp, Mesh>();
         public Dictionary<TreeNode, StageFile> StageFileLookup = new Dictionary<TreeNode, StageFile>();
+        public Dictionary<TreeNode, GeomProp> GeomPropLookup = new Dictionary<TreeNode, GeomProp>();
 
-        public bool Decrypted = false;
         public ContextMenuStrip ContextMenuFiles = new ContextMenuStrip();
-        public ToolStripMenuItem MenuItemOpen = new ToolStripMenuItem();
-        public ToolStripMenuItem MenuItemEdit = new ToolStripMenuItem();
+        public ToolStripMenuItem MenuItemFilesOpen = new ToolStripMenuItem();
+        public ToolStripMenuItem MenuItemFilesEdit = new ToolStripMenuItem();
+
+        public ContextMenuStrip ContextMenuGeomProp = new ContextMenuStrip();
+        public ToolStripMenuItem MenuItemGeomPropEdit = new ToolStripMenuItem();
+
+        public ContextMenuStrip ContextMenuGeomMesh = new ContextMenuStrip();
+        public ToolStripMenuItem MenuItemGeomMeshEdit = new ToolStripMenuItem();
 
         public MainForm()
         {
@@ -39,17 +48,82 @@ namespace Haven
             tabPageGeom.Show();
             SetEnabled(false);
             DictionaryFile.Load("bin/dictionary.txt");
+            SetupContextMenus();
+        }
 
+        private void SetupContextMenus()
+        {
+            // files
             var menuItems = new List<ToolStripMenuItem>();
 
-            MenuItemEdit.Text = "Edit";
-            menuItems.Add(MenuItemEdit);
+            MenuItemFilesEdit.Text = "Edit";
+            menuItems.Add(MenuItemFilesEdit);
 
-            MenuItemOpen.Text = "Open in Explorer";
-            menuItems.Add(MenuItemOpen);
+            MenuItemFilesOpen.Text = "Open in Explorer";
+            menuItems.Add(MenuItemFilesOpen);
 
             ContextMenuFiles.ItemClicked += ContextMenuFiles_ItemClicked;
             ContextMenuFiles.Items.AddRange(menuItems.ToArray());
+
+            // geom prop
+            menuItems = new List<ToolStripMenuItem>();
+
+            MenuItemGeomPropEdit.Text = "Edit";
+            menuItems.Add(MenuItemGeomPropEdit);
+
+            ContextMenuGeomProp.ItemClicked += ContextMenuGeomProp_ItemClicked;
+            ContextMenuGeomProp.Items.AddRange(menuItems.ToArray());
+
+            // geom mesh
+            menuItems = new List<ToolStripMenuItem>();
+
+            MenuItemGeomMeshEdit.Text = "Edit";
+            menuItems.Add(MenuItemGeomMeshEdit);
+
+            ContextMenuGeomMesh.ItemClicked += ContextMenuGeomMesh_ItemClicked;
+            ContextMenuGeomMesh.Items.AddRange(menuItems.ToArray());
+        }
+
+        private void ContextMenuGeomMesh_ItemClicked(object? sender, ToolStripItemClickedEventArgs e)
+        {
+            if (Geom == null || treeViewGeom.SelectedNode == null || CurrentStage == null)
+                return;
+
+            Mesh? mesh = Mesh.MeshList.Find(m => m.ID == treeViewGeom.SelectedNode.Text);
+
+            if (mesh == null)
+                return;
+
+            if (e.ClickedItem == MenuItemGeomMeshEdit)
+            {
+                GeoBlock? block;
+
+                if (!GeomMesh.BlockLookup.TryGetValue(mesh, out block) || block == null)
+                    return;
+
+                new GeomEditor(Geom, block).ShowDialog();
+            }
+        }
+
+        private void ContextMenuGeomProp_ItemClicked(object? sender, ToolStripItemClickedEventArgs e)
+        {
+            if (Scene == null || treeViewGeom.SelectedNode == null || CurrentStage == null)
+                return;
+
+            GeomProp? prop;
+
+            if (!GeomPropLookup.TryGetValue(treeViewGeom.SelectedNode, out prop) || prop == null)
+                return;
+
+            Mesh? propMesh;
+
+            if (!GeomPropMeshLookup.TryGetValue(prop, out propMesh) || propMesh == null)
+                return;
+
+            if (e.ClickedItem == MenuItemGeomPropEdit)
+            {
+                new PropEditor(Scene, propMesh, prop).ShowDialog();
+            }
         }
 
         private void ContextMenuFiles_ItemClicked(object? sender, ToolStripItemClickedEventArgs e)
@@ -62,7 +136,7 @@ namespace Haven
             if (stageFile == null)
                 return;
 
-            if (e.ClickedItem == MenuItemOpen)
+            if (e.ClickedItem == MenuItemFilesOpen)
             {
                 switch (stageFile.Type)
                 {
@@ -75,7 +149,7 @@ namespace Haven
                         break;
                 }
             }
-            else if (e.ClickedItem == MenuItemEdit) 
+            else if (e.ClickedItem == MenuItemFilesEdit) 
             {
                 switch (stageFile.Type)
                 {
@@ -132,9 +206,11 @@ namespace Haven
             GeomPropMeshLookup = new Dictionary<GeomProp, Mesh>();
             CurrentStage = null;
             Geom = null;
-            Scene.Children.Clear();
+            Scene?.Children.Clear();
             treeViewFiles.Nodes.Clear();
             treeViewGeom.Nodes.Clear();
+            GeomMesh.BlockLookup.Clear();
+            PropEditor.GeomPropOriginal.Clear();
             Mesh.ResetID();
 
             foreach (var mesh in Mesh.MeshList)
@@ -143,16 +219,6 @@ namespace Haven
             }
 
             Mesh.MeshList.Clear();
-
-            foreach (var item in ContextMenuStrips)
-            {
-                item.ItemClicked -= PropNode_ItemClicked;
-                item.Items.Clear();
-                item.Dispose();
-            }
-
-            ContextMenuData.Clear();
-            ContextMenuStrips = new List<ContextMenuStrip>();
 
             if (Directory.Exists("stage"))
             {
@@ -174,16 +240,16 @@ namespace Haven
 
                 await Task.Run(() => Geom = new GeomFile(copyPath));
 
-                MeshGroups = await Task.Run(() => Mesh.GetGeomGroupMeshes(Geom));
-                MeshObjects = await Task.Run(() => Mesh.GetGeomRefMeshes(Geom));
+                MeshGroups = await Task.Run(() => GeomMesh.GetGeomGroupMeshes(Geom));
+                MeshObjects = await Task.Run(() => GeomMesh.GetGeomRefMeshes(Geom));
 
                 await Task.Run(() =>
                 {
-                    MeshGroups.ForEach(group => Scene.Children.Add(group));
+                    MeshGroups.ForEach(group => Scene?.Children.Add(group));
                     MeshObjects.ForEach(obj =>
                     {
                         obj.Visible = false;
-                        Scene.Children.Add(obj);
+                        Scene?.Children.Add(obj);
                     });
                 });
 
@@ -241,7 +307,7 @@ namespace Haven
                 mesh.Visible = false;
                 mesh.ID = id;
                 MeshProps.Add(mesh);
-                Scene.Children.Add(mesh);
+                Scene?.Children.Add(mesh);
                 GeomPropMeshLookup[prop] = mesh;
             }
         }
@@ -263,6 +329,16 @@ namespace Haven
             foreach (var mesh in MeshGroups)
             {
                 var node = nodeMeshes.Nodes.Add(mesh.ID);
+                var block = GeomMesh.BlockLookup[mesh];
+
+                foreach (var prim in Geom.BlockFaceData[block])
+                {
+                    if (prim.GetPrimType() == Parser.Geom.Geom.Primitive.GEO_FIELD)
+                        continue;
+
+                    //var nodePrim = node.Nodes.Add($"{prim.GetPrimType().ToString()} - {prim.Name.ToString("X4")}");
+                }
+
                 node.Checked = true;
             }
 
@@ -272,6 +348,16 @@ namespace Haven
             {
                 var node = nodeObjects.Nodes.Add(mesh.ID);
                 node.Checked = false;
+
+                var block = GeomMesh.BlockLookup[mesh];
+
+                foreach (var prim in Geom.BlockFaceData[block])
+                {
+                    if (prim.GetPrimType() == Parser.Geom.Geom.Primitive.GEO_FIELD)
+                        continue;
+
+                    //var nodePrim = node.Nodes.Add($"{prim.GetPrimType().ToString()} - {prim.Name.ToString("X4")}");
+                }
             }
 
             if (Geom == null) 
@@ -291,16 +377,7 @@ namespace Haven
                 var node = nodeProps.Nodes.Add(mesh.ID);
                 node.Checked = false;
 
-                var docMenu = new ContextMenuStrip();
-                ToolStripMenuItem editLabel = new ToolStripMenuItem();
-                editLabel.Text = "Edit";
-                docMenu.ItemClicked += PropNode_ItemClicked;
-                
-                docMenu.Items.AddRange(new ToolStripMenuItem[] { editLabel });
-                node.ContextMenuStrip = docMenu;
-                ContextMenuStrips.Add(docMenu);
-
-                new ContextMenuData(docMenu, node, mesh, prop);
+                GeomPropLookup[node] = prop;
             }
         }
 
@@ -490,39 +567,6 @@ namespace Haven
             }
         }
 
-        private void PropNode_ItemClicked(object? sender, ToolStripItemClickedEventArgs e)
-        {
-            var data = ContextMenuData.FromObject(sender);
-
-            if (sender == null || data == null)
-            {
-                return;
-            }
-
-            var node = data.Node;
-            var mesh = data.Mesh;
-            var prop = data.Prop;
-            var propOriginal = data.PropOriginal;
-
-            if (mesh == null || prop == null || propOriginal == null)
-            {
-                return;
-            }
-
-            new PropEditor(Scene, mesh, (GeomProp)prop, (GeomProp)propOriginal).ShowDialog();
-
-            mesh = Mesh.FromID(node.Text);
-
-            if (mesh == null)
-            {
-                return;
-            }
-
-            MeshProps.Add(mesh);
-            Scene.Children.Add(mesh);
-            Scene.Render();
-        }
-
         private void treeViewGeom_AfterCheck(object sender, TreeViewEventArgs e)
         {
             if (e.Action == TreeViewAction.Unknown || e.Node == null)
@@ -547,7 +591,7 @@ namespace Haven
                 treeViewGeom.SelectedNode = null;
                 treeViewGeom.Enabled = true;
 
-                Scene.Render();
+                Scene?.Render();
 
                 return;
             }
@@ -559,7 +603,7 @@ namespace Haven
 
             mesh.Visible = e.Node.Checked;
 
-            Scene.Render();
+            Scene?.Render();
         }
 
         private void btnExportMesh_Click(object sender, EventArgs e)
@@ -724,11 +768,6 @@ namespace Haven
             new StringHashEditor().ShowDialog();
         }
 
-        private void treeViewFiles_NodeMouseClick(object sender, TreeNodeMouseClickEventArgs e)
-        {
-            //MessageBox.Show("test");
-        }
-
         private void treeViewFiles_MouseUp(object sender, MouseEventArgs e)
         {
             if (e.Button == MouseButtons.Right)
@@ -740,9 +779,30 @@ namespace Haven
                 {
                     string[] canEdit = new string[] { ".nni", ".cnf", ".txn", ".dlz", ".dci" };
                     string filename = treeViewFiles.SelectedNode.Text;
-                    MenuItemEdit.Enabled = canEdit.Contains(Path.GetExtension(filename));
+                    MenuItemFilesEdit.Enabled = canEdit.Contains(Path.GetExtension(filename));
 
                     ContextMenuFiles.Show(treeViewFiles, e.Location);
+                }
+            }
+        }
+
+        private void treeViewGeom_MouseUp(object sender, MouseEventArgs e)
+        {
+            if (e.Button == MouseButtons.Right)
+            {
+                // Select the clicked node
+                treeViewGeom.SelectedNode = treeViewGeom.GetNodeAt(e.X, e.Y);
+
+                if (treeViewGeom.SelectedNode != null)
+                {
+                    if (treeViewGeom.SelectedNode.Parent?.Text == "Props")
+                    {
+                        ContextMenuGeomProp.Show(treeViewGeom, e.Location);
+                    }
+                    else if (treeViewGeom.SelectedNode.Parent?.Text == "Meshes" || treeViewGeom.SelectedNode.Parent?.Text == "Objects")
+                    {
+                        ContextMenuGeomMesh.Show(treeViewGeom, e.Location);
+                    }
                 }
             }
         }

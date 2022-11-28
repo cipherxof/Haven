@@ -19,12 +19,23 @@ namespace Haven
         private GeomProp Prop;
         private GeomProp PropOriginal;
 
-        public PropEditor(Scene scene, Mesh mesh, GeomProp prop, GeomProp propOriginal)
+        public static readonly Dictionary<GeomProp, GeomProp> GeomPropOriginal = new Dictionary<GeomProp, GeomProp>();
+
+        public PropEditor(Scene scene, Mesh mesh, GeomProp prop)
         {
             Mesh = mesh;
             Scene = scene;
             Prop = prop;
-            PropOriginal = propOriginal;
+
+            if (!GeomPropOriginal.TryGetValue(prop, out PropOriginal))
+            {
+                PropOriginal = new GeomProp();
+                PropOriginal.X = prop.X;
+                PropOriginal.Y = prop.Y;
+                PropOriginal.Z = prop.Z;
+                GeomPropOriginal[prop] = PropOriginal;
+            }
+
             InitializeComponent();
             
         }

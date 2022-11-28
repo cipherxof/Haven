@@ -1,18 +1,11 @@
 ﻿using Haven.Parser.Geom.Prim;
 using System;
-using System.Collections.Generic;
 using System.Diagnostics;
-using System.Drawing;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace Haven.Parser.Geom
 {
     public class Geom
     {
-        public static List<Geom> GeomList = new List<Geom>();
-
         public enum Primitive
         {
             GEO_DOT = 0, // 0x20
@@ -128,8 +121,6 @@ namespace Haven.Parser.Geom
                     Debug.WriteLine("Unknown primitive type {0:X} field={1:X}, offset={2:X}", primType, Field003, pos);
                     break;
             }
-
-            GeomList.Add(this);
         }
 
         public int GetSize()

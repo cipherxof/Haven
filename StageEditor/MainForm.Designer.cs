@@ -95,7 +95,6 @@
             this.treeViewFiles.Size = new System.Drawing.Size(876, 482);
             this.treeViewFiles.StateImageList = this.imageListFileTypes;
             this.treeViewFiles.TabIndex = 0;
-            this.treeViewFiles.NodeMouseClick += new System.Windows.Forms.TreeNodeMouseClickEventHandler(this.treeViewFiles_NodeMouseClick);
             this.treeViewFiles.MouseUp += new System.Windows.Forms.MouseEventHandler(this.treeViewFiles_MouseUp);
             // 
             // imageListFileTypes
@@ -151,6 +150,7 @@
             this.treeViewGeom.AfterCheck += new System.Windows.Forms.TreeViewEventHandler(this.treeViewGeom_AfterCheck);
             this.treeViewGeom.AfterSelect += new System.Windows.Forms.TreeViewEventHandler(this.treeViewGeom_AfterSelect);
             this.treeViewGeom.NodeMouseDoubleClick += new System.Windows.Forms.TreeNodeMouseClickEventHandler(this.treeViewGeom_NodeMouseDoubleClick);
+            this.treeViewGeom.MouseUp += new System.Windows.Forms.MouseEventHandler(this.treeViewGeom_MouseUp);
             // 
             // glControl
             // 
