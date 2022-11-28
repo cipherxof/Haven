@@ -62,4 +62,14 @@ public class BinaryReaderEx : BinaryReader
         if (BigEndian) Array.Reverse(data);
         return BitConverter.ToUInt64(data, 0);
     }
+
+    public OpenTK.Vector4 ReadVector4()
+    {
+        OpenTK.Vector4 result = new OpenTK.Vector4(0, 0, 0, 0);
+        result.X = base.ReadSingle();
+        result.Y = base.ReadSingle();
+        result.Z = base.ReadSingle();
+        result.W = base.ReadSingle();
+        return result;
+    }
 }

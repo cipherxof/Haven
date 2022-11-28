@@ -1,10 +1,11 @@
-﻿using System;
+﻿using OpenTK;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-class BinaryWriterEx : BinaryWriter
+public class BinaryWriterEx : BinaryWriter
 {
     public bool BigEndian;
 
@@ -53,6 +54,14 @@ class BinaryWriterEx : BinaryWriter
         byte[] bytes = BitConverter.GetBytes(value);
         if (BigEndian) Array.Reverse(bytes);
         base.Write(BitConverter.ToSingle(bytes, 0));
+    }
+
+    public void Write(Vector4 value)
+    {
+        base.Write(value.X);
+        base.Write(value.Y);
+        base.Write(value.Z);
+        base.Write(value.W);
     }
 
     public void Align(int size)

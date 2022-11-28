@@ -5,7 +5,6 @@ using System.Linq;
 using System.Runtime.InteropServices;
 using System.Diagnostics;
 using Haven.Parser.Geom;
-using static System.Windows.Forms.VisualStyles.VisualStyleElement.ProgressBar;
 using Haven.Parser.Geom.Prim;
 
 namespace Haven.Parser
@@ -173,15 +172,18 @@ namespace Haven.Parser
 
         private void ReadBlockData(GeoBlock block)
         {
-            Stream.Seek(block.FaceOffset, SeekOrigin.Begin);
-
-            BlockFaceData[block] = new List<Geom.Geom>();
-
-            for (int n = 0; n < block.GeomCount; n++)
+            if (block.FaceOffset > 0)
             {
-                var face = new Geom.Geom(Reader);
+                Stream.Seek(block.FaceOffset, SeekOrigin.Begin);
 
-                BlockFaceData[block].Add(face);
+                BlockFaceData[block] = new List<Geom.Geom>();
+
+                for (int n = 0; n < block.GeomCount; n++)
+                {
+                    var face = new Geom.Geom(Reader);
+
+                    BlockFaceData[block].Add(face);
+                }
             }
 
             if (block.VertexOffset > 0)
@@ -194,15 +196,8 @@ namespace Haven.Parser
 
                 Stream.Seek(block.VertexOffset, SeekOrigin.Begin);
 
-                try
-                {
-                    var vert = new GeoVertexHeader(Reader);
-                    BlockVertexData[block] = vert;
-                }
-                catch
-                {
-
-                }
+                var vert = new GeoVertexHeader(Reader);
+                BlockVertexData[block] = vert;
             }
         }
 
@@ -251,6 +246,7 @@ namespace Haven.Parser
 
                     GroupMaterialData[group] = new GeoMaterialHeader(Reader);
                 }
+
             }
         }
 
@@ -542,6 +538,18 @@ namespace Haven.Parser
             radixList.Reverse();
 
             return radixList;
+        }
+
+        private void DebugRadix(GeoGroup group)
+        {
+            var radixList = GroupRadixData[group];
+
+            int blockIndex = 0;
+
+            foreach (var radix in radixList)
+            {
+   
+            }
         }
 
         private void WriteGroup(GeoGroup group, BinaryWriterEx writer)

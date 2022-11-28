@@ -49,6 +49,9 @@ namespace Haven
             SetEnabled(false);
             DictionaryFile.Load("bin/dictionary.txt");
             SetupContextMenus();
+
+            var vlm = new VlmFile(@"C:\Users\Me\Documents\GitHub\rpcs3\bin\dev_hdd0\game\NPMG00020\USRDIR\o\stage\n023a\newgeom\c87718.vlm");
+            vlm.Save("test.vlm");
         }
 
         private void SetupContextMenus()
