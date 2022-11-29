@@ -36,6 +36,10 @@ namespace Haven
         public ContextMenuStrip ContextMenuGeomMesh = new ContextMenuStrip();
         public ToolStripMenuItem MenuItemGeomMeshEdit = new ToolStripMenuItem();
 
+        public TreeNode? TreeNodeGeomMeshes;
+        public TreeNode? TreeNodeGeomObjects;
+        public TreeNode? TreeNodeGeomProps;
+
         public MainForm()
         {
             InitializeComponent();
@@ -331,39 +335,39 @@ namespace Haven
             }
         }
 
-        private void PopulateGeomTreeView()
+        private void PopulateGeomTreeView(string text)
         {
-            treeViewGeom.CheckBoxes = true;
+            if (TreeNodeGeomMeshes == null || TreeNodeGeomProps == null || TreeNodeGeomObjects == null || Geom == null)
+                return;
 
-            var nodeMeshes = treeViewGeom.Nodes[0];
-            var nodeProps = treeViewGeom.Nodes[1];
-            var nodeObjects = treeViewGeom.Nodes[2];
+            text = text.ToLower();
 
-            nodeMeshes.Checked = true;
-            nodeProps.Checked = false;
-            nodeObjects.Checked = false;
+            GeomPropLookup.Clear();
 
             MeshGroups = MeshGroups.OrderBy(x => x.ID).ToList();
-
+            TreeNodeGeomMeshes.Nodes.Clear();
             foreach (var mesh in MeshGroups)
             {
-                var node = nodeMeshes.Nodes.Add(mesh.ID);
+                if (!mesh.ID.ToLower().Contains(text))
+                    continue;
+
+                var node = TreeNodeGeomMeshes.Nodes.Add(mesh.ID);
                 node.Checked = true;
             }
 
             MeshObjects = MeshObjects.OrderBy(x => x.ID).ToList();
-
+            TreeNodeGeomObjects.Nodes.Clear();
             foreach (var mesh in MeshObjects)
             {
-                var node = nodeObjects.Nodes.Add(mesh.ID);
+                if (!mesh.ID.ToLower().Contains(text))
+                    continue;
+
+                var node = TreeNodeGeomObjects.Nodes.Add(mesh.ID);
                 node.Checked = false;
             }
 
-            if (Geom == null) 
-                return;
-
             var propsList = Geom.GeomProps.OrderBy(x => DictionaryFile.GetHashString(x.Hash)).ToList();
-
+            TreeNodeGeomProps.Nodes.Clear();
             foreach (var prop in propsList)
             {
                 Mesh? mesh;
@@ -373,7 +377,10 @@ namespace Haven
                 if (mesh == null)
                     continue;
 
-                var node = nodeProps.Nodes.Add(mesh.ID);
+                if (!mesh.ID.ToLower().Contains(text))
+                    continue;
+
+                var node = TreeNodeGeomProps.Nodes.Add(mesh.ID);
                 node.Checked = false;
 
                 GeomPropLookup[node] = prop;
@@ -449,9 +456,11 @@ namespace Haven
                         }
                     }
 
-                    treeViewGeom.Nodes.Add("Meshes");
-                    treeViewGeom.Nodes.Add("Props");
-                    treeViewGeom.Nodes.Add("Objects");
+                    TreeNodeGeomMeshes = treeViewGeom.Nodes.Add("Meshes");
+                    TreeNodeGeomProps = treeViewGeom.Nodes.Add("Props");
+                    TreeNodeGeomObjects = treeViewGeom.Nodes.Add("Objects");
+                    treeViewGeom.CheckBoxes = true;
+                    TreeNodeGeomMeshes.Checked = true;
 
                     if (CurrentStage.Geom != null)
                     {
@@ -459,12 +468,12 @@ namespace Haven
 
                         await SetupGeom($"stage/{CurrentStage.Geom.Name}.dec");
 
-                        PopulateGeomTreeView();
+                        PopulateGeomTreeView("");
                     }
 
                     var centerStage = Mesh.FromID("PRP_STAGE_CENTER");
 
-                    if (centerStage != null)
+                    if (centerStage != null && Scene != null)
                     {
                         Scene.Camera.Position = new Vector3d(centerStage.TransformedCenter.X, centerStage.TransformedCenter.Y, centerStage.TransformedCenter.Z);
                     }
@@ -548,19 +557,30 @@ namespace Haven
 
         private void treeViewGeom_NodeMouseDoubleClick(object sender, TreeNodeMouseClickEventArgs e)
         {
+            if (Scene == null)
+                return;
+
             var parent = e.Node.Parent;
 
             if (parent == null) 
                 return;
 
-            if (parent.Text == "Objects" || parent.Text == "Meshes" || parent.Text == "Props")
+            if (parent == TreeNodeGeomMeshes || parent == TreeNodeGeomObjects || parent == TreeNodeGeomProps)
             {
                 var mesh = Mesh.FromID(e.Node.Text);
 
                 if (mesh == null)
                     return;
 
-                Scene.Camera.Position = new Vector3d(mesh.TransformedCenter.X, mesh.TransformedCenter.Y, mesh.TransformedCenter.Z);
+                if (parent == TreeNodeGeomProps)
+                {
+                    Scene.Camera.Position = new Vector3d(mesh.TransformedCenter.X, mesh.TransformedCenter.Y, mesh.TransformedCenter.Z);
+                }
+                else
+                {
+                    Scene.Camera.Position = new Vector3d(mesh.Center.X, mesh.Center.Y, mesh.Center.Z);
+                }
+
                 Scene.SelectMesh(mesh);
 
                 Scene.Render();
@@ -574,13 +594,13 @@ namespace Haven
 
             string id = e.Node.Text;
 
-            if (id == "Meshes" || id == "Objects" || id == "Props")
+            if (e.Node == TreeNodeGeomMeshes || e.Node == TreeNodeGeomObjects || e.Node == TreeNodeGeomProps)
             {
                 treeViewGeom.Enabled = false;
 
-                var list = id == "Meshes" ? MeshGroups : MeshObjects;
+                var list = e.Node == TreeNodeGeomMeshes ? MeshGroups : MeshObjects;
 
-                if (id == "Props")
+                if (e.Node == TreeNodeGeomProps)
                     list = MeshProps;
 
                 Parallel.ForEach(list, child => child.Visible = e.Node.Checked);
@@ -629,11 +649,6 @@ namespace Haven
                     mesh.SaveMesh(saveFileDialog1.FileName);
                 }
             }
-        }
-
-        private void tbSpawnsFilter_TextChanged(object sender, EventArgs e)
-        {
-            // todo
         }
 
         private async void encryptFileToolStripMenuItem_Click(object sender, EventArgs e)
@@ -877,6 +892,14 @@ namespace Haven
         private void mGAStageToolStripMenuItem_Click(object sender, EventArgs e)
         {
             PromptStageLoad(Stage.GameType.MGA);
+        }
+
+        private void tbSpawnsFilter_KeyDown(object sender, KeyEventArgs e)
+        {
+            if (e.KeyCode == Keys.Enter)
+            {
+                PopulateGeomTreeView(tbSpawnsFilter.Text);
+            }
         }
     }
 }

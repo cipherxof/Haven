@@ -135,13 +135,12 @@
             // 
             // tbSpawnsFilter
             // 
-            this.tbSpawnsFilter.Enabled = false;
             this.tbSpawnsFilter.Location = new System.Drawing.Point(8, 40);
             this.tbSpawnsFilter.Name = "tbSpawnsFilter";
             this.tbSpawnsFilter.PlaceholderText = "Search...";
             this.tbSpawnsFilter.Size = new System.Drawing.Size(208, 23);
             this.tbSpawnsFilter.TabIndex = 8;
-            this.tbSpawnsFilter.TextChanged += new System.EventHandler(this.tbSpawnsFilter_TextChanged);
+            this.tbSpawnsFilter.KeyDown += new System.Windows.Forms.KeyEventHandler(this.tbSpawnsFilter_KeyDown);
             // 
             // treeViewGeom
             // 
@@ -198,21 +197,21 @@
             // mGO2StageToolStripMenuItem
             // 
             this.mGO2StageToolStripMenuItem.Name = "mGO2StageToolStripMenuItem";
-            this.mGO2StageToolStripMenuItem.Size = new System.Drawing.Size(180, 22);
+            this.mGO2StageToolStripMenuItem.Size = new System.Drawing.Size(140, 22);
             this.mGO2StageToolStripMenuItem.Text = "MGO2 Stage";
             this.mGO2StageToolStripMenuItem.Click += new System.EventHandler(this.mGO2StageToolStripMenuItem_Click);
             // 
             // mGS4StageToolStripMenuItem
             // 
             this.mGS4StageToolStripMenuItem.Name = "mGS4StageToolStripMenuItem";
-            this.mGS4StageToolStripMenuItem.Size = new System.Drawing.Size(180, 22);
+            this.mGS4StageToolStripMenuItem.Size = new System.Drawing.Size(140, 22);
             this.mGS4StageToolStripMenuItem.Text = "MGS4 Stage";
             this.mGS4StageToolStripMenuItem.Click += new System.EventHandler(this.mGS4StageToolStripMenuItem_Click);
             // 
             // mGAStageToolStripMenuItem
             // 
             this.mGAStageToolStripMenuItem.Name = "mGAStageToolStripMenuItem";
-            this.mGAStageToolStripMenuItem.Size = new System.Drawing.Size(180, 22);
+            this.mGAStageToolStripMenuItem.Size = new System.Drawing.Size(140, 22);
             this.mGAStageToolStripMenuItem.Text = "MGA Stage";
             this.mGAStageToolStripMenuItem.Click += new System.EventHandler(this.mGAStageToolStripMenuItem_Click);
             // 
