@@ -100,7 +100,10 @@ namespace Haven
                 if (!GeomMesh.BlockLookup.TryGetValue(mesh, out block) || block == null)
                     return;
 
-                new GeomEditor(Geom, block).ShowDialog();
+                using (var geomEditor = new GeomEditor(Geom, block))
+                {
+                    geomEditor.ShowDialog();
+                }
             }
         }
 
@@ -121,7 +124,10 @@ namespace Haven
 
             if (e.ClickedItem == MenuItemGeomPropEdit)
             {
-                new PropEditor(Scene, propMesh, prop).ShowDialog();
+                using (var propEditor = new PropEditor(Scene, propMesh, prop))
+                {
+                    propEditor.ShowDialog();
+                }
             }
         }
 
@@ -153,17 +159,29 @@ namespace Haven
                 switch (stageFile.Type)
                 {
                     case StageFile.FileType.DCI:
-                        new DciEditor(stageFile, CurrentStage).ShowDialog();
+                        using (var dciEditor = new DciEditor(stageFile, CurrentStage))
+                        {
+                            dciEditor.ShowDialog();
+                        }
                         break;
                     case StageFile.FileType.DLZ:
-                        new DldEditor(stageFile, CurrentStage).ShowDialog();
+                        using (var dldEditor = new DldEditor(stageFile, CurrentStage))
+                        {
+                            dldEditor.ShowDialog();
+                        }
                         break;
                     case StageFile.FileType.TXN:
-                        new TxnEditor(stageFile, CurrentStage).ShowDialog();
+                        using (var txnEditor = new TxnEditor(stageFile, CurrentStage))
+                        {
+                            txnEditor.ShowDialog();
+                        }
                         break;
                     case StageFile.FileType.CNF:
                     case StageFile.FileType.NNI:
-                        new TextEditor(stageFile, false).ShowDialog();
+                        using (var txtEditor = new TextEditor(stageFile, false))
+                        {
+                            txtEditor.ShowDialog();
+                        }
                         break;
                     default:
                         MessageBox.Show("Unsupported file type", "Information", MessageBoxButtons.OK, MessageBoxIcon.Information);

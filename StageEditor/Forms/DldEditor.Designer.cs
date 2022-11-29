@@ -169,6 +169,7 @@
             this.Name = "DldEditor";
             this.StartPosition = System.Windows.Forms.FormStartPosition.CenterParent;
             this.Text = "DldEditor";
+            this.FormClosed += new System.Windows.Forms.FormClosedEventHandler(this.DldEditor_FormClosed);
             this.Load += new System.EventHandler(this.DldEditor_Load);
             ((System.ComponentModel.ISupportInitialize)(this.dataGridDld)).EndInit();
             this.toolStrip1.ResumeLayout(false);
