@@ -177,7 +177,7 @@ namespace Haven.Parser
         {
             using (var stream = new FileStream(path, FileMode.Open, FileAccess.Read))
             {
-                using (var reader = new BinaryReaderEx(stream, true))
+                using (var reader = new BinaryReaderEx(stream))
                 {
                     DlzSeg seg;
 
@@ -234,11 +234,11 @@ namespace Haven.Parser
             Segs.Add(seg);
         }
 
-        public void Save(string path)
+        public void Save(string path, bool? bigEndian = null)
         {
             using (var stream = new FileStream(path, FileMode.OpenOrCreate, FileAccess.Write))
             {
-                using (var writer = new BinaryWriterEx(stream, true))
+                using (var writer = new BinaryWriterEx(stream, bigEndian))
                 {
                     long padding = 0;
 
@@ -267,11 +267,11 @@ namespace Haven.Parser
             }
         }
 
-        public void Unpack(string path)
+        public void Unpack(string path, bool? bigEndian = null)
         {
             using (var stream = new FileStream(path, FileMode.OpenOrCreate, FileAccess.Write))
             {
-                using (var writer = new BinaryWriterEx(stream, true))
+                using (var writer = new BinaryWriterEx(stream, bigEndian))
                 {
                     stream.SetLength(0);
 

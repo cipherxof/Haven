@@ -149,7 +149,7 @@ namespace Haven
 
             using (var stream = new FileStream(path, FileMode.Open, FileAccess.Read))
             {
-                using (var reader = new BinaryReaderEx(stream, true))
+                using (var reader = new BinaryReaderEx(stream))
                 {
                     byte[] data;
 

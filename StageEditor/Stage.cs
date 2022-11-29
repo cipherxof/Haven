@@ -11,19 +11,28 @@ namespace Haven
 {
     public class Stage
     {
+        public enum GameType
+        {
+            MGO2,
+            MGS4,
+            MGA
+        }
+
         public readonly string Dir;
         public readonly string Key;
         public readonly List<StageFile> Files = new List<StageFile>();
         public readonly StageFile? Geom;
+        public readonly GameType Game;
 
         /// <summary>
         /// Initialzes a new stage.
         /// </summary>
         /// <param name="path">The location of the encrypted stage folder. The folder hierarchy must be correct in order for decryption to work.</param>
-        public Stage(string path)
+        public Stage(string path, GameType game)
         {
             Dir = path;
             Key = Directory.GetParent(path).Name + "/" + new DirectoryInfo(path).Name;
+            Game = game;
 
             var files = Directory.GetFiles(path).ToList();
 

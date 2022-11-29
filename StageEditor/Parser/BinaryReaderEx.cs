@@ -7,11 +7,15 @@ using System.Threading.Tasks;
 public class BinaryReaderEx : BinaryReader
 {
 
-    public bool BigEndian;
+    public static bool DefaultBigEndian = true;
 
-    public BinaryReaderEx(Stream stream, bool bigEndian = false) : base(stream) 
+    public bool BigEndian = DefaultBigEndian;
+
+    public BinaryReaderEx(Stream stream, bool? bigEndian = null) : base(stream) 
     {
-        BigEndian = bigEndian;
+        if (bigEndian == true) BigEndian = true;
+        else if (bigEndian == false) BigEndian = false;
+        else if (bigEndian == null) BigEndian = DefaultBigEndian;
     }
 
     public override int ReadInt32()

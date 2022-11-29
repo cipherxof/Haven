@@ -40,7 +40,10 @@
             this.treeViewGeom = new System.Windows.Forms.TreeView();
             this.glControl = new OpenTK.GLControl();
             this.toolStrip1 = new System.Windows.Forms.ToolStrip();
-            this.btnLoadStage = new System.Windows.Forms.ToolStripButton();
+            this.btnLoadStage = new System.Windows.Forms.ToolStripDropDownButton();
+            this.mGO2StageToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            this.mGS4StageToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            this.mGAStageToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.btnSave = new System.Windows.Forms.ToolStripButton();
             this.toolStripDropDownButtonTools = new System.Windows.Forms.ToolStripDropDownButton();
             this.solidEyeToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
@@ -48,12 +51,12 @@
             this.decryptFileToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.toolStripMenuItem1 = new System.Windows.Forms.ToolStripMenuItem();
             this.mergeToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            this.mergeVLMToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.toolStripMenuItem2 = new System.Windows.Forms.ToolStripMenuItem();
             this.stringHashUtilityToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.labelStatus = new System.Windows.Forms.Label();
             this.timerRefresh = new System.Windows.Forms.Timer(this.components);
             this.labelCamPos = new System.Windows.Forms.Label();
-            this.mergeVLMToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.tabControl.SuspendLayout();
             this.tabPageFiles.SuspendLayout();
             this.tabPageGeom.SuspendLayout();
@@ -181,13 +184,37 @@
             // 
             // btnLoadStage
             // 
+            this.btnLoadStage.DropDownItems.AddRange(new System.Windows.Forms.ToolStripItem[] {
+            this.mGO2StageToolStripMenuItem,
+            this.mGS4StageToolStripMenuItem,
+            this.mGAStageToolStripMenuItem});
             this.btnLoadStage.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
             this.btnLoadStage.Image = ((System.Drawing.Image)(resources.GetObject("btnLoadStage.Image")));
             this.btnLoadStage.ImageTransparentColor = System.Drawing.Color.Magenta;
             this.btnLoadStage.Name = "btnLoadStage";
-            this.btnLoadStage.Size = new System.Drawing.Size(53, 22);
+            this.btnLoadStage.Size = new System.Drawing.Size(62, 22);
             this.btnLoadStage.Text = "Load";
-            this.btnLoadStage.Click += new System.EventHandler(this.btnLoadStage_Click);
+            // 
+            // mGO2StageToolStripMenuItem
+            // 
+            this.mGO2StageToolStripMenuItem.Name = "mGO2StageToolStripMenuItem";
+            this.mGO2StageToolStripMenuItem.Size = new System.Drawing.Size(180, 22);
+            this.mGO2StageToolStripMenuItem.Text = "MGO2 Stage";
+            this.mGO2StageToolStripMenuItem.Click += new System.EventHandler(this.mGO2StageToolStripMenuItem_Click);
+            // 
+            // mGS4StageToolStripMenuItem
+            // 
+            this.mGS4StageToolStripMenuItem.Name = "mGS4StageToolStripMenuItem";
+            this.mGS4StageToolStripMenuItem.Size = new System.Drawing.Size(180, 22);
+            this.mGS4StageToolStripMenuItem.Text = "MGS4 Stage";
+            this.mGS4StageToolStripMenuItem.Click += new System.EventHandler(this.mGS4StageToolStripMenuItem_Click);
+            // 
+            // mGAStageToolStripMenuItem
+            // 
+            this.mGAStageToolStripMenuItem.Name = "mGAStageToolStripMenuItem";
+            this.mGAStageToolStripMenuItem.Size = new System.Drawing.Size(180, 22);
+            this.mGAStageToolStripMenuItem.Text = "MGA Stage";
+            this.mGAStageToolStripMenuItem.Click += new System.EventHandler(this.mGAStageToolStripMenuItem_Click);
             // 
             // btnSave
             // 
@@ -217,20 +244,20 @@
             this.encryptFileToolStripMenuItem,
             this.decryptFileToolStripMenuItem});
             this.solidEyeToolStripMenuItem.Name = "solidEyeToolStripMenuItem";
-            this.solidEyeToolStripMenuItem.Size = new System.Drawing.Size(180, 22);
+            this.solidEyeToolStripMenuItem.Size = new System.Drawing.Size(135, 22);
             this.solidEyeToolStripMenuItem.Text = "SolidEye";
             // 
             // encryptFileToolStripMenuItem
             // 
             this.encryptFileToolStripMenuItem.Name = "encryptFileToolStripMenuItem";
-            this.encryptFileToolStripMenuItem.Size = new System.Drawing.Size(180, 22);
+            this.encryptFileToolStripMenuItem.Size = new System.Drawing.Size(136, 22);
             this.encryptFileToolStripMenuItem.Text = "Encrypt File";
             this.encryptFileToolStripMenuItem.Click += new System.EventHandler(this.encryptFileToolStripMenuItem_Click);
             // 
             // decryptFileToolStripMenuItem
             // 
             this.decryptFileToolStripMenuItem.Name = "decryptFileToolStripMenuItem";
-            this.decryptFileToolStripMenuItem.Size = new System.Drawing.Size(180, 22);
+            this.decryptFileToolStripMenuItem.Size = new System.Drawing.Size(136, 22);
             this.decryptFileToolStripMenuItem.Text = "Decrypt File";
             this.decryptFileToolStripMenuItem.Click += new System.EventHandler(this.decryptFileToolStripMenuItem_Click);
             // 
@@ -241,27 +268,34 @@
             this.mergeVLMToolStripMenuItem,
             this.toolStripMenuItem2});
             this.toolStripMenuItem1.Name = "toolStripMenuItem1";
-            this.toolStripMenuItem1.Size = new System.Drawing.Size(180, 22);
+            this.toolStripMenuItem1.Size = new System.Drawing.Size(135, 22);
             this.toolStripMenuItem1.Text = "Geom";
             // 
             // mergeToolStripMenuItem
             // 
             this.mergeToolStripMenuItem.Name = "mergeToolStripMenuItem";
-            this.mergeToolStripMenuItem.Size = new System.Drawing.Size(180, 22);
+            this.mergeToolStripMenuItem.Size = new System.Drawing.Size(149, 22);
             this.mergeToolStripMenuItem.Text = "Merge Groups";
             this.mergeToolStripMenuItem.Click += new System.EventHandler(this.mergeToolStripMenuItem_Click);
+            // 
+            // mergeVLMToolStripMenuItem
+            // 
+            this.mergeVLMToolStripMenuItem.Name = "mergeVLMToolStripMenuItem";
+            this.mergeVLMToolStripMenuItem.Size = new System.Drawing.Size(149, 22);
+            this.mergeVLMToolStripMenuItem.Text = "Merge VLM";
+            this.mergeVLMToolStripMenuItem.Click += new System.EventHandler(this.mergeVLMToolStripMenuItem_Click);
             // 
             // toolStripMenuItem2
             // 
             this.toolStripMenuItem2.Name = "toolStripMenuItem2";
-            this.toolStripMenuItem2.Size = new System.Drawing.Size(180, 22);
+            this.toolStripMenuItem2.Size = new System.Drawing.Size(149, 22);
             this.toolStripMenuItem2.Text = "Endian Swap";
             this.toolStripMenuItem2.Click += new System.EventHandler(this.toolStripMenuItem2_Click);
             // 
             // stringHashUtilityToolStripMenuItem
             // 
             this.stringHashUtilityToolStripMenuItem.Name = "stringHashUtilityToolStripMenuItem";
-            this.stringHashUtilityToolStripMenuItem.Size = new System.Drawing.Size(180, 22);
+            this.stringHashUtilityToolStripMenuItem.Size = new System.Drawing.Size(135, 22);
             this.stringHashUtilityToolStripMenuItem.Text = "String Hash";
             this.stringHashUtilityToolStripMenuItem.Click += new System.EventHandler(this.stringHashUtilityToolStripMenuItem_Click);
             // 
@@ -291,13 +325,6 @@
             this.labelCamPos.Size = new System.Drawing.Size(0, 15);
             this.labelCamPos.TabIndex = 3;
             this.labelCamPos.TextAlign = System.Drawing.ContentAlignment.BottomRight;
-            // 
-            // mergeVLMToolStripMenuItem
-            // 
-            this.mergeVLMToolStripMenuItem.Name = "mergeVLMToolStripMenuItem";
-            this.mergeVLMToolStripMenuItem.Size = new System.Drawing.Size(180, 22);
-            this.mergeVLMToolStripMenuItem.Text = "Merge VLM";
-            this.mergeVLMToolStripMenuItem.Click += new System.EventHandler(this.mergeVLMToolStripMenuItem_Click);
             // 
             // MainForm
             // 
@@ -329,7 +356,6 @@
         private TabControl tabControl;
         private TabPage tabPageFiles;
         private ToolStrip toolStrip1;
-        private ToolStripButton btnLoadStage;
         private TreeView treeViewFiles;
         private ToolStripButton btnSave;
         private ImageList imageListFileTypes;
@@ -350,5 +376,9 @@
         private ToolStripMenuItem toolStripMenuItem2;
         private ToolStripMenuItem stringHashUtilityToolStripMenuItem;
         private ToolStripMenuItem mergeVLMToolStripMenuItem;
+        private ToolStripDropDownButton btnLoadStage;
+        private ToolStripMenuItem mGO2StageToolStripMenuItem;
+        private ToolStripMenuItem mGS4StageToolStripMenuItem;
+        private ToolStripMenuItem mGAStageToolStripMenuItem;
     }
 }

@@ -111,7 +111,7 @@ namespace Haven.Parser
         public GeomFile(string path)
         {
             Stream = new FileStream(path, FileMode.Open, FileAccess.Read);
-            Reader = new BinaryReaderEx(Stream, IsBigEndian());
+            Reader = new BinaryReaderEx(Stream);
             Header = new GeoDef(Reader);
 
             Stream.Seek(0x8, SeekOrigin.Current);
@@ -659,7 +659,7 @@ namespace Haven.Parser
             }
         }
 
-        public void Save(string path, bool bigEndian = true)
+        public void Save(string path, bool? bigEndian = null)
         {
             var stream = new FileStream(path, FileMode.OpenOrCreate, FileAccess.Write);
             var writer = new BinaryWriterEx(stream, bigEndian);

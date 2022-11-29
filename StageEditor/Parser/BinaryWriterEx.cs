@@ -7,11 +7,15 @@ using System.Threading.Tasks;
 
 public class BinaryWriterEx : BinaryWriter
 {
-    public bool BigEndian;
+    public static bool DefaultBigEndian = true;
 
-    public BinaryWriterEx(Stream stream, bool bigEndian = false) : base(stream) 
+    public bool BigEndian = DefaultBigEndian;
+
+    public BinaryWriterEx(Stream stream, bool? bigEndian = null) : base(stream) 
     {
-        BigEndian = bigEndian;
+        if (bigEndian == true) BigEndian = true;
+        else if (bigEndian == false) BigEndian = false;
+        else if (bigEndian == null) BigEndian = DefaultBigEndian;
     }
 
     public override void Write(int value)

@@ -8,6 +8,7 @@ using Haven.Properties;
 using Haven.Forms;
 using Haven.Parser.Geom;
 using Joveler.Compression.ZLib;
+using static Haven.Stage;
 
 namespace Haven
 {
@@ -16,7 +17,6 @@ namespace Haven
         public Stage? CurrentStage;
         public Scene? Scene;
         public GeomFile? Geom;
-        public bool Decrypted = false;
 
         public List<Mesh> MeshGroups = new List<Mesh>();
         public List<Mesh> MeshObjects = new List<Mesh>();
@@ -217,6 +217,7 @@ namespace Haven
                 Geom.CloseStream();
                 Geom.Clear();
             }
+
             MeshGroups = new List<Mesh>();
             MeshObjects = new List<Mesh>();
             MeshProps = new List<Mesh>();
@@ -241,6 +242,7 @@ namespace Haven
             {
                 Directory.Delete("stage", true);
             }
+
             Directory.CreateDirectory("stage");
         }
 
@@ -346,16 +348,6 @@ namespace Haven
             foreach (var mesh in MeshGroups)
             {
                 var node = nodeMeshes.Nodes.Add(mesh.ID);
-                var block = GeomMesh.BlockLookup[mesh];
-
-                foreach (var prim in Geom.BlockFaceData[block])
-                {
-                    if (prim.GetPrimType() == Parser.Geom.Geom.Primitive.GEO_FIELD)
-                        continue;
-
-                    //var nodePrim = node.Nodes.Add($"{prim.GetPrimType().ToString()} - {prim.Name.ToString("X4")}");
-                }
-
                 node.Checked = true;
             }
 
@@ -365,16 +357,6 @@ namespace Haven
             {
                 var node = nodeObjects.Nodes.Add(mesh.ID);
                 node.Checked = false;
-
-                var block = GeomMesh.BlockLookup[mesh];
-
-                foreach (var prim in Geom.BlockFaceData[block])
-                {
-                    if (prim.GetPrimType() == Parser.Geom.Geom.Primitive.GEO_FIELD)
-                        continue;
-
-                    //var nodePrim = node.Nodes.Add($"{prim.GetPrimType().ToString()} - {prim.Name.ToString("X4")}");
-                }
             }
 
             if (Geom == null) 
@@ -398,7 +380,7 @@ namespace Haven
             }
         }
 
-        private async void btnLoadStage_Click(object sender, EventArgs e)
+        private async void PromptStageLoad(Stage.GameType game)
         {
             SetEnabled(false);
 
@@ -409,19 +391,19 @@ namespace Haven
                 if (result == DialogResult.OK && !string.IsNullOrWhiteSpace(fbd.SelectedPath))
                 {
                     Reset();
-                    CurrentStage = new Stage(fbd.SelectedPath);
+                    CurrentStage = new Stage(fbd.SelectedPath, game);
 
-                    DialogResult dialogResult = MessageBox.Show("Do you want to decrypt these files?", "Notice", MessageBoxButtons.YesNo);
-
-                    Decrypted = dialogResult == DialogResult.Yes;
-
-                    if (dialogResult == DialogResult.Yes)
+                    if (game == GameType.MGO2)
                     {
+                        BinaryWriterEx.DefaultBigEndian = true;
+                        BinaryReaderEx.DefaultBigEndian = true;
                         labelStatus.Text = "Decrypting...";
                         await CurrentStage.Decrypt();
                     }
-                    else if (dialogResult == DialogResult.No)
+                    else
                     {
+                        BinaryWriterEx.DefaultBigEndian = game == GameType.MGS4;
+                        BinaryReaderEx.DefaultBigEndian = game == GameType.MGS4;
                         labelStatus.Text = "Copying...";
                         await CurrentStage.Copy();
                     }
@@ -514,7 +496,7 @@ namespace Haven
                     labelStatus.Text = "Saving geom...";
                     Geom?.Save(CurrentStage.Geom.GetLocalPath());
 
-                    if (Decrypted)
+                    if (CurrentStage.Game == GameType.MGO2)
                     {
                         labelStatus.Text = "Encrypting...";
                         await CurrentStage.Encrypt(fbd.SelectedPath);
@@ -524,6 +506,7 @@ namespace Haven
                         labelStatus.Text = "Copying...";
                         await CurrentStage.Encrypt(fbd.SelectedPath);
                     }
+
                     var files = Directory.GetFiles(fbd.SelectedPath);
 
                     foreach (var file in files)
@@ -881,5 +864,19 @@ namespace Haven
             }
         }
 
+        private void mGO2StageToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            PromptStageLoad(Stage.GameType.MGO2);
+        }
+
+        private void mGS4StageToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            PromptStageLoad(Stage.GameType.MGS4);
+        }
+
+        private void mGAStageToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            PromptStageLoad(Stage.GameType.MGA);
+        }
     }
 }
