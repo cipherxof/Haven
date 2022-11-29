@@ -31,16 +31,15 @@
             System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(GeomEditor));
             this.toolStrip1 = new System.Windows.Forms.ToolStrip();
             this.btnDldSave = new System.Windows.Forms.ToolStripButton();
-            this.dataGridDld = new System.Windows.Forms.DataGridView();
+            this.dataGridGeom = new System.Windows.Forms.DataGridView();
             this.ColumnIndex = new System.Windows.Forms.DataGridViewTextBoxColumn();
             this.ColumnType = new System.Windows.Forms.DataGridViewTextBoxColumn();
             this.ColumnHash = new System.Windows.Forms.DataGridViewTextBoxColumn();
             this.ColumnAttributes = new System.Windows.Forms.DataGridViewTextBoxColumn();
             this.label1 = new System.Windows.Forms.Label();
-            this.nupBlockAttribute = new System.Windows.Forms.NumericUpDown();
+            this.tbBlockAttribute = new System.Windows.Forms.TextBox();
             this.toolStrip1.SuspendLayout();
-            ((System.ComponentModel.ISupportInitialize)(this.dataGridDld)).BeginInit();
-            ((System.ComponentModel.ISupportInitialize)(this.nupBlockAttribute)).BeginInit();
+            ((System.ComponentModel.ISupportInitialize)(this.dataGridGeom)).BeginInit();
             this.SuspendLayout();
             // 
             // toolStrip1
@@ -49,7 +48,7 @@
             this.btnDldSave});
             this.toolStrip1.Location = new System.Drawing.Point(0, 0);
             this.toolStrip1.Name = "toolStrip1";
-            this.toolStrip1.Size = new System.Drawing.Size(616, 25);
+            this.toolStrip1.Size = new System.Drawing.Size(684, 25);
             this.toolStrip1.TabIndex = 3;
             this.toolStrip1.Text = "toolStrip1";
             // 
@@ -62,26 +61,28 @@
             this.btnDldSave.Text = "Save";
             this.btnDldSave.Click += new System.EventHandler(this.btnDldSave_Click);
             // 
-            // dataGridDld
+            // dataGridGeom
             // 
-            this.dataGridDld.Anchor = ((System.Windows.Forms.AnchorStyles)((((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom) 
+            this.dataGridGeom.Anchor = ((System.Windows.Forms.AnchorStyles)((((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom) 
             | System.Windows.Forms.AnchorStyles.Left) 
             | System.Windows.Forms.AnchorStyles.Right)));
-            this.dataGridDld.AutoSizeColumnsMode = System.Windows.Forms.DataGridViewAutoSizeColumnsMode.Fill;
-            this.dataGridDld.ColumnHeadersHeightSizeMode = System.Windows.Forms.DataGridViewColumnHeadersHeightSizeMode.AutoSize;
-            this.dataGridDld.Columns.AddRange(new System.Windows.Forms.DataGridViewColumn[] {
+            this.dataGridGeom.AutoSizeColumnsMode = System.Windows.Forms.DataGridViewAutoSizeColumnsMode.Fill;
+            this.dataGridGeom.ColumnHeadersHeightSizeMode = System.Windows.Forms.DataGridViewColumnHeadersHeightSizeMode.AutoSize;
+            this.dataGridGeom.Columns.AddRange(new System.Windows.Forms.DataGridViewColumn[] {
             this.ColumnIndex,
             this.ColumnType,
             this.ColumnHash,
             this.ColumnAttributes});
-            this.dataGridDld.Location = new System.Drawing.Point(12, 78);
-            this.dataGridDld.MinimumSize = new System.Drawing.Size(590, 330);
-            this.dataGridDld.Name = "dataGridDld";
-            this.dataGridDld.RowTemplate.Height = 25;
-            this.dataGridDld.SelectionMode = System.Windows.Forms.DataGridViewSelectionMode.FullRowSelect;
-            this.dataGridDld.Size = new System.Drawing.Size(592, 334);
-            this.dataGridDld.TabIndex = 4;
-            this.dataGridDld.CellValidating += new System.Windows.Forms.DataGridViewCellValidatingEventHandler(this.dataGridDld_CellValidating);
+            this.dataGridGeom.EditMode = System.Windows.Forms.DataGridViewEditMode.EditOnEnter;
+            this.dataGridGeom.Location = new System.Drawing.Point(12, 78);
+            this.dataGridGeom.MinimumSize = new System.Drawing.Size(590, 330);
+            this.dataGridGeom.Name = "dataGridGeom";
+            this.dataGridGeom.RowTemplate.Height = 25;
+            this.dataGridGeom.SelectionMode = System.Windows.Forms.DataGridViewSelectionMode.FullRowSelect;
+            this.dataGridGeom.Size = new System.Drawing.Size(660, 331);
+            this.dataGridGeom.TabIndex = 4;
+            this.dataGridGeom.CellDoubleClick += new System.Windows.Forms.DataGridViewCellEventHandler(this.dataGridDld_CellDoubleClick);
+            this.dataGridGeom.CellValidating += new System.Windows.Forms.DataGridViewCellValidatingEventHandler(this.dataGridDld_CellValidating);
             // 
             // ColumnIndex
             // 
@@ -112,28 +113,27 @@
             // label1
             // 
             this.label1.AutoSize = true;
-            this.label1.Location = new System.Drawing.Point(12, 31);
+            this.label1.Location = new System.Drawing.Point(12, 39);
             this.label1.Name = "label1";
             this.label1.Size = new System.Drawing.Size(86, 15);
             this.label1.TabIndex = 6;
             this.label1.Text = "Block Attribute";
             // 
-            // nupBlockAttribute
+            // tbBlockAttribute
             // 
-            this.nupBlockAttribute.Hexadecimal = true;
-            this.nupBlockAttribute.Location = new System.Drawing.Point(12, 49);
-            this.nupBlockAttribute.Name = "nupBlockAttribute";
-            this.nupBlockAttribute.Size = new System.Drawing.Size(120, 23);
-            this.nupBlockAttribute.TabIndex = 7;
+            this.tbBlockAttribute.Location = new System.Drawing.Point(104, 36);
+            this.tbBlockAttribute.Name = "tbBlockAttribute";
+            this.tbBlockAttribute.Size = new System.Drawing.Size(128, 23);
+            this.tbBlockAttribute.TabIndex = 8;
             // 
             // GeomEditor
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.ClientSize = new System.Drawing.Size(616, 424);
-            this.Controls.Add(this.nupBlockAttribute);
+            this.ClientSize = new System.Drawing.Size(684, 421);
+            this.Controls.Add(this.tbBlockAttribute);
             this.Controls.Add(this.label1);
-            this.Controls.Add(this.dataGridDld);
+            this.Controls.Add(this.dataGridGeom);
             this.Controls.Add(this.toolStrip1);
             this.FormBorderStyle = System.Windows.Forms.FormBorderStyle.FixedDialog;
             this.MaximizeBox = false;
@@ -142,8 +142,7 @@
             this.Text = "GeomEditor";
             this.toolStrip1.ResumeLayout(false);
             this.toolStrip1.PerformLayout();
-            ((System.ComponentModel.ISupportInitialize)(this.dataGridDld)).EndInit();
-            ((System.ComponentModel.ISupportInitialize)(this.nupBlockAttribute)).EndInit();
+            ((System.ComponentModel.ISupportInitialize)(this.dataGridGeom)).EndInit();
             this.ResumeLayout(false);
             this.PerformLayout();
 
@@ -153,12 +152,12 @@
 
         private ToolStrip toolStrip1;
         private ToolStripButton btnDldSave;
-        private DataGridView dataGridDld;
+        private DataGridView dataGridGeom;
         private DataGridViewTextBoxColumn ColumnIndex;
         private DataGridViewTextBoxColumn ColumnType;
         private DataGridViewTextBoxColumn ColumnHash;
         private DataGridViewTextBoxColumn ColumnAttributes;
         private Label label1;
-        private NumericUpDown nupBlockAttribute;
+        private TextBox tbBlockAttribute;
     }
 }

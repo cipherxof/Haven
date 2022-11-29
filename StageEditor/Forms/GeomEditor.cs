@@ -25,7 +25,6 @@ namespace Haven.Forms
             Block = block;
             File = file;
 
-            nupBlockAttribute.Maximum = decimal.MaxValue;
             PopulateDataGrid();
         }
 
@@ -33,14 +32,14 @@ namespace Haven.Forms
         {
             var prims = File.BlockFaceData[Block];
 
-            nupBlockAttribute.Value = Block.Attribute;
+            tbBlockAttribute.Text = Block.Attribute.ToString("X8");
 
             for (int i = 0; i < prims.Count; i++)
             {
                 var prim = prims[i];
 
-                int rowIndex = dataGridDld.Rows.Add();
-                var row = dataGridDld.Rows[rowIndex];
+                int rowIndex = dataGridGeom.Rows.Add();
+                var row = dataGridGeom.Rows[rowIndex];
 
                 if (row == null)
                     continue;
@@ -75,13 +74,13 @@ namespace Haven.Forms
 
         private void btnDldSave_Click(object sender, EventArgs e)
         {
-            Block.Attribute = (ulong)nupBlockAttribute.Value;
+            ulong.TryParse(tbBlockAttribute.Text, NumberStyles.HexNumber, CultureInfo.InvariantCulture, out Block.Attribute);
 
             var prims = File.BlockFaceData[Block];
 
-            for (int i = 0; i < dataGridDld.Rows.Count; i++)
+            for (int i = 0; i < dataGridGeom.Rows.Count; i++)
             {
-                var row = dataGridDld.Rows[i];
+                var row = dataGridGeom.Rows[i];
 
                 if (row == null || row.Cells["ColumnIndex"] == null || row.Cells["ColumnIndex"].Value == null)
                     continue;
@@ -90,6 +89,40 @@ namespace Haven.Forms
                 var prim = prims[index];
 
                 ulong.TryParse(row.Cells["ColumnAttributes"].Value.ToString(), NumberStyles.HexNumber, CultureInfo.InvariantCulture, out prim.Attribute);
+            }
+        }
+
+        private void dataGridDld_CellDoubleClick(object sender, DataGridViewCellEventArgs e)
+        {
+            if (e.ColumnIndex != 3)
+                return;
+
+            var row = dataGridGeom.Rows[e.RowIndex];
+
+            if (row == null)
+                return;
+
+            var value = row.Cells["ColumnIndex"].Value;
+
+            if (value == null)
+                return;
+
+            var prims = File.BlockFaceData[Block];
+
+            if (prims == null)
+                return;
+
+            int index = int.Parse(value.ToString());
+            var prim = prims[index];
+
+            if (prim == null)
+                return;
+
+            using (var flagEditor = new GeomFlagEditor(prim))
+            {
+                flagEditor.ShowDialog();
+
+                row.Cells["ColumnAttributes"].Value = prim.Attribute.ToString("X8");
             }
         }
     }
