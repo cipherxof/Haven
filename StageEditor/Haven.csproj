@@ -10,8 +10,8 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="Joveler.Compression.ZLib" Version="4.1.0" />
     <PackageReference Include="OpenTK.GLControl" Version="3.3.3" />
-    <PackageReference Include="Zlib.Portable.Signed" Version="1.11.0" />
   </ItemGroup>
 
   <ItemGroup>

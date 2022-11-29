@@ -1,10 +1,13 @@
-﻿using Ionic.Zlib;
+﻿using Haven.Parser;
+using Joveler.Compression;
+using Joveler.Compression.ZLib;
 using OpenTK.Input;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.Linq;
+using System.Reflection.Metadata;
 using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Forms;
@@ -100,57 +103,71 @@ namespace Haven
             return Directory.GetParent(dir)?.Name + "/" + new DirectoryInfo(dir).Name;
         }
 
-        public static byte[] InflateBuffer(byte[] compressedBytes, int decompressedSize)
+
+        public static byte[] DeflateBuffer2(byte[] uncompressedBytes, ZLibCompLevel level)
         {
-            int bufferSize = 1024;
-            byte[] buffer = new byte[bufferSize];
-            ZlibCodec decompressor = new ZlibCodec();
-
-            byte[] decompressedBytes = new byte[decompressedSize];
-            MemoryStream ms = new MemoryStream(decompressedBytes);
-
-
-            int rc = decompressor.InitializeInflate(ZlibConstants.WindowBitsMax, false);
-            
-            decompressor.InputBuffer = compressedBytes;
-            decompressor.NextIn = 0;
-            decompressor.AvailableBytesIn = compressedBytes.Length;
-
-            decompressor.OutputBuffer = buffer;
-
-            // pass 1: inflate 
-            do
+            ZLibCompressOptions compOpts = new ZLibCompressOptions()
             {
-                decompressor.NextOut = 0;
-                decompressor.AvailableBytesOut = buffer.Length;
-                rc = decompressor.Inflate(FlushType.None);
+                Level = level,
+                WindowBits = ZLibWindowBits.Bits15,
+                LeaveOpen = false,
+                MemLevel = ZLibMemLevel.Level9
+            };
 
-                if (rc != ZlibConstants.Z_OK && rc != ZlibConstants.Z_STREAM_END)
-                         throw new Exception("inflating: " + decompressor.Message);
-
-                ms.Write(decompressor.OutputBuffer, 0, buffer.Length - decompressor.AvailableBytesOut);
+            using (MemoryStream fsOrigin = new MemoryStream(uncompressedBytes))
+            using (MemoryStream fsComp = new MemoryStream()) 
+            { 
+                using (DeflateStream zs = new DeflateStream(fsComp, compOpts))
+                {
+                    fsOrigin.CopyTo(zs);
+                }
+                return fsComp.ToArray();
             }
-            while (decompressor.AvailableBytesIn > 0 || decompressor.AvailableBytesOut == 0);
-
-            // pass 2: finish and flush
-            do
-            {
-                decompressor.NextOut = 0;
-                decompressor.AvailableBytesOut = buffer.Length;
-                rc = decompressor.Inflate(FlushType.Finish);
-
-                if (rc != ZlibConstants.Z_STREAM_END && rc != ZlibConstants.Z_OK)
-                         throw new Exception("inflating: " + decompressor.Message);
-
-                if (buffer.Length - decompressor.AvailableBytesOut > 0)
-                         ms.Write(buffer, 0, buffer.Length - decompressor.AvailableBytesOut);
-            }
-            while (decompressor.AvailableBytesIn > 0 || decompressor.AvailableBytesOut == 0);
-
-            decompressor.EndInflate();
-
-            return decompressedBytes;
         }
+
+        public static byte[] InflateBuffer2(byte[] compressedBytes, int decompressedSize)
+        {
+            ZLibDecompressOptions decompOpts = new ZLibDecompressOptions()
+            {
+                WindowBits = ZLibWindowBits.Bits15,
+                LeaveOpen = false,
+            };
+
+            using (MemoryStream fsComp = new MemoryStream(compressedBytes))
+            using (MemoryStream fsDecomp = new MemoryStream())
+            using (DeflateStream zs = new DeflateStream(fsComp, decompOpts))
+            {
+                zs.CopyTo(fsDecomp);
+
+                return fsDecomp.ToArray();
+            }
+        }
+
+        public static List<DataContainer> Compress(string path)
+        {
+            List<DataContainer> containers = new List<DataContainer>();
+
+            using (var stream = new FileStream(path, FileMode.Open, FileAccess.Read))
+            {
+                using (var reader = new BinaryReaderEx(stream, true))
+                {
+                    byte[] data;
+
+                    while (stream.Length - stream.Position > 0x4000)
+                    {
+                        data = DeflateBuffer2(reader.ReadBytes(0x4000), ZLibCompLevel.Default);
+                        containers.Add(new DataContainer(data.Length, 0x4000, data));
+                    }
+
+                    int left = (int)(stream.Length - stream.Position);
+                    data = DeflateBuffer2(reader.ReadBytes(left), ZLibCompLevel.Default);
+                    containers.Add(new DataContainer(data.Length, left, data));
+                }
+            }
+
+            return containers;
+        }
+
         public static void FaceBitCalculation(int extraBit, ref int fa, ref int fb, ref int fc, ref int fd)
         {
             if (extraBit == 170)

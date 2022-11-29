@@ -5,6 +5,7 @@ using System.Diagnostics;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using static System.Windows.Forms.VisualStyles.VisualStyleElement.TrackBar;
 
 namespace Haven
 {
@@ -115,7 +116,7 @@ namespace Haven
 
                 if (ext == ".dlz")
                 {
-                    tasks.Add(Utils.RunProcessAsync("bin/mgs4tool.exe", $"-dlzextract stage/{file.Name}.dec stage/_dlz/{file.Name.Replace(".dlz", ".dld")}"));
+                    tasks.Add(Task.Run(() => new DlzFile(file.GetLocalPath()).Unpack($"stage\\_dlz\\{file.Name.Replace(".dlz", ".dld")}")));
                     continue;
                 }
 
@@ -177,7 +178,12 @@ namespace Haven
 
                 if (ext == ".dlz")
                 {
-                    await Utils.RunProcessAsync("bin/mgs4tool.exe", $"-dlzcreate stage/_dlz/{file.Name.Replace(".dlz", ".dld")} stage/{file.Name}.dec");
+                    await Task.Run(() => {
+                        var containers = Utils.Compress($"stage/_dlz/{file.Name.Replace(".dlz", ".dld")}");
+                        var dlz = new DlzFile(containers);
+                        dlz.Save($"stage\\{file.Name}.dec");
+                    });
+
                     continue;
                 }
 
@@ -190,17 +196,12 @@ namespace Haven
                 if (File.Exists(dst))
                     File.Delete(dst);
 
-                Debug.WriteLine($"-p \"stage/_{file.Name}/{ext}\" -f {ext} -o \"stage\"");
-
                 await Utils.RunProcessAsync("bin/SolidEye.exe", $"-p \"stage/_{file.Name}/{ext}\" -f {ext} -o \"stage\"");
 
                 string dst2 = file.GetLocalPath();
 
                 if (File.Exists(dst2))
                     File.Delete(dst2);
-
-                Debug.WriteLine(dst);
-                Debug.WriteLine(dst2);
 
                 File.Move(dst, dst2);
             }

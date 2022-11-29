@@ -5,11 +5,9 @@ using OpenTK;
 using Haven.Parser;
 using Haven.Render;
 using Haven.Properties;
-using static OpenTK.Graphics.OpenGL.GL;
-using System.Xml.Linq;
-using System.Windows.Forms;
 using Haven.Forms;
 using Haven.Parser.Geom;
+using Joveler.Compression.ZLib;
 
 namespace Haven
 {
@@ -48,10 +46,8 @@ namespace Haven
             tabPageGeom.Show();
             SetEnabled(false);
             DictionaryFile.Load("bin/dictionary.txt");
+            ZLibInit.GlobalInit(Path.GetFullPath("zlibwapi.dll"));
             SetupContextMenus();
-
-            var dlz = new DlzFile(@"C:\Users\Me\Documents\GitHub\rpcs3\bin\dev_hdd0\game\NPMG00020\USRDIR\o\stage\n023a\cache.dlz.dec");
-            dlz.Unpack(@"C:\Users\Me\Documents\GitHub\rpcs3\bin\dev_hdd0\game\NPMG00020\USRDIR\o\stage\n023a\cache.dld");
         }
 
         private void SetupContextMenus()
