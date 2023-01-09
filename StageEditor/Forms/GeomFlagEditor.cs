@@ -46,6 +46,9 @@ namespace Haven.Forms
         public static ulong GEO_COL_A_29 = 0x20000000; // 29
         public static ulong GEO_COL_A_30 = 0x40000000; // 30
         public static ulong GEO_COL_A_31 = 0x80000000; // 31
+        public static ulong GEO_COL_A_32 = 0x100000000; // 32
+        public static ulong GEO_COL_A_33 = 0x200000000; // 33
+
 
         public GeomFlagEditor(Geom prim)
         {
@@ -97,6 +100,8 @@ namespace Haven.Forms
             checkBox30.Checked = (attribute & GEO_COL_A_30) != 0;
 
             checkBox31.Checked = (attribute & GEO_COL_A_31) != 0;
+            checkBox32.Checked = (attribute & GEO_COL_A_32) != 0;
+            checkBox33.Checked = (attribute & GEO_COL_A_33) != 0;
         }
 
         private void SetFlag(bool set, ref ulong attribute, ulong flag)
@@ -154,6 +159,8 @@ namespace Haven.Forms
             SetFlag(checkBox30.Checked, ref attribute, GEO_COL_A_30);
 
             SetFlag(checkBox31.Checked, ref attribute, GEO_COL_A_31);
+            SetFlag(checkBox32.Checked, ref attribute, GEO_COL_A_32);
+            SetFlag(checkBox33.Checked, ref attribute, GEO_COL_A_33);
 
             return attribute;
         }

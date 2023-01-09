@@ -10,6 +10,7 @@ using Haven.Parser.Geom;
 using Joveler.Compression.ZLib;
 using static Haven.Stage;
 using System.IO;
+using System.Xml.Linq;
 
 namespace Haven
 {
@@ -105,7 +106,7 @@ namespace Haven
                 if (!GeomMesh.BlockLookup.TryGetValue(mesh, out block) || block == null)
                     return;
 
-                using (var geomEditor = new GeomEditor(Geom, block))
+                using (var geomEditor = new GeomEditor(Geom, block, mesh, Scene))
                 {
                     geomEditor.ShowDialog();
                 }
@@ -353,6 +354,7 @@ namespace Haven
                     continue;
 
                 var node = TreeNodeGeomMeshes.Nodes.Add(mesh.ID);
+                node.Name = mesh.ID;
                 node.Checked = true;
             }
 
@@ -364,6 +366,7 @@ namespace Haven
                     continue;
 
                 var node = TreeNodeGeomObjects.Nodes.Add(mesh.ID);
+                node.Name = mesh.ID;
                 node.Checked = false;
             }
 
@@ -382,6 +385,7 @@ namespace Haven
                     continue;
 
                 var node = TreeNodeGeomProps.Nodes.Add(mesh.ID);
+                node.Name = mesh.ID;
                 node.Checked = false;
 
                 GeomPropLookup[node] = prop;
@@ -548,13 +552,13 @@ namespace Haven
 
                     if (treeViewGeom.SelectedNode == null || treeViewGeom.SelectedNode.Text != meshId)
                     {
-                        foreach (TreeNode node in TreeNodeGeomMeshes?.Nodes)
+                        var nodes = treeViewGeom.Nodes.Find(meshId, true);
+
+                        if (nodes.Length > 0)
                         {
-                            if (node.Text == meshId)
-                            {
-                                treeViewGeom.SelectedNode = node;
-                                treeViewGeom.Focus();
-                            }
+                            var node = nodes[0];
+                            treeViewGeom.SelectedNode = node;
+                            treeViewGeom.Focus();
                         }
                     }
                 }

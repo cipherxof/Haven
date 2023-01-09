@@ -337,7 +337,7 @@
             this.Icon = ((System.Drawing.Icon)(resources.GetObject("$this.Icon")));
             this.MinimumSize = new System.Drawing.Size(720, 500);
             this.Name = "MainForm";
-            this.Text = "Haven";
+            this.Text = "Haven v0.0.5";
             this.Load += new System.EventHandler(this.MainForm_Load);
             this.tabControl.ResumeLayout(false);
             this.tabPageFiles.ResumeLayout(false);

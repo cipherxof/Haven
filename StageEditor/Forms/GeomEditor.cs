@@ -1,15 +1,8 @@
 ﻿using Haven.Parser;
 using Haven.Parser.Geom;
+using Haven.Render;
 using System;
-using System.Collections.Generic;
-using System.ComponentModel;
-using System.Data;
-using System.Drawing;
 using System.Globalization;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using System.Windows.Forms;
 
 namespace Haven.Forms
 {
@@ -17,13 +10,17 @@ namespace Haven.Forms
     {
         public readonly GeomFile File;
         public readonly GeoBlock Block;
+        public readonly Mesh Mesh;
+        public readonly Scene Scene;
 
-        public GeomEditor(GeomFile file, GeoBlock block)
+        public GeomEditor(GeomFile file, GeoBlock block, Mesh mesh, Scene scene)
         {
             InitializeComponent();
 
             Block = block;
             File = file;
+            Mesh = mesh;
+            Scene = scene;
 
             PopulateDataGrid();
         }
@@ -94,6 +91,9 @@ namespace Haven.Forms
 
         private void dataGridDld_CellDoubleClick(object sender, DataGridViewCellEventArgs e)
         {
+            if (e == null || sender == null)
+                return;
+
             if (e.ColumnIndex != 3)
                 return;
 
@@ -124,6 +124,88 @@ namespace Haven.Forms
 
                 row.Cells["ColumnAttributes"].Value = prim.Attribute.ToString("X8");
             }
+
+        }
+
+        private void DisplayPoly(HashSet<int> indicies)
+        {
+            var prims = File.BlockFaceData[Block];
+
+            for (int i = 0; i < prims.Count; i++)
+            {
+                var face = prims[i];
+
+                if (face.GetPrimType() != Geom.Primitive.GEO_POLY || face.Poly == null)
+                    continue;
+
+                foreach (var poly in face.Poly)
+                {
+                    var fa = poly.Data[0] + 1;
+                    var fb = poly.Data[1] + 1;
+                    var fc = poly.Data[2] + 1;
+                    var fd = poly.Data[3] + 1;
+                    var extraBit = poly.Data[4];
+
+                    Utils.FaceBitCalculation(extraBit, ref fa, ref fb, ref fc, ref fd);
+
+                    var alpha = indicies.Contains(i) ? 255 : 0;
+
+                    Color polyColor = Color.FromArgb(alpha, Mesh.ColorCurrent.R, Mesh.ColorCurrent.G, Mesh.ColorCurrent.B);
+                    var colorCode = (uint)polyColor.A << 24 | (uint)polyColor.B << 16 | (uint)polyColor.G << 8 | (uint)polyColor.R;
+
+                    Mesh.colors[fa - 1] = colorCode;
+                    Mesh.colors[fb - 1] = colorCode;
+                    Mesh.colors[fc - 1] = colorCode;
+
+                    Mesh.colors[fa - 1] = colorCode;
+                    Mesh.colors[fc - 1] = colorCode;
+                    Mesh.colors[fd - 1] = colorCode;
+                }
+            }
+
+            Mesh.UpdateColorBuffer();
+            Scene.Render();
+        }
+
+        private void dataGridGeom_SelectionChanged(object sender, EventArgs e)
+        {
+            var rows = dataGridGeom.SelectedRows;
+
+            if (rows.Count == 0)
+                return;
+
+            HashSet<int> indicies = new HashSet<int>();
+
+            for (int i = 0; i < rows.Count; i++)
+            {
+                var row = rows[i];
+
+                if (row == null || row.Cells["ColumnIndex"] == null || row.Cells["ColumnIndex"].Value == null)
+                    continue;
+
+                var index = int.Parse(row.Cells["ColumnIndex"].Value.ToString());
+                indicies.Add(index);
+            }
+
+            DisplayPoly(indicies);
+        }
+
+        private void GeomEditor_FormClosing(object sender, FormClosingEventArgs e)
+        {
+            var rows = dataGridGeom.Rows;
+            HashSet<int> indicies = new HashSet<int>();
+
+            for (int i = 0; i < rows.Count; i++)
+            {
+                var row = rows[i];
+
+                if (row == null)
+                    continue;
+
+                indicies.Add(i);
+            }
+
+            DisplayPoly(indicies);
         }
     }
 }

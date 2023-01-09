@@ -1,8 +1,5 @@
 ﻿using OpenTK;
 using OpenTK.Graphics.OpenGL;
-using Haven.Parser;
-using System.Diagnostics;
-using Haven.Parser.Geom;
 
 namespace Haven.Render
 {
@@ -68,6 +65,11 @@ namespace Haven.Render
         /// 
         /// </summary>
         public Color ColorStatic;
+
+        /// <summary>
+        /// 
+        /// </summary>
+        public Color ColorCurrent;
 
         /// <summary>
         /// Gets the value indicating whether this mesh has vertex colors
@@ -167,7 +169,7 @@ namespace Haven.Render
         /// <param name="vertices">The vertex coordinates of this mesh</param>
         /// <param name="triangleIndices">The face triangle indices of this mesh</param>
         /// <param name="colors">Vertex colors of this mesh</param>
-        public Mesh(Vector3d[] vertices, int[] triangleIndices, uint[] colors = null)
+        public Mesh(Vector3d[] vertices, int[] triangleIndices, uint[]? colors = null)
         {
             MeshList.Add(this);
 
@@ -200,6 +202,7 @@ namespace Haven.Render
             {
                 this.colors = colors;
                 this.HasColor = true;
+                ColorStatic = Color.Gray;
             }
                 
             else // If no color array is specified, fill it with gray!
@@ -297,6 +300,15 @@ namespace Haven.Render
             IDLookup.Clear();
         }
 
+        public void UpdateColorBuffer()
+        {
+            int size;
+            GL.GenBuffers(1, out handle.colorId);
+            GL.BindBuffer(BufferTarget.ArrayBuffer, handle.colorId);
+            GL.BufferData(BufferTarget.ArrayBuffer, (IntPtr)(colors.Length * BlittableValueType.StrideOf(colors)), colors, BufferUsageHint.StaticDraw);
+            GL.GetBufferParameter(BufferTarget.ArrayBuffer, BufferParameterName.BufferSize, out size);
+        }
+
         /// <summary>
         /// Sets the mesh color.
         /// </summary>
@@ -309,14 +321,22 @@ namespace Haven.Render
             for (int i = 0; i < this.colors.Length; i++)
                 this.colors[i] = colorCode;
 
+            ColorCurrent = color;
+
             if (updateBuffer)
             {
-                int size;
-                GL.GenBuffers(1, out handle.colorId);
-                GL.BindBuffer(BufferTarget.ArrayBuffer, handle.colorId);
-                GL.BufferData(BufferTarget.ArrayBuffer, (IntPtr)(colors.Length * BlittableValueType.StrideOf(colors)), colors, BufferUsageHint.StaticDraw);
-                GL.GetBufferParameter(BufferTarget.ArrayBuffer, BufferParameterName.BufferSize, out size);
+                UpdateColorBuffer();
             }
+        }
+
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="newColors"></param>
+        public void SetColorArray(uint[] newColors)
+        {
+            for (int i = 0; i < this.colors.Length; i++)
+                this.colors[i] = newColors[i];
         }
 
         /// <summary>

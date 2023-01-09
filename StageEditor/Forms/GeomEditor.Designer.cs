@@ -83,6 +83,7 @@
             this.dataGridGeom.TabIndex = 4;
             this.dataGridGeom.CellDoubleClick += new System.Windows.Forms.DataGridViewCellEventHandler(this.dataGridDld_CellDoubleClick);
             this.dataGridGeom.CellValidating += new System.Windows.Forms.DataGridViewCellValidatingEventHandler(this.dataGridDld_CellValidating);
+            this.dataGridGeom.SelectionChanged += new System.EventHandler(this.dataGridGeom_SelectionChanged);
             // 
             // ColumnIndex
             // 
@@ -140,6 +141,7 @@
             this.Name = "GeomEditor";
             this.StartPosition = System.Windows.Forms.FormStartPosition.CenterParent;
             this.Text = "GeomEditor";
+            this.FormClosing += new System.Windows.Forms.FormClosingEventHandler(this.GeomEditor_FormClosing);
             this.toolStrip1.ResumeLayout(false);
             this.toolStrip1.PerformLayout();
             ((System.ComponentModel.ISupportInitialize)(this.dataGridGeom)).EndInit();

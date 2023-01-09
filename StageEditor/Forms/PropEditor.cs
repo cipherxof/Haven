@@ -47,6 +47,12 @@ namespace Haven
             tbSpawnEditX.Text = Prop.X.ToString();
             tbSpawnEditZ.Text = Prop.Z.ToString();
             tbSpawnEditY.Text = Prop.Y.ToString();
+
+            foreach (var value in Prop.Data)
+            {
+                tbExtraData.Text += value.ToString("X2") + " ";
+            }
+            
         }
 
         private void btnSpawnEditApply_Click(object sender, EventArgs e)
