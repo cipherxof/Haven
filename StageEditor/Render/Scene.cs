@@ -115,7 +115,7 @@ namespace Haven.Render
             if (SelectedDrawable != null)
             {
                 var curSelected = SelectedDrawable as Mesh;
-                curSelected.SetColor(curSelected.ColorStatic);
+                curSelected?.SetColor(curSelected.ColorStatic);
             }
 
             mesh.SetColor(Color.DarkRed);

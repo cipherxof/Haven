@@ -536,14 +536,27 @@ namespace Haven
 
         private void timerRefresh_Tick(object sender, EventArgs e)
         {
-
             if (Scene != null && tabControl.SelectedTab == tabPageGeom)
             {
                 labelCamPos.Text = $"{(int)Scene.Camera.Position.X}, {(int)Scene.Camera.Position.Y}, {(int)Scene.Camera.Position.Z}";
 
                 if (Scene.SelectedDrawable != null)
                 {
-                    labelCamPos.Text += $" | {(Scene.SelectedDrawable as Mesh).ID}";
+                    var meshId = (Scene.SelectedDrawable as Mesh)?.ID;
+
+                    labelCamPos.Text += $" | {meshId}";
+
+                    if (treeViewGeom.SelectedNode == null || treeViewGeom.SelectedNode.Text != meshId)
+                    {
+                        foreach (TreeNode node in TreeNodeGeomMeshes?.Nodes)
+                        {
+                            if (node.Text == meshId)
+                            {
+                                treeViewGeom.SelectedNode = node;
+                                treeViewGeom.Focus();
+                            }
+                        }
+                    }
                 }
             }
             else
@@ -583,7 +596,6 @@ namespace Haven
                 }
 
                 Scene.SelectMesh(mesh);
-
                 Scene.Render();
             }
         }

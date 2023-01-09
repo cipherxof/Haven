@@ -41,6 +41,11 @@ namespace Haven.Forms
         public static ulong GEO_COL_A_HEIGHT_LIMIT = 0x1000000;  //24
         public static ulong GEO_COL_A_NO_BEHIND = 0x2000000;  //25
         public static ulong GEO_COL_A_BEHIND_THROUGH = 0x4000000;  //26
+        public static ulong GEO_COL_A_27 = 0x8000000; // 27
+        public static ulong GEO_COL_A_28 = 0x10000000; // 28
+        public static ulong GEO_COL_A_29 = 0x20000000; // 29
+        public static ulong GEO_COL_A_30 = 0x40000000; // 30
+        public static ulong GEO_COL_A_31 = 0x80000000; // 31
 
         public GeomFlagEditor(Geom prim)
         {
@@ -51,8 +56,6 @@ namespace Haven.Forms
 
         private void UpdateAttributes(ulong attribute)
         {
-            // 120840DC2
-
             checkBox1.Checked = (attribute & GEO_COL_A_TYPRECOIL) != 0;
             checkBox2.Checked = (attribute & GEO_COL_A_TYPFLOOR) != 0;
             checkBox3.Checked = (attribute & GEO_COL_A_SOUND) != 0;
@@ -87,6 +90,13 @@ namespace Haven.Forms
 
             checkBox25.Checked = (attribute & GEO_COL_A_NO_BEHIND) != 0;
             checkBox26.Checked = (attribute & GEO_COL_A_BEHIND_THROUGH) != 0;
+            checkBox27.Checked = (attribute & GEO_COL_A_27) != 0;
+
+            checkBox28.Checked = (attribute & GEO_COL_A_28) != 0;
+            checkBox29.Checked = (attribute & GEO_COL_A_29) != 0;
+            checkBox30.Checked = (attribute & GEO_COL_A_30) != 0;
+
+            checkBox31.Checked = (attribute & GEO_COL_A_31) != 0;
         }
 
         private void SetFlag(bool set, ref ulong attribute, ulong flag)
@@ -137,6 +147,13 @@ namespace Haven.Forms
 
             SetFlag(checkBox25.Checked, ref attribute, GEO_COL_A_NO_BEHIND);
             SetFlag(checkBox26.Checked, ref attribute, GEO_COL_A_BEHIND_THROUGH);
+            SetFlag(checkBox27.Checked, ref attribute, GEO_COL_A_27);
+
+            SetFlag(checkBox28.Checked, ref attribute, GEO_COL_A_28);
+            SetFlag(checkBox29.Checked, ref attribute, GEO_COL_A_29);
+            SetFlag(checkBox30.Checked, ref attribute, GEO_COL_A_30);
+
+            SetFlag(checkBox31.Checked, ref attribute, GEO_COL_A_31);
 
             return attribute;
         }
@@ -149,118 +166,6 @@ namespace Haven.Forms
         private void GeomFlagEditor_FormClosing(object sender, FormClosingEventArgs e)
         {
             Prim.Attribute = GenerateAttribute(Prim.Attribute);
-        }
-
-        private string DebugColStr(ulong attribute)
-        {
-            string output = "";
-
-            if ((attribute & GEO_COL_A_TYPRECOIL) != 0)
-            {
-                output += "GEO_COL_A_TYPRECOIL | ";
-            }
-            if ((attribute & GEO_COL_A_TYPFLOOR) != 0)
-            {
-                output += "GEO_COL_A_TYPFLOOR | ";
-            }
-            if ((attribute & GEO_COL_A_TYPTHROUGH) != 0)
-            {
-                output += "GEO_COL_A_TYPTHROUGH | ";
-            }
-            if ((attribute & GEO_COL_A_PLAYER) != 0)
-            {
-                output += "GEO_COL_A_PLAYER | ";
-            }
-            if ((attribute & GEO_COL_A_ENEMY) != 0)
-            {
-                output += "GEO_COL_A_ENEMY | ";
-            }
-            if ((attribute & GEO_COL_A_BULLET) != 0)
-            {
-                output += "GEO_COL_A_BULLET | ";
-            }
-            if ((attribute & GEO_COL_A_MISSILE) != 0)
-            {
-                output += "GEO_COL_A_MISSILE | ";
-            }
-            if ((attribute & GEO_COL_A_BOMB) != 0)
-            {
-                output += "GEO_COL_A_BOMB | ";
-            }
-            if ((attribute & GEO_COL_A_RADOR) != 0)
-            {
-                output += "GEO_COL_A_RADOR | ";
-            }
-            if ((attribute & GEO_COL_A_BLOOD) != 0)
-            {
-                output += "GEO_COL_A_BLOOD | ";
-            }
-            if ((attribute & GEO_COL_A_IK) != 0)
-            {
-                output += "GEO_COL_A_IK | ";
-            }
-            if ((attribute & GEO_COL_A_STAIRWAY) != 0)
-            {
-                output += "GEO_COL_A_STAIRWAY | ";
-            }
-            if ((attribute & GEO_COL_A_STOP_EYE) != 0)
-            {
-                output += "GEO_COL_A_STOP_EYE | ";
-            }
-            if ((attribute & GEO_COL_A_CLIFF) != 0)
-            {
-                output += "GEO_COL_A_CLIFF | ";
-            }
-            if ((attribute & GEO_COL_A_ATTACK_GUARD) != 0)
-            {
-                output += "GEO_COL_A_ATTACK_GUARD | ";
-            }
-            if ((attribute & GEO_COL_A_DONT_FALL) != 0)
-            {
-                output += "GEO_COL_A_DONT_FALL | ";
-            }
-            if ((attribute & GEO_COL_A_CAMERA) != 0)
-            {
-                output += "GEO_COL_A_CAMERA | ";
-            }
-            if ((attribute & GEO_COL_A_SHADOW) != 0)
-            {
-                output += "GEO_COL_A_SHADOW | ";
-            }
-            if ((attribute & GEO_COL_A_ATTACK_GUARD) != 0)
-            {
-                output += "GEO_COL_A_ATTACK_GUARD | ";
-            }
-            if ((attribute & GEO_COL_A_CLIFF_FLOOR) != 0)
-            {
-                output += "GEO_COL_A_CLIFF_FLOOR | ";
-            }
-            if ((attribute & GEO_COL_A_HEIGHT_LIMIT) != 0)
-            {
-                output += "GEO_COL_A_HEIGHT_LIMIT | ";
-            }
-            if ((attribute & GEO_COL_A_LEAN) != 0)
-            {
-                output += "GEO_COL_A_LEAN | ";
-            }
-            if ((attribute & GEO_COL_A_INTRUDE) != 0)
-            {
-                output += "GEO_COL_A_INTRUDE | ";
-            }
-            if ((attribute & GEO_COL_A_SOUND) != 0)
-            {
-                output += "GEO_COL_A_SOUND | ";
-            }
-            if ((attribute & GEO_COL_A_BEHIND_THROUGH) != 0)
-            {
-                output += "GEO_COL_A_BEHIND_THROUGH | ";
-            }
-            if ((attribute & GEO_COL_A_BULLET_MARK) != 0)
-            {
-                output += "GEO_COL_A_BULLET_MARK | ";
-            }
-
-            return output;
         }
 
     }

@@ -54,6 +54,11 @@
             this.checkBox24 = new System.Windows.Forms.CheckBox();
             this.checkBox25 = new System.Windows.Forms.CheckBox();
             this.checkBox26 = new System.Windows.Forms.CheckBox();
+            this.checkBox27 = new System.Windows.Forms.CheckBox();
+            this.checkBox28 = new System.Windows.Forms.CheckBox();
+            this.checkBox29 = new System.Windows.Forms.CheckBox();
+            this.checkBox30 = new System.Windows.Forms.CheckBox();
+            this.checkBox31 = new System.Windows.Forms.CheckBox();
             this.SuspendLayout();
             // 
             // checkBox1
@@ -316,11 +321,66 @@
             this.checkBox26.Text = "GEO_COL_A_BEHIND_THROUGH";
             this.checkBox26.UseVisualStyleBackColor = true;
             // 
+            // checkBox27
+            // 
+            this.checkBox27.AutoSize = true;
+            this.checkBox27.Location = new System.Drawing.Point(420, 355);
+            this.checkBox27.Name = "checkBox27";
+            this.checkBox27.Size = new System.Drawing.Size(107, 19);
+            this.checkBox27.TabIndex = 26;
+            this.checkBox27.Text = "GEO_COL_A_27";
+            this.checkBox27.UseVisualStyleBackColor = true;
+            // 
+            // checkBox28
+            // 
+            this.checkBox28.AutoSize = true;
+            this.checkBox28.Location = new System.Drawing.Point(12, 395);
+            this.checkBox28.Name = "checkBox28";
+            this.checkBox28.Size = new System.Drawing.Size(107, 19);
+            this.checkBox28.TabIndex = 27;
+            this.checkBox28.Text = "GEO_COL_A_28";
+            this.checkBox28.UseVisualStyleBackColor = true;
+            // 
+            // checkBox29
+            // 
+            this.checkBox29.AutoSize = true;
+            this.checkBox29.Location = new System.Drawing.Point(214, 395);
+            this.checkBox29.Name = "checkBox29";
+            this.checkBox29.Size = new System.Drawing.Size(107, 19);
+            this.checkBox29.TabIndex = 28;
+            this.checkBox29.Text = "GEO_COL_A_29";
+            this.checkBox29.UseVisualStyleBackColor = true;
+            // 
+            // checkBox30
+            // 
+            this.checkBox30.AutoSize = true;
+            this.checkBox30.Location = new System.Drawing.Point(420, 395);
+            this.checkBox30.Name = "checkBox30";
+            this.checkBox30.Size = new System.Drawing.Size(107, 19);
+            this.checkBox30.TabIndex = 29;
+            this.checkBox30.Text = "GEO_COL_A_30";
+            this.checkBox30.UseVisualStyleBackColor = true;
+            // 
+            // checkBox31
+            // 
+            this.checkBox31.AutoSize = true;
+            this.checkBox31.Location = new System.Drawing.Point(12, 435);
+            this.checkBox31.Name = "checkBox31";
+            this.checkBox31.Size = new System.Drawing.Size(107, 19);
+            this.checkBox31.TabIndex = 30;
+            this.checkBox31.Text = "GEO_COL_A_31";
+            this.checkBox31.UseVisualStyleBackColor = true;
+            // 
             // GeomFlagEditor
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.ClientSize = new System.Drawing.Size(604, 386);
+            this.ClientSize = new System.Drawing.Size(604, 466);
+            this.Controls.Add(this.checkBox31);
+            this.Controls.Add(this.checkBox30);
+            this.Controls.Add(this.checkBox29);
+            this.Controls.Add(this.checkBox28);
+            this.Controls.Add(this.checkBox27);
             this.Controls.Add(this.checkBox25);
             this.Controls.Add(this.checkBox26);
             this.Controls.Add(this.checkBox17);
@@ -386,5 +446,10 @@
         private CheckBox checkBox24;
         private CheckBox checkBox25;
         private CheckBox checkBox26;
+        private CheckBox checkBox27;
+        private CheckBox checkBox28;
+        private CheckBox checkBox29;
+        private CheckBox checkBox30;
+        private CheckBox checkBox31;
     }
 }
