@@ -105,6 +105,8 @@ namespace Haven
 
                 var destFile = $"{dir}\\{file.Name}";
 
+                MessageBox.Show(destFile);
+
                 if (File.Exists(destFile))
                     File.Delete(destFile);
 

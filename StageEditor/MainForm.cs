@@ -514,7 +514,7 @@ namespace Haven
                     else
                     {
                         labelStatus.Text = "Copying...";
-                        await CurrentStage.CopyOut(Path.GetDirectoryName(fbd.SelectedPath));
+                        await CurrentStage.CopyOut(fbd.SelectedPath);
                     }
 
                     var files = Directory.GetFiles(fbd.SelectedPath);
@@ -540,7 +540,7 @@ namespace Haven
             {
                 labelCamPos.Text = $"{(int)Scene.Camera.Position.X}, {(int)Scene.Camera.Position.Y}, {(int)Scene.Camera.Position.Z}";
 
-                if (Scene.SelectedDrawable != null)
+                if (Scene.SelectedDrawable != null && glControl.Focused)
                 {
                     var meshId = (Scene.SelectedDrawable as Mesh)?.ID;
 
