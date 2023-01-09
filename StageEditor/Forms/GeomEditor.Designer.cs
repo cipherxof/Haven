@@ -38,6 +38,7 @@
             this.ColumnAttributes = new System.Windows.Forms.DataGridViewTextBoxColumn();
             this.label1 = new System.Windows.Forms.Label();
             this.tbBlockAttribute = new System.Windows.Forms.TextBox();
+            this.cbEditRows = new System.Windows.Forms.CheckBox();
             this.toolStrip1.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.dataGridGeom)).BeginInit();
             this.SuspendLayout();
@@ -83,6 +84,7 @@
             this.dataGridGeom.TabIndex = 4;
             this.dataGridGeom.CellDoubleClick += new System.Windows.Forms.DataGridViewCellEventHandler(this.dataGridDld_CellDoubleClick);
             this.dataGridGeom.CellValidating += new System.Windows.Forms.DataGridViewCellValidatingEventHandler(this.dataGridDld_CellValidating);
+            this.dataGridGeom.CellValueChanged += new System.Windows.Forms.DataGridViewCellEventHandler(this.dataGridGeom_CellValueChanged);
             this.dataGridGeom.SelectionChanged += new System.EventHandler(this.dataGridGeom_SelectionChanged);
             // 
             // ColumnIndex
@@ -127,11 +129,22 @@
             this.tbBlockAttribute.Size = new System.Drawing.Size(128, 23);
             this.tbBlockAttribute.TabIndex = 8;
             // 
+            // cbEditRows
+            // 
+            this.cbEditRows.AutoSize = true;
+            this.cbEditRows.Location = new System.Drawing.Point(548, 39);
+            this.cbEditRows.Name = "cbEditRows";
+            this.cbEditRows.Size = new System.Drawing.Size(124, 19);
+            this.cbEditRows.TabIndex = 9;
+            this.cbEditRows.Text = "Edit Selected Rows";
+            this.cbEditRows.UseVisualStyleBackColor = true;
+            // 
             // GeomEditor
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.ClientSize = new System.Drawing.Size(684, 421);
+            this.Controls.Add(this.cbEditRows);
             this.Controls.Add(this.tbBlockAttribute);
             this.Controls.Add(this.label1);
             this.Controls.Add(this.dataGridGeom);
@@ -161,5 +174,6 @@
         private DataGridViewTextBoxColumn ColumnAttributes;
         private Label label1;
         private TextBox tbBlockAttribute;
+        private CheckBox cbEditRows;
     }
 }

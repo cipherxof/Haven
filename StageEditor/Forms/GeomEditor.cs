@@ -207,5 +207,29 @@ namespace Haven.Forms
 
             DisplayPoly(indicies);
         }
+
+        private void dataGridGeom_CellValueChanged(object sender, DataGridViewCellEventArgs e)
+        {
+            if (!cbEditRows.Checked)
+                return;
+
+            var row = dataGridGeom.Rows[e.RowIndex];
+
+            if (row == null)
+                return;
+
+            var value = row.Cells["ColumnAttributes"].Value;
+
+            if (value == null)
+                return;
+
+            foreach (DataGridViewRow? selectedRow in dataGridGeom.SelectedRows)
+            {
+                if (selectedRow == null) 
+                    continue;
+
+                selectedRow.Cells["ColumnAttributes"].Value = value;
+            }
+        }
     }
 }
