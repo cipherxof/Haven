@@ -67,6 +67,15 @@ public class BinaryReaderEx : BinaryReader
         return BitConverter.ToUInt64(data, 0);
     }
 
+    public OpenTK.Vector3 ReadVector3()
+    {
+        OpenTK.Vector3 result = new OpenTK.Vector3(0, 0, 0);
+        result.X = base.ReadSingle();
+        result.Y = base.ReadSingle();
+        result.Z = base.ReadSingle();
+        return result;
+    }
+
     public OpenTK.Vector4 ReadVector4()
     {
         OpenTK.Vector4 result = new OpenTK.Vector4(0, 0, 0, 0);

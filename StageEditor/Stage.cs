@@ -31,7 +31,7 @@ namespace Haven
         public Stage(string path, GameType game)
         {
             Dir = path;
-            Key = Directory.GetParent(path).Name + "/" + new DirectoryInfo(path).Name;
+            Key = Directory.GetParent(path)?.Name + "/" + new DirectoryInfo(path).Name;
             Game = game;
 
             var files = Directory.GetFiles(path).ToList();
@@ -72,7 +72,7 @@ namespace Haven
         /// Copies all of the files in the stage.
         /// </summary>
         /// <returns></returns>
-        public async Task Copy()
+        public async Task Copy(string dir)
         {
             List<Task> tasks = new List<Task>();
 
@@ -80,10 +80,35 @@ namespace Haven
                 if (file.Archive != null)
                     return;
 
-                var destFile = $"stage\\{file.Name}.dec";
+                var destFile = $"{dir}\\{file.Name}.dec";
+
                 if (File.Exists(destFile))
                     File.Delete(destFile);
+
                 File.Copy(file.SourceFile, destFile);
+            });
+
+            await Task.WhenAll(tasks);
+        }
+
+        /// <summary>
+        /// Copies all of the files in the stage.
+        /// </summary>
+        /// <returns></returns>
+        public async Task CopyOut(string dir)
+        {
+            List<Task> tasks = new List<Task>();
+
+            Parallel.ForEach(Files, file => {
+                if (file.Archive != null)
+                    return;
+
+                var destFile = $"{dir}\\{file.Name}";
+
+                if (File.Exists(destFile))
+                    File.Delete(destFile);
+
+                File.Copy(file.GetLocalPath(), destFile);
             });
 
             await Task.WhenAll(tasks);

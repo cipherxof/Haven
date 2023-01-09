@@ -620,10 +620,10 @@ namespace Haven.Parser
             writer.Write((uint)writer.BaseStream.Length);
             writer.Write(Header.Chunks.Count);
             writer.Write(Header.Pad);
-            writer.Write(Header.X);
-            writer.Write(Header.Y);
-            writer.Write(Header.Z);
-            writer.Write(Header.Trans);
+            writer.Write(Header.BaseX);
+            writer.Write(Header.BaseY);
+            writer.Write(Header.BaseZ);
+            writer.Write(Header.BaseW);
 
             for (int i = 0; i < Header.Chunks.Count; i++)
             {

@@ -36,6 +36,7 @@ namespace Haven.Parser.Geom
         public GeoPrimField[]? Field;
         public GeoPrimBox[]? Box;
         public GeoPrimPoly[]? Poly;
+        public GeoPrimRef[]? Ref;
 
         public Geom(BinaryReader reader)
         {
@@ -54,8 +55,6 @@ namespace Haven.Parser.Geom
             Field014 = reader.ReadInt32();
             Attribute = reader.ReadUInt64();
             Data = new byte[0];
-
-            DictionaryFile.GetHashString(Name);
 
             Primitive primType = GetPrimType();
 
@@ -113,12 +112,27 @@ namespace Haven.Parser.Geom
                     }
                     break;
                 case Primitive.GEO_REF:
-                    Data = reader.ReadBytes(0x70 * Length);
+                    Ref = new GeoPrimRef[Length];
+
+                    for (int i = 0; i < Length; i++)
+                    {
+                        Ref[i] = new GeoPrimRef(reader);
+
+                        if (Ref[i].BlockOffset == 0 && Ref[i].Hash != 0)
+                        {
+                            Debug.WriteLine("WARNING: Empty block offset for GEO_REF {0:X} at {1:X} flag={2:X}!", Ref[i].Hash, pos, Flag);
+                            if (Field003 == 0x5)
+                            {
+                                Data = new byte[0x70 * Length];
+                                Ref = null;
+                            }
+                        }
+                    }
+                    //Data = reader.ReadBytes(0x70);
                     break;
                 case Primitive.GEO_UNKNOWN:
-                    break;
                 default:
-                    Debug.WriteLine("Unknown primitive type {0:X} field={1:X}, offset={2:X}", primType, Field003, pos);
+                    Debug.WriteLine("Unknown primitive type {0:X} type={1:X}, offset={2:X}", primType, Type, pos);
                     break;
             }
         }
@@ -183,6 +197,12 @@ namespace Haven.Parser.Geom
                     break;
                 case Primitive.GEO_FIELD:
                     Field?[0].WriteTo(writer);
+                    break;
+                case Primitive.GEO_REF:
+                    for (int i = 0; i < Length; i++)
+                    {
+                        Ref?[i].WriteTo(writer);
+                    }
                     break;
                 default:
                     break;

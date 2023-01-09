@@ -11,6 +11,12 @@ namespace Haven.Parser.Geom
         public short Offset;
         public byte[] Types;
 
+        public GeoRadix(short offset, byte[] types)
+        {
+            Offset = offset;
+            Types = types;
+        }
+
         public GeoRadix(BinaryReader reader, GeoGroup group)
         {
             Offset = reader.ReadInt16();

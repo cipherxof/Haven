@@ -9,6 +9,7 @@ using Haven.Forms;
 using Haven.Parser.Geom;
 using Joveler.Compression.ZLib;
 using static Haven.Stage;
+using System.IO;
 
 namespace Haven
 {
@@ -268,11 +269,11 @@ namespace Haven
 
                 await Task.Run(() =>
                 {
-                    MeshGroups.ForEach(group => Scene?.Children.Add(group));
-                    MeshObjects.ForEach(obj =>
+                    MeshGroups.ForEach(mesh => Scene?.Children.Add(mesh));
+                    MeshObjects.ForEach(mesh =>
                     {
-                        obj.Visible = false;
-                        Scene?.Children.Add(obj);
+                        mesh.Visible = false;
+                        Scene?.Children.Add(mesh);
                     });
                 });
 
@@ -412,7 +413,7 @@ namespace Haven
                         BinaryWriterEx.DefaultBigEndian = game == GameType.MGS4;
                         BinaryReaderEx.DefaultBigEndian = game == GameType.MGS4;
                         labelStatus.Text = "Copying...";
-                        await CurrentStage.Copy();
+                        await CurrentStage.Copy("stage");
                     }
 
                     labelStatus.Text = "Unpacking...";
@@ -475,7 +476,7 @@ namespace Haven
 
                     if (centerStage != null && Scene != null)
                     {
-                        Scene.Camera.Position = new Vector3d(centerStage.TransformedCenter.X, centerStage.TransformedCenter.Y, centerStage.TransformedCenter.Z);
+                        Scene.Camera.Position = centerStage.Center;
                     }
 
                     SetEnabled(true);
@@ -513,7 +514,7 @@ namespace Haven
                     else
                     {
                         labelStatus.Text = "Copying...";
-                        await CurrentStage.Encrypt(fbd.SelectedPath);
+                        await CurrentStage.CopyOut(Path.GetDirectoryName(fbd.SelectedPath));
                     }
 
                     var files = Directory.GetFiles(fbd.SelectedPath);
@@ -574,11 +575,11 @@ namespace Haven
 
                 if (parent == TreeNodeGeomProps)
                 {
-                    Scene.Camera.Position = new Vector3d(mesh.TransformedCenter.X, mesh.TransformedCenter.Y, mesh.TransformedCenter.Z);
+                    Scene.Camera.Position = mesh.AABB.TransformedCenter;
                 }
                 else
                 {
-                    Scene.Camera.Position = new Vector3d(mesh.Center.X, mesh.Center.Y, mesh.Center.Z);
+                    Scene.Camera.Position = mesh.AABB.Center;
                 }
 
                 Scene.SelectMesh(mesh);

@@ -1,9 +1,4 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using static System.Windows.Forms.VisualStyles.VisualStyleElement;
 
 namespace Haven.Parser.Geom
 {
@@ -13,10 +8,10 @@ namespace Haven.Parser.Geom
         public uint FileSize;
         public int ChunkCount;
         public int Pad;
-        public float X;
-        public float Y;
-        public float Z;
-        public float Trans;
+        public float BaseX;
+        public float BaseY;
+        public float BaseZ;
+        public float BaseW;
         public List<GeoChunk> Chunks;
 
         public GeoDef(BinaryReader reader)
@@ -29,10 +24,10 @@ namespace Haven.Parser.Geom
             FileSize = reader.ReadUInt32();
             ChunkCount = reader.ReadInt32();
             Pad = reader.ReadInt32();
-            X = reader.ReadSingle();
-            Y = reader.ReadSingle();
-            Z = reader.ReadSingle();
-            Trans = reader.ReadSingle();
+            BaseX = reader.ReadSingle();
+            BaseY = reader.ReadSingle();
+            BaseZ = reader.ReadSingle();
+            BaseW = reader.ReadSingle();
 
             Chunks = new List<GeoChunk>();
 

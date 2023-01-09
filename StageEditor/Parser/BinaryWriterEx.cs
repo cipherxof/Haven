@@ -60,6 +60,13 @@ public class BinaryWriterEx : BinaryWriter
         base.Write(BitConverter.ToSingle(bytes, 0));
     }
 
+    public void Write(Vector3 value)
+    {
+        base.Write(value.X);
+        base.Write(value.Y);
+        base.Write(value.Z);
+    }
+
     public void Write(Vector4 value)
     {
         base.Write(value.X);

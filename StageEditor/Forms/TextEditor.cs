@@ -40,9 +40,7 @@ namespace Haven
 
         private void btnSave_Click(object sender, EventArgs e)
         {
-            var stageFile = $"stage/{Filename}.dec";
-
-            File.WriteAllText(stageFile, textEditorText.Text);
+            File.WriteAllText(Filename, textEditorText.Text);
         }
     }
 }
