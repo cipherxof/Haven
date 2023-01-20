@@ -15,39 +15,39 @@ namespace Haven.Forms
     {
         public Geom Prim;
 
-        public static ulong GEO_COL_A_TYPRECOIL = 0x2;  // 1st bit (LSB 0), if (attr & 0x2 != 0)
-        public static ulong GEO_COL_A_TYPFLOOR = 0x4;  // 2nd bit, if (attr & 0x4 != 0)
-        public static ulong GEO_COL_A_SOUND = 0x8;  // 3rd bit, if (attr & 0x8 != 0)
-        public static ulong GEO_COL_A_PLAYER = 0x10;  // 4th bit, etc.
-        public static ulong GEO_COL_A_ENEMY = 0x20;  // 5
-        public static ulong GEO_COL_A_BULLET = 0x40;  // 6
-        public static ulong GEO_COL_A_MISSILE = 0x80;  // 7
-        public static ulong GEO_COL_A_BOMB = 0x100;  // 8
-        public static ulong GEO_COL_A_RADOR = 0x200;  // 9
-        public static ulong GEO_COL_A_BLOOD = 0x400;  //10
-        public static ulong GEO_COL_A_IK = 0x800;  //11
-        public static ulong GEO_COL_A_STAIRWAY = 0x1000;  //12
-        public static ulong GEO_COL_A_STOP_EYE = 0x2000;  //13
-        public static ulong GEO_COL_A_CLIFF = 0x4000;  //14
-        public static ulong GEO_COL_A_TYPTHROUGH = 0x8000;  //15
-        public static ulong GEO_COL_A_LEAN = 0x10000;  //16
-        public static ulong GEO_COL_A_DONT_FALL = 0x20000;  //17
-        public static ulong GEO_COL_A_CAMERA = 0x40000;  //18
-        public static ulong GEO_COL_A_SHADOW = 0x80000;  //19
-        public static ulong GEO_COL_A_INTRUDE = 0x100000;  //20
-        public static ulong GEO_COL_A_ATTACK_GUARD = 0x200000;  //21
-        public static ulong GEO_COL_A_CLIFF_FLOOR = 0x400000;  //22
-        public static ulong GEO_COL_A_BULLET_MARK = 0x800000;  //23
-        public static ulong GEO_COL_A_HEIGHT_LIMIT = 0x1000000;  //24
-        public static ulong GEO_COL_A_NO_BEHIND = 0x2000000;  //25
-        public static ulong GEO_COL_A_BEHIND_THROUGH = 0x4000000;  //26
-        public static ulong GEO_COL_A_27 = 0x8000000; // 27
-        public static ulong GEO_COL_A_28 = 0x10000000; // 28
-        public static ulong GEO_COL_A_29 = 0x20000000; // 29
-        public static ulong GEO_COL_A_30 = 0x40000000; // 30
-        public static ulong GEO_COL_A_31 = 0x80000000; // 31
-        public static ulong GEO_COL_A_32 = 0x100000000; // 32
-        public static ulong GEO_COL_A_33 = 0x200000000; // 33
+        public const ulong GEO_COL_A_TYPRECOIL = 0x2;  // 1st bit (LSB 0), if (attr & 0x2 != 0)
+        public const ulong GEO_COL_A_TYPFLOOR = 0x4;  // 2nd bit, if (attr & 0x4 != 0)
+        public const ulong GEO_COL_A_SOUND = 0x8;  // 3rd bit, if (attr & 0x8 != 0)
+        public const ulong GEO_COL_A_PLAYER = 0x10;  // 4th bit, etc.
+        public const ulong GEO_COL_A_ENEMY = 0x20;  // 5 INVISIBLE
+        public const ulong GEO_COL_A_BULLET = 0x40;  // 6
+        public const ulong GEO_COL_A_MISSILE = 0x80;  // 7
+        public const ulong GEO_COL_A_BOMB = 0x100;  // 8
+        public const ulong GEO_COL_A_RADOR = 0x200;  // 9
+        public const ulong GEO_COL_A_BLOOD = 0x400;  //10
+        public const ulong GEO_COL_A_IK = 0x800;  //11
+        public const ulong GEO_COL_A_STAIRWAY = 0x1000;  //12
+        public const ulong GEO_COL_A_STOP_EYE = 0x2000;  //13
+        public const ulong GEO_COL_A_CLIFF = 0x4000;  //14
+        public const ulong GEO_COL_A_TYPTHROUGH = 0x8000;  //15
+        public const ulong GEO_COL_A_LEAN = 0x10000;  //16
+        public const ulong GEO_COL_A_DONT_FALL = 0x20000;  //17
+        public const ulong GEO_COL_A_CAMERA = 0x40000;  //18
+        public const ulong GEO_COL_A_SHADOW = 0x80000;  //19
+        public const ulong GEO_COL_A_INTRUDE = 0x100000;  //20
+        public const ulong GEO_COL_A_ATTACK_GUARD = 0x200000;  //21 (wall?)
+        public const ulong GEO_COL_A_CLIFF_FLOOR = 0x400000;  //22 (rail?)
+        public const ulong GEO_COL_A_BULLET_MARK = 0x800000;  //23
+        public const ulong GEO_COL_A_HEIGHT_LIMIT = 0x1000000;  //24
+        public const ulong GEO_COL_A_NO_BEHIND = 0x2000000;  //25
+        public const ulong GEO_COL_A_BEHIND_THROUGH = 0x4000000;  //26
+        public const ulong GEO_COL_A_27 = 0x8000000; // 27
+        public const ulong GEO_COL_A_28 = 0x10000000; // 28
+        public const ulong GEO_COL_A_29 = 0x20000000; // 29
+        public const ulong GEO_COL_A_30 = 0x40000000; // 30
+        public const ulong GEO_COL_A_31 = 0x80000000; // 31
+        public const ulong GEO_COL_A_32 = 0x100000000; // 32
+        public const ulong GEO_COL_A_33 = 0x200000000; // 33
 
 
         public GeomFlagEditor(Geom prim)

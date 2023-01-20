@@ -35,6 +35,7 @@
             this.treeViewFiles = new System.Windows.Forms.TreeView();
             this.imageListFileTypes = new System.Windows.Forms.ImageList(this.components);
             this.tabPageGeom = new System.Windows.Forms.TabPage();
+            this.cbWireframe = new System.Windows.Forms.CheckBox();
             this.btnExportMesh = new System.Windows.Forms.Button();
             this.tbSpawnsFilter = new System.Windows.Forms.TextBox();
             this.treeViewGeom = new System.Windows.Forms.TreeView();
@@ -112,6 +113,7 @@
             // 
             // tabPageGeom
             // 
+            this.tabPageGeom.Controls.Add(this.cbWireframe);
             this.tabPageGeom.Controls.Add(this.btnExportMesh);
             this.tabPageGeom.Controls.Add(this.tbSpawnsFilter);
             this.tabPageGeom.Controls.Add(this.treeViewGeom);
@@ -122,6 +124,18 @@
             this.tabPageGeom.TabIndex = 1;
             this.tabPageGeom.Text = "Geom";
             this.tabPageGeom.UseVisualStyleBackColor = true;
+            // 
+            // cbWireframe
+            // 
+            this.cbWireframe.AutoSize = true;
+            this.cbWireframe.Location = new System.Drawing.Point(8, 40);
+            this.cbWireframe.Name = "cbWireframe";
+            this.cbWireframe.Size = new System.Drawing.Size(81, 19);
+            this.cbWireframe.TabIndex = 10;
+            this.cbWireframe.Text = "Wireframe";
+            this.cbWireframe.ThreeState = true;
+            this.cbWireframe.UseVisualStyleBackColor = true;
+            this.cbWireframe.CheckStateChanged += new System.EventHandler(this.cbWireframe_CheckStateChanged);
             // 
             // btnExportMesh
             // 
@@ -135,7 +149,7 @@
             // 
             // tbSpawnsFilter
             // 
-            this.tbSpawnsFilter.Location = new System.Drawing.Point(8, 40);
+            this.tbSpawnsFilter.Location = new System.Drawing.Point(8, 63);
             this.tbSpawnsFilter.Name = "tbSpawnsFilter";
             this.tbSpawnsFilter.PlaceholderText = "Search...";
             this.tbSpawnsFilter.Size = new System.Drawing.Size(208, 23);
@@ -146,9 +160,9 @@
             // 
             this.treeViewGeom.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom) 
             | System.Windows.Forms.AnchorStyles.Left)));
-            this.treeViewGeom.Location = new System.Drawing.Point(8, 69);
+            this.treeViewGeom.Location = new System.Drawing.Point(8, 92);
             this.treeViewGeom.Name = "treeViewGeom";
-            this.treeViewGeom.Size = new System.Drawing.Size(208, 410);
+            this.treeViewGeom.Size = new System.Drawing.Size(208, 387);
             this.treeViewGeom.TabIndex = 6;
             this.treeViewGeom.AfterCheck += new System.Windows.Forms.TreeViewEventHandler(this.treeViewGeom_AfterCheck);
             this.treeViewGeom.AfterSelect += new System.Windows.Forms.TreeViewEventHandler(this.treeViewGeom_AfterSelect);
@@ -379,5 +393,6 @@
         private ToolStripMenuItem mGO2StageToolStripMenuItem;
         private ToolStripMenuItem mGS4StageToolStripMenuItem;
         private ToolStripMenuItem mGAStageToolStripMenuItem;
+        private CheckBox cbWireframe;
     }
 }

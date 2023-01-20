@@ -7,6 +7,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using OpenTK.Graphics.ES11;
+using Haven.Forms;
 
 namespace Haven.Render
 {
@@ -27,6 +28,7 @@ namespace Haven.Render
             List<Vector3d> verts = new List<Vector3d>();
             List<int> faces = new List<int>();
             List<Mesh> meshes = new List<Mesh>();
+            List<uint> colors = new List<uint>();
 
             for (int y = 0; y < blocks.Count; y++)
             {
@@ -54,6 +56,7 @@ namespace Haven.Render
                     var vw = geomFile.Reader.ReadUInt32();
 
                     verts.Add(new Vector3d(vx + posX, vy + posY, vz + posZ));
+                    colors.Add((uint)color.ToArgb());
                 }
 
                 var faceData = geomFile.BlockFaceData[block];
@@ -65,6 +68,9 @@ namespace Haven.Render
                 {
                     if (face.GetPrimType() != Geom.Primitive.GEO_POLY || face.Poly == null)
                         continue;
+
+                    //if ((face.Attribute & 0x40) == 0)
+                    //   continue;
 
                     foreach (var poly in face.Poly)
                     {
@@ -83,12 +89,39 @@ namespace Haven.Render
                         faces.Add(fa - 1);
                         faces.Add(fc - 1);
                         faces.Add(fd - 1);
+
+
+                        Color polyColor = color;
+
+                        polyColor = Color.FromArgb(color.A, color.R, color.G, color.B);
+
+                        /*if ((face.Attribute & 0x400000) != 0)
+                            polyColor = Color.FromArgb(255, 179, 140, 197);
+
+                        if ((face.Attribute & GeomFlagEditor.GEO_COL_A_STAIRWAY) != 0)
+                            polyColor = Color.FromArgb(255, 191, 47, 64);
+
+                        if ((face.Attribute & 0x200000) != 0)
+                            polyColor = Color.FromArgb(255, 191, 47, 64);
+
+                        if ((face.Attribute & 0x800000) != 0)
+                            polyColor = Color.FromArgb(255, 134, 176, 166);*/
+
+                        var colorCode = (uint)polyColor.A << 24 | (uint)polyColor.B << 16 | (uint)polyColor.G << 8 | (uint)polyColor.R;
+
+                        colors[fa - 1] = colorCode;
+                        colors[fb - 1] = colorCode;
+                        colors[fc - 1] = colorCode;
+
+                        colors[fa - 1] = colorCode;
+                        colors[fc - 1] = colorCode;
+                        colors[fd - 1] = colorCode;
                     }
                 }
 
-                Mesh mesh = new Mesh(verts.ToArray(), faces.ToArray());
+                Mesh mesh = new Mesh(verts.ToArray(), faces.ToArray(), colors.ToArray());
                 mesh.ID = id != "" ? id : name;
-                mesh.SetColor(color, false);
+                //mesh.SetColor(color, false);
                 meshes.Add(mesh);
                 verts = new List<Vector3d>();
                 faces = new List<int>();

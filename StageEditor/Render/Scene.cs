@@ -13,7 +13,7 @@ namespace Haven.Render
 {
     public class Scene
     {
-        public Drawable3D SelectedDrawable;
+        public Drawable3D? SelectedDrawable;
         public IList<Drawable3D> Children { get; set; }
         public readonly Camera Camera;
 
@@ -54,7 +54,7 @@ namespace Haven.Render
             GL.PolygonMode(MaterialFace.FrontAndBack, PolygonMode.Fill);
             
             GL.Light(LightName.Light1, LightParameter.Ambient, new float[] { 0.1f, 0.1f, 0.1f, 0.0f });
-            GL.Light(LightName.Light1, LightParameter.Diffuse, new float[] { 183.0f / 255.0f, 183.0f / 255.0f, 183.0f / 255.0f, 0.0f });
+            GL.Light(LightName.Light1, LightParameter.Diffuse, new float[] { 100f / 255.0f, 100f / 255.0f, 100f / 255.0f, 0.0f });
             GL.Light(LightName.Light1, LightParameter.Position, new float[] { 0.8f, 0.4f, 0.5f, 0.0f });
             GL.Enable(EnableCap.Light1);
 

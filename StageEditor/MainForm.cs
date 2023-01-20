@@ -11,6 +11,7 @@ using Joveler.Compression.ZLib;
 using static Haven.Stage;
 using System.IO;
 using System.Xml.Linq;
+using OpenTK.Graphics.OpenGL;
 
 namespace Haven
 {
@@ -917,6 +918,32 @@ namespace Haven
             {
                 PopulateGeomTreeView(tbSpawnsFilter.Text);
             }
+        }
+
+        private void cbWireframe_CheckStateChanged(object sender, EventArgs e)
+        {
+            if (Scene == null)
+                return;
+
+            GL.Disable(EnableCap.PolygonSmooth);
+
+            switch (cbWireframe.CheckState)
+            {
+                case CheckState.Unchecked:
+                    GL.PolygonMode(MaterialFace.FrontAndBack, PolygonMode.Fill);
+                    break;
+                case CheckState.Checked:
+                    GL.PolygonMode(MaterialFace.FrontAndBack, PolygonMode.Line);
+                    break;
+                case CheckState.Indeterminate:
+                    GL.PolygonMode(MaterialFace.FrontAndBack, PolygonMode.Fill);
+                    GL.Enable(EnableCap.PolygonSmooth);
+                    break;
+                default:
+                    break;
+            }
+
+            Scene.Render();
         }
     }
 }
