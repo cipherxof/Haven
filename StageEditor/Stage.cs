@@ -72,10 +72,8 @@ namespace Haven
         /// Copies all of the files in the stage.
         /// </summary>
         /// <returns></returns>
-        public async Task Copy(string dir)
+        public void Copy(string dir)
         {
-            List<Task> tasks = new List<Task>();
-
             Parallel.ForEach(Files, file => {
                 if (file.Archive != null)
                     return;
@@ -87,18 +85,14 @@ namespace Haven
 
                 File.Copy(file.SourceFile, destFile);
             });
-
-            await Task.WhenAll(tasks);
         }
 
         /// <summary>
         /// Copies all of the files in the stage.
         /// </summary>
         /// <returns></returns>
-        public async Task CopyOut(string dir)
+        public void CopyOut(string dir)
         {
-            List<Task> tasks = new List<Task>();
-
             Parallel.ForEach(Files, file => {
                 if (file.Archive != null)
                     return;
@@ -110,8 +104,6 @@ namespace Haven
 
                 File.Copy(file.GetLocalPath(), destFile);
             });
-
-            await Task.WhenAll(tasks);
         }
 
         /// <summary>

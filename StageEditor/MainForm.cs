@@ -418,7 +418,7 @@ namespace Haven
                         BinaryWriterEx.DefaultBigEndian = game == GameType.MGS4;
                         BinaryReaderEx.DefaultBigEndian = game == GameType.MGS4;
                         labelStatus.Text = "Copying...";
-                        await CurrentStage.Copy("stage");
+                        CurrentStage.Copy("stage");
                     }
 
                     labelStatus.Text = "Unpacking...";
@@ -519,7 +519,7 @@ namespace Haven
                     else
                     {
                         labelStatus.Text = "Copying...";
-                        await CurrentStage.CopyOut(fbd.SelectedPath);
+                        CurrentStage.CopyOut(fbd.SelectedPath);
                     }
 
                     var files = Directory.GetFiles(fbd.SelectedPath);
