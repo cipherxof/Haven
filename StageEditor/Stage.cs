@@ -62,7 +62,7 @@ namespace Haven
                 if (file.Archive != null)
                     return;
 
-                tasks.Add(Utils.RunProcessAsync("bin/SolidEye.exe", $"-dec {file.SourceFile} -k {Key} -o \"stage\""));
+                tasks.Add(Utils.RunProcessAsync("bin/SolidEye.exe", $"-dec \"{file.SourceFile}\" -k {Key} -o \"stage\""));
             });
 
             await Task.WhenAll(tasks);
