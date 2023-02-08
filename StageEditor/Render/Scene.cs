@@ -198,7 +198,12 @@ namespace Haven.Render
         private void glControl_KeyPress(object? sender, System.Windows.Forms.KeyPressEventArgs e)
         {
             const float cameraSpeed = 1.5f;
-            Camera.Position += Camera.Front * cameraSpeed * 500; // Forward
+
+            if (e.KeyChar == 'w') Camera.Position += Camera.Front * cameraSpeed * 500; // Forward
+            else if (e.KeyChar == 'a') Camera.Position -= Camera.Right * cameraSpeed * 500; // Left
+            else if (e.KeyChar == 's') Camera.Position -= Camera.Front * cameraSpeed * 500; // Backwards
+            else if (e.KeyChar == 'd') Camera.Position += Camera.Right * cameraSpeed * 500; // Right
+
             Render();
         }
 
