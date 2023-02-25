@@ -8,9 +8,6 @@ using Haven.Properties;
 using Haven.Forms;
 using Haven.Parser.Geom;
 using Joveler.Compression.ZLib;
-using static Haven.Stage;
-using System.IO;
-using System.Xml.Linq;
 using OpenTK.Graphics.OpenGL;
 
 namespace Haven
@@ -18,12 +15,14 @@ namespace Haven
     public partial class MainForm : Form
     {
         public Stage? CurrentStage;
-        public Scene? Scene;
         public GeomFile? Geom;
+
+        public Scene Scene;
 
         public List<Mesh> MeshGroups = new List<Mesh>();
         public List<Mesh> MeshObjects = new List<Mesh>();
         public List<Mesh> MeshProps = new List<Mesh>();
+        public List<Mesh> MeshBoundaries = new List<Mesh>();
 
         public Dictionary<GeomProp, Mesh> GeomPropMeshLookup = new Dictionary<GeomProp, Mesh>();
         public Dictionary<TreeNode, StageFile> StageFileLookup = new Dictionary<TreeNode, StageFile>();
@@ -39,13 +38,22 @@ namespace Haven
         public ContextMenuStrip ContextMenuGeomMesh = new ContextMenuStrip();
         public ToolStripMenuItem MenuItemGeomMeshEdit = new ToolStripMenuItem();
 
-        public TreeNode? TreeNodeGeomMeshes;
-        public TreeNode? TreeNodeGeomObjects;
-        public TreeNode? TreeNodeGeomProps;
+        public TreeNode TreeNodeGeomMeshes;
+        public TreeNode TreeNodeGeomObjects;
+        public TreeNode TreeNodeGeomProps;
+        public TreeNode TreeNodeGeomBoundaries;
+
 
         public MainForm()
         {
             InitializeComponent();
+
+            TreeNodeGeomMeshes = treeViewGeom.Nodes.Add("Meshes");
+            TreeNodeGeomProps = treeViewGeom.Nodes.Add("Props");
+            TreeNodeGeomObjects = treeViewGeom.Nodes.Add("Objects");
+            TreeNodeGeomBoundaries = treeViewGeom.Nodes.Add("Boundaries");
+
+            Scene = new Scene(glControl);
         }
 
         private void MainForm_Load(object sender, EventArgs e)
@@ -116,7 +124,7 @@ namespace Haven
 
         private void ContextMenuGeomProp_ItemClicked(object? sender, ToolStripItemClickedEventArgs e)
         {
-            if (Scene == null || treeViewGeom.SelectedNode == null || CurrentStage == null)
+            if (treeViewGeom.SelectedNode == null || CurrentStage == null)
                 return;
 
             GeomProp? prop;
@@ -197,11 +205,6 @@ namespace Haven
             }
         }
 
-        private void glControl_Load(object sender, EventArgs e)
-        {
-            Scene = new Scene(glControl);
-        }
-
         private void SetEnabled(bool flag)
         {
             if (flag)
@@ -231,7 +234,7 @@ namespace Haven
             GeomPropMeshLookup = new Dictionary<GeomProp, Mesh>();
             CurrentStage = null;
             Geom = null;
-            Scene?.Children.Clear();
+            Scene.Children.Clear();
             treeViewFiles.Nodes.Clear();
             treeViewGeom.Nodes.Clear();
             GeomMesh.BlockLookup.Clear();
@@ -266,16 +269,27 @@ namespace Haven
 
                 await Task.Run(() => Geom = new GeomFile(copyPath));
 
-                MeshGroups = await Task.Run(() => GeomMesh.GetGeomGroupMeshes(Geom));
-                MeshObjects = await Task.Run(() => GeomMesh.GetGeomRefMeshes(Geom));
+                if (Geom != null)
+                {
+                    MeshGroups = await Task.Run(() => GeomMesh.GetGeomGroupMeshes(Geom));
+                    MeshObjects = await Task.Run(() => GeomMesh.GetGeomRefMeshes(Geom));
+                    MeshBoundaries = await Task.Run(() => GeomMesh.GetGeomBoundaryMeshes(Geom));
+                }
 
                 await Task.Run(() =>
                 {
-                    MeshGroups.ForEach(mesh => Scene?.Children.Add(mesh));
+                    MeshGroups.ForEach(mesh => Scene.Children.Add(mesh));
+
                     MeshObjects.ForEach(mesh =>
                     {
                         mesh.Visible = false;
-                        Scene?.Children.Add(mesh);
+                        Scene.Children.Add(mesh);
+                    });
+
+                    MeshBoundaries.ForEach(mesh =>
+                    {
+                        mesh.Visible = false;
+                        Scene.Children.Add(mesh);
                     });
                 });
 
@@ -333,15 +347,17 @@ namespace Haven
                 mesh.Visible = false;
                 mesh.ID = id;
                 MeshProps.Add(mesh);
-                Scene?.Children.Add(mesh);
+                Scene.Children.Add(mesh);
                 GeomPropMeshLookup[prop] = mesh;
             }
         }
 
         private void PopulateGeomTreeView(string text)
         {
-            if (TreeNodeGeomMeshes == null || TreeNodeGeomProps == null || TreeNodeGeomObjects == null || Geom == null)
+            if (Geom == null)
+            {
                 return;
+            }
 
             text = text.ToLower();
 
@@ -367,6 +383,18 @@ namespace Haven
                     continue;
 
                 var node = TreeNodeGeomObjects.Nodes.Add(mesh.ID);
+                node.Name = mesh.ID;
+                node.Checked = false;
+            }
+
+            MeshBoundaries = MeshBoundaries.OrderBy(x => x.ID).ToList();
+            TreeNodeGeomBoundaries.Nodes.Clear();
+            foreach (var mesh in MeshBoundaries)
+            {
+                if (!mesh.ID.ToLower().Contains(text))
+                    continue;
+
+                var node = TreeNodeGeomBoundaries.Nodes.Add(mesh.ID);
                 node.Name = mesh.ID;
                 node.Checked = false;
             }
@@ -406,7 +434,7 @@ namespace Haven
                     Reset();
                     CurrentStage = new Stage(fbd.SelectedPath, game);
 
-                    if (game == GameType.MGO2)
+                    if (game == Stage.GameType.MGO2)
                     {
                         BinaryWriterEx.DefaultBigEndian = true;
                         BinaryReaderEx.DefaultBigEndian = true;
@@ -415,8 +443,8 @@ namespace Haven
                     }
                     else
                     {
-                        BinaryWriterEx.DefaultBigEndian = game == GameType.MGS4;
-                        BinaryReaderEx.DefaultBigEndian = game == GameType.MGS4;
+                        BinaryWriterEx.DefaultBigEndian = game == Stage.GameType.MGS4;
+                        BinaryReaderEx.DefaultBigEndian = game == Stage.GameType.MGS4;
                         labelStatus.Text = "Copying...";
                         CurrentStage.Copy("stage");
                     }
@@ -465,6 +493,8 @@ namespace Haven
                     TreeNodeGeomMeshes = treeViewGeom.Nodes.Add("Meshes");
                     TreeNodeGeomProps = treeViewGeom.Nodes.Add("Props");
                     TreeNodeGeomObjects = treeViewGeom.Nodes.Add("Objects");
+                    TreeNodeGeomBoundaries = treeViewGeom.Nodes.Add("Boundaries");
+
                     treeViewGeom.CheckBoxes = true;
                     TreeNodeGeomMeshes.Checked = true;
 
@@ -508,10 +538,13 @@ namespace Haven
                     labelStatus.Text = "Packing...";
                     await CurrentStage.Pack();
 
-                    labelStatus.Text = "Saving geom...";
-                    Geom?.Save(CurrentStage.Geom.GetLocalPath());
+                    if (Geom != null && CurrentStage.Geom != null)
+                    {
+                        labelStatus.Text = "Saving geom...";
+                        Geom.Save(CurrentStage.Geom.GetLocalPath());
+                    }
 
-                    if (CurrentStage.Game == GameType.MGO2)
+                    if (CurrentStage.Game == Stage.GameType.MGO2)
                     {
                         labelStatus.Text = "Encrypting...";
                         await CurrentStage.Encrypt(fbd.SelectedPath);
@@ -576,9 +609,6 @@ namespace Haven
 
         private void treeViewGeom_NodeMouseDoubleClick(object sender, TreeNodeMouseClickEventArgs e)
         {
-            if (Scene == null)
-                return;
-
             var parent = e.Node.Parent;
 
             if (parent == null) 
@@ -608,18 +638,26 @@ namespace Haven
         private void treeViewGeom_AfterCheck(object sender, TreeViewEventArgs e)
         {
             if (e.Action == TreeViewAction.Unknown || e.Node == null)
+            {
                 return;
+            }
 
             string id = e.Node.Text;
 
-            if (e.Node == TreeNodeGeomMeshes || e.Node == TreeNodeGeomObjects || e.Node == TreeNodeGeomProps)
+            if (e.Node == TreeNodeGeomMeshes || e.Node == TreeNodeGeomObjects || e.Node == TreeNodeGeomProps || e.Node == TreeNodeGeomBoundaries)
             {
-                treeViewGeom.Enabled = false;
+                List<Mesh>? list;
 
-                var list = e.Node == TreeNodeGeomMeshes ? MeshGroups : MeshObjects;
-
-                if (e.Node == TreeNodeGeomProps)
+                if (e.Node == TreeNodeGeomMeshes)
+                    list = MeshGroups;
+                else if (e.Node == TreeNodeGeomObjects)
+                    list = MeshObjects;
+                else if (e.Node == TreeNodeGeomBoundaries)
+                    list = MeshBoundaries;
+                else if (e.Node == TreeNodeGeomProps)
                     list = MeshProps;
+                else
+                    return;
 
                 Parallel.ForEach(list, child => child.Visible = e.Node.Checked);
 
@@ -627,9 +665,8 @@ namespace Haven
                     e.Node.Nodes[i].Checked = e.Node.Checked;
 
                 treeViewGeom.SelectedNode = null;
-                treeViewGeom.Enabled = true;
 
-                Scene?.Render();
+                Scene.Render();
 
                 return;
             }
@@ -641,7 +678,7 @@ namespace Haven
 
             mesh.Visible = e.Node.Checked;
 
-            Scene?.Render();
+            Scene.Render();
         }
 
         private void btnExportMesh_Click(object sender, EventArgs e)
@@ -922,9 +959,6 @@ namespace Haven
 
         private void cbWireframe_CheckStateChanged(object sender, EventArgs e)
         {
-            if (Scene == null)
-                return;
-
             GL.Disable(EnableCap.PolygonSmooth);
 
             switch (cbWireframe.CheckState)
@@ -945,5 +979,6 @@ namespace Haven
 
             Scene.Render();
         }
+
     }
 }

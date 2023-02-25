@@ -127,17 +127,6 @@ namespace Haven.Parser
             //CloseStream();
         }
 
-        public bool IsBigEndian()
-        {
-            var pos = Stream.Position;
-            Stream.Seek(0, SeekOrigin.Begin);
-            byte[] magic = new byte[4];
-            Stream.Read(magic, 0, 4);
-            var bigEndian = magic[0] == 0x0B && magic[1] == 0xF6 && magic[2] == 0x8B;
-            Stream.Seek(pos, SeekOrigin.Begin);
-            return bigEndian;
-        }
-
         public void CloseStream()
         {
             Reader.Close();

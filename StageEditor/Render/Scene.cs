@@ -18,8 +18,9 @@ namespace Haven.Render
         public readonly Camera Camera;
 
         private GLControl glControl;
-        private bool FirstMove = true;
-        private Vector2 LastPosition;
+        private bool firstMove = true;
+        private Vector2 lastPosition;
+        private bool initialized = false;
 
         /// <summary>
         /// Initializes a new scene.
@@ -39,15 +40,15 @@ namespace Haven.Render
             control.MouseMove += glControl_MouseMove;
             control.KeyPress += glControl_KeyPress;
             control.MouseDoubleClick += glControl_MouseDoubleClick;
-
-            Load();
         }
 
         /// <summary>
         /// Initialzes OpenGL data.
         /// </summary>
-        private void Load()
+        private void Initialize()
         {
+            initialized = true;
+
             GL.Enable(EnableCap.DepthTest);
             GL.ClearColor(Color.FromArgb(0x6A6A6A));
 
@@ -79,6 +80,11 @@ namespace Haven.Render
         /// </summary>
         public void Render()
         {
+            if (!initialized)
+            {
+                Initialize();
+            }
+
             glControl.MakeCurrent();
 
             GL.Clear(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit);
@@ -192,7 +198,7 @@ namespace Haven.Render
 
         private void glControl_MouseUp(object? sender, MouseEventArgs e)
         {
-            FirstMove = true;
+            firstMove = true;
         }
 
         private void glControl_KeyPress(object? sender, System.Windows.Forms.KeyPressEventArgs e)
@@ -220,16 +226,16 @@ namespace Haven.Render
 
             const float sensitivity = 0.2f;
 
-            if (FirstMove)
+            if (firstMove)
             {
-                LastPosition = new Vector2(mouse.X, mouse.Y);
-                FirstMove = false;
+                lastPosition = new Vector2(mouse.X, mouse.Y);
+                firstMove = false;
             }
             else
             {
-                var deltaX = mouse.X - LastPosition.X;
-                var deltaY = mouse.Y - LastPosition.Y;
-                LastPosition = new Vector2(mouse.X, mouse.Y);
+                var deltaX = mouse.X - lastPosition.X;
+                var deltaY = mouse.Y - lastPosition.Y;
+                lastPosition = new Vector2(mouse.X, mouse.Y);
 
                 Camera.Yaw += deltaX * sensitivity;
                 Camera.Pitch -= deltaY * sensitivity;

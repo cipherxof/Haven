@@ -181,7 +181,6 @@
             this.glControl.Size = new System.Drawing.Size(644, 468);
             this.glControl.TabIndex = 2;
             this.glControl.VSync = true;
-            this.glControl.Load += new System.EventHandler(this.glControl_Load);
             // 
             // toolStrip1
             // 
