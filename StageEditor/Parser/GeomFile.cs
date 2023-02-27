@@ -6,6 +6,8 @@ using System.Runtime.InteropServices;
 using System.Diagnostics;
 using Haven.Parser.Geom;
 using Haven.Parser.Geom.Prim;
+using Haven.Render;
+using OpenTK;
 
 namespace Haven.Parser
 {
@@ -529,16 +531,45 @@ namespace Haven.Parser
             return radixList;
         }
 
-        private void DebugRadix(GeoGroup group)
+        public void GetWorldBoundary(ref Vector4 boundaryLow, ref Vector4 boundaryHigh)
         {
-            var radixList = GroupRadixData[group];
+            boundaryLow = new Vector4(3.4f, 3.4f, 3.4f, 1.0f);
+            boundaryHigh = new Vector4(-3.4f, -3.4f, -3.4f, 1.0f);
 
-            int blockIndex = 0;
-
-            foreach (var radix in radixList)
+            foreach (var group in GeomGroups)
             {
-   
+                var vBase = new Vector4(group.BaseX, group.BaseY, group.BaseZ, 1.0f);
+
+                boundaryLow = Vector4.ComponentMin(boundaryLow, vBase);
+
+                var vDiv = new Vector4(group.DivX, group.DivY, group.DivZ, group.DivW);
+                var vMax = new Vector4(group.MaxX, group.MaxY, group.MaxZ, 1.0f);
+
+                vMax = Vector4.Multiply(vMax, vDiv);
+                vBase = Vector4.Add(vMax, vBase);
+                boundaryHigh = Vector4.ComponentMax(boundaryHigh, vBase);
             }
+        }
+
+        public void CalculateGroupBoundary(GeoGroup group, ref Vector4 boundaryLow, ref Vector4 gridMax)
+        {
+            boundaryLow = new Vector4(float.MaxValue, float.MaxValue, float.MaxValue, 1.0f);
+            var boundaryHigh = new Vector4(float.MinValue, float.MinValue, float.MinValue, 1.0f);
+            var div = new Vector4(group.DivX, group.DivY, group.DivZ, group.DivW);
+
+            foreach (var block in GeomGroupBlocks[group])
+            {
+                if (!BlockVertexData.ContainsKey(block) || BlockVertexData[block].Data.Length == 0)
+                    continue;
+
+                var pos = BlockVertexData[block].Data[0];
+
+                boundaryLow = Vector4.ComponentMin(boundaryLow, pos);
+                boundaryHigh = Vector4.ComponentMax(boundaryHigh, pos);
+            }
+
+            boundaryHigh += div;
+            gridMax = Vector4.Divide(Vector4.Subtract(boundaryHigh, boundaryLow), div);
         }
 
         private void WriteGroup(GeoGroup group, BinaryWriterEx writer)
