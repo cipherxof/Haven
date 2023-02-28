@@ -673,6 +673,15 @@ namespace Haven.Parser
             geomFile.BlockVertexData.ToList().ForEach(x => BlockVertexData.Add(x.Key, x.Value));
         }
 
+        public void MergeObjects(GeomFile geomFile)
+        {
+            GeomRefs.AddRange(geomFile.GeomRefs);
+            geomFile.GeomRefBlocks.ToList().ForEach(x => GeomRefBlocks.Add(x.Key, x.Value));
+            geomFile.GeomRefBlockMaterial.ToList().ForEach(x => GeomRefBlockMaterial.Add(x.Key, x.Value));
+            geomFile.BlockFaceData.ToList().ForEach(x => BlockFaceData.Add(x.Key, x.Value));
+            geomFile.BlockVertexData.ToList().ForEach(x => BlockVertexData.Add(x.Key, x.Value));
+        }
+
         private void WriteGroupsHeader(BinaryWriterEx writer)
         {
             foreach (var group in GeomGroups)
@@ -715,6 +724,7 @@ namespace Haven.Parser
             chunk.DataOffset = (int)stream.Position;
             int diff = chunk.DataOffset - oldOffset;
 
+            var blockPos = stream.Position;
             foreach (var obj in GeomRefs)
             {
                 obj.BlockOffset += diff;
@@ -735,6 +745,8 @@ namespace Haven.Parser
             {
                 GeoPrimRef obj = GeomRefs[i];
                 var blocks = GeomRefBlocks[obj];
+
+                GeomRefs[i].BlockOffset = (int)stream.Position;
 
                 foreach (var block in blocks)
                 {
@@ -766,7 +778,14 @@ namespace Haven.Parser
 
             chunk.Size = (int)stream.Position - chunk.DataOffset;
 
+            stream.Seek(blockPos, SeekOrigin.Begin);
+            foreach (var obj in GeomRefs)
+            {
+                obj.WriteTo(writer);
+            }
+
             // chunk 5
+            stream.Seek(0, SeekOrigin.End);
             chunk = GetChunkFromType(GeoChunkType.TYPE_5);
             chunk.DataOffset = (int)stream.Position;
             writer.Write(GeomChunk5);
@@ -774,7 +793,6 @@ namespace Haven.Parser
 
             // chunk 6
             chunk = GetChunkFromType(GeoChunkType.TYPE_6);
-            var pos = chunk.DataOffset;
             chunk.DataOffset = (int)stream.Position;
 
             if (chunk != null)
