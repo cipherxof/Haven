@@ -11,7 +11,7 @@ public class BinaryReaderEx : BinaryReader
 
     public bool BigEndian = DefaultBigEndian;
 
-    public BinaryReaderEx(Stream stream, bool? bigEndian = null) : base(stream) 
+    public BinaryReaderEx(Stream stream, bool? bigEndian = null) : base(stream)
     {
         if (bigEndian == true) BigEndian = true;
         else if (bigEndian == false) BigEndian = false;
@@ -70,19 +70,19 @@ public class BinaryReaderEx : BinaryReader
     public OpenTK.Vector3 ReadVector3()
     {
         OpenTK.Vector3 result = new OpenTK.Vector3(0, 0, 0);
-        result.X = base.ReadSingle();
-        result.Y = base.ReadSingle();
-        result.Z = base.ReadSingle();
+        result.X = ReadSingle();
+        result.Y = ReadSingle();
+        result.Z = ReadSingle();
         return result;
     }
 
     public OpenTK.Vector4 ReadVector4()
     {
         OpenTK.Vector4 result = new OpenTK.Vector4(0, 0, 0, 0);
-        result.X = base.ReadSingle();
-        result.Y = base.ReadSingle();
-        result.Z = base.ReadSingle();
-        result.W = base.ReadSingle();
+        result.X = ReadSingle();
+        result.Y = ReadSingle();
+        result.Z = ReadSingle();
+        result.W = ReadSingle();
         return result;
     }
 }

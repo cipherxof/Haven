@@ -11,7 +11,7 @@ public class BinaryWriterEx : BinaryWriter
 
     public bool BigEndian = DefaultBigEndian;
 
-    public BinaryWriterEx(Stream stream, bool? bigEndian = null) : base(stream) 
+    public BinaryWriterEx(Stream stream, bool? bigEndian = null) : base(stream)
     {
         if (bigEndian == true) BigEndian = true;
         else if (bigEndian == false) BigEndian = false;
@@ -62,17 +62,17 @@ public class BinaryWriterEx : BinaryWriter
 
     public void Write(Vector3 value)
     {
-        base.Write(value.X);
-        base.Write(value.Y);
-        base.Write(value.Z);
+        Write(value.X);
+        Write(value.Y);
+        Write(value.Z);
     }
 
     public void Write(Vector4 value)
     {
-        base.Write(value.X);
-        base.Write(value.Y);
-        base.Write(value.Z);
-        base.Write(value.W);
+        Write(value.X);
+        Write(value.Y);
+        Write(value.Z);
+        Write(value.W);
     }
 
     public void Align(int size)
