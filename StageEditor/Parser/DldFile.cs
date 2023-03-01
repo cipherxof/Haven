@@ -93,6 +93,8 @@ namespace Haven.Parser
                 {
                     while (stream.Position + 0x20 < stream.Length)
                     {
+                        reader.SeekPadding(0x10);
+
                         var texture = new DldTexture(reader);
 
                         if (texture.Type != 0)

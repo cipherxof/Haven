@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -84,5 +85,15 @@ public class BinaryReaderEx : BinaryReader
         result.Z = ReadSingle();
         result.W = ReadSingle();
         return result;
+    }
+
+    public void SeekPadding(int pad)
+    {
+        int offset = (pad - ((int)BaseStream.Position % pad));
+
+        if (offset != pad)
+        {
+            BaseStream.Seek(offset, SeekOrigin.Current);
+        }
     }
 }
