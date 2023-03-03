@@ -20,7 +20,7 @@ namespace Haven
         public Scene Scene;
 
         public List<Mesh> MeshGroups = new List<Mesh>();
-        public List<Mesh> MeshObjects = new List<Mesh>();
+        public List<Mesh> MeshRefs = new List<Mesh>();
         public List<Mesh> MeshProps = new List<Mesh>();
         public List<Mesh> MeshBoundaries = new List<Mesh>();
 
@@ -39,7 +39,7 @@ namespace Haven
         public ToolStripMenuItem MenuItemGeomMeshEdit = new ToolStripMenuItem();
 
         public TreeNode TreeNodeGeomMeshes;
-        public TreeNode TreeNodeGeomObjects;
+        public TreeNode TreeNodeGeomRefs;
         public TreeNode TreeNodeGeomProps;
         public TreeNode TreeNodeGeomBoundaries;
 
@@ -50,7 +50,7 @@ namespace Haven
 
             TreeNodeGeomMeshes = treeViewGeom.Nodes.Add("Meshes");
             TreeNodeGeomProps = treeViewGeom.Nodes.Add("Props");
-            TreeNodeGeomObjects = treeViewGeom.Nodes.Add("Objects");
+            TreeNodeGeomRefs = treeViewGeom.Nodes.Add("References");
             TreeNodeGeomBoundaries = treeViewGeom.Nodes.Add("Boundaries");
 
             Scene = new Scene(glControl);
@@ -229,7 +229,7 @@ namespace Haven
             }
 
             MeshGroups = new List<Mesh>();
-            MeshObjects = new List<Mesh>();
+            MeshRefs = new List<Mesh>();
             MeshProps = new List<Mesh>();
             GeomPropMeshLookup = new Dictionary<GeomProp, Mesh>();
             CurrentStage = null;
@@ -273,7 +273,7 @@ namespace Haven
                 if (Geom != null)
                 {
                     MeshGroups = await Task.Run(() => GeomMesh.GetGeomGroupMeshes(Geom));
-                    MeshObjects = await Task.Run(() => GeomMesh.GetGeomRefMeshes(Geom));
+                    MeshRefs = await Task.Run(() => GeomMesh.GetGeomRefMeshes(Geom));
                     MeshBoundaries = await Task.Run(() => GeomMesh.GetGeomBoundaryMeshes(Geom));
                 }
 
@@ -281,7 +281,7 @@ namespace Haven
                 {
                     MeshGroups.ForEach(mesh => Scene.Children.Add(mesh));
 
-                    MeshObjects.ForEach(mesh =>
+                    MeshRefs.ForEach(mesh =>
                     {
                         mesh.Visible = false;
                         Scene.Children.Add(mesh);
@@ -378,14 +378,14 @@ namespace Haven
                 node.Checked = true;
             }
 
-            MeshObjects = MeshObjects.OrderBy(x => x.ID).ToList();
-            TreeNodeGeomObjects.Nodes.Clear();
-            foreach (var mesh in MeshObjects)
+            MeshRefs = MeshRefs.OrderBy(x => x.ID).ToList();
+            TreeNodeGeomRefs.Nodes.Clear();
+            foreach (var mesh in MeshRefs)
             {
                 if (!mesh.ID.ToLower().Contains(text))
                     continue;
 
-                var node = TreeNodeGeomObjects.Nodes.Add(mesh.ID);
+                var node = TreeNodeGeomRefs.Nodes.Add(mesh.ID);
                 node.Name = mesh.ID;
                 node.Checked = false;
             }
@@ -495,7 +495,7 @@ namespace Haven
 
                     TreeNodeGeomMeshes = treeViewGeom.Nodes.Add("Meshes");
                     TreeNodeGeomProps = treeViewGeom.Nodes.Add("Props");
-                    TreeNodeGeomObjects = treeViewGeom.Nodes.Add("Objects");
+                    TreeNodeGeomRefs = treeViewGeom.Nodes.Add("References");
                     TreeNodeGeomBoundaries = treeViewGeom.Nodes.Add("Boundaries");
 
                     treeViewGeom.CheckBoxes = true;
@@ -524,6 +524,94 @@ namespace Haven
                     SetEnabled(true);
                 }
             }
+        }
+
+        private void UpdatePolyColors()  // todo: optimize..
+        {
+            if (Geom == null)
+                return;
+
+            foreach (var block in Geom.GeomBlocks)
+            {
+                if (!Geom.BlockFaceData.ContainsKey(block))
+                    continue;
+
+                var prims = Geom.BlockFaceData[block];
+
+                for (int i = 0; i < prims.Count; i++)
+                {
+                    var face = prims[i];
+
+                    if (face.GetPrimType() != Parser.Geom.Geom.Primitive.GEO_POLY || face.Poly == null)
+                        continue;
+
+                    string? meshId;
+
+                    if (!GeomMesh.MeshLookup.TryGetValue(face, out meshId))
+                        continue;
+
+                    Mesh? mesh = Mesh.FromID(meshId);
+
+                    if (mesh == null || !MeshGroups.Contains(mesh))
+                        continue;
+
+                    var polyColor = Color.Gray;
+
+                    if ((face.Attribute & 0x1000) != 0) polyColor = Color.Green;
+                    else if ((face.Attribute & 0x400000) != 0) polyColor = Color.Purple;
+                    else if ((face.Attribute & 0x800000) != 0) polyColor = Color.Gray;
+                    else if ((face.Attribute & 0x1000000) != 0) polyColor = Color.Khaki;
+                    //else if ((face.Attribute & 0x4000000) != 0) polyColor = Color.Red;
+                    else if ((face.Attribute & 0x40000000) != 0) polyColor = Color.LightBlue;
+                    //else if ((face.Attribute & 0x800000000) != 0) polyColor = Color.Red;
+
+                    foreach (var poly in face.Poly)
+                    {
+                        var fa = poly.Data[0] + 1;
+                        var fb = poly.Data[1] + 1;
+                        var fc = poly.Data[2] + 1;
+                        var fd = poly.Data[3] + 1;
+                        var extraBit = poly.Data[4];
+
+                        Utils.FaceBitCalculation(extraBit, ref fa, ref fb, ref fc, ref fd);
+
+                        var alpha = cbFlagsAll.Checked ? 255 : 0;
+
+                        if (cbFlagsStairs.Checked && (prims[i].Attribute & 0x1000) != 0) alpha = 255;
+                        if (cbFlags800000.Checked && (prims[i].Attribute & 0x800000) != 0) alpha = 255;
+                        if (cbFlagsRail.Checked && (prims[i].Attribute & 0x400000) != 0) alpha = 255;
+                        if (cbFlags1000000.Checked && (prims[i].Attribute & 0x1000000) != 0) alpha = 255;
+                        if (cbFlagsWater.Checked && (prims[i].Attribute & 0x40000000) != 0) alpha = 255;
+
+                        polyColor = Color.FromArgb(alpha, polyColor.R, polyColor.G, polyColor.B);
+
+                        var colorCode = (uint)polyColor.A << 24 | (uint)polyColor.B << 16 | (uint)polyColor.G << 8 | (uint)polyColor.R;
+
+                        mesh.colors[fa - 1] = colorCode;
+                        mesh.colors[fb - 1] = colorCode;
+                        mesh.colors[fc - 1] = colorCode;
+
+                        mesh.colors[fa - 1] = colorCode;
+                        mesh.colors[fc - 1] = colorCode;
+                        mesh.colors[fd - 1] = colorCode;
+                    }
+
+                    mesh.UpdateColorBuffer();
+                }
+            }
+
+            Scene.Render();
+        }
+
+        private void cbFlags_CheckedChanged(object sender, EventArgs e)
+        {
+            UpdatePolyColors();
+
+            cbFlagsStairs.Enabled = !cbFlagsAll.Checked;
+            cbFlags800000.Enabled = !cbFlagsAll.Checked;
+            cbFlagsRail.Enabled = !cbFlagsAll.Checked;
+            cbFlags1000000.Enabled = !cbFlagsAll.Checked;
+            cbFlagsWater.Enabled = !cbFlagsAll.Checked;
         }
 
         private async void btnSave_Click(object sender, EventArgs e)
@@ -617,7 +705,7 @@ namespace Haven
             if (parent == null) 
                 return;
 
-            if (parent == TreeNodeGeomMeshes || parent == TreeNodeGeomObjects || parent == TreeNodeGeomProps)
+            if (parent == TreeNodeGeomMeshes || parent == TreeNodeGeomRefs || parent == TreeNodeGeomProps)
             {
                 var mesh = Mesh.FromID(e.Node.Text);
 
@@ -647,14 +735,14 @@ namespace Haven
 
             string id = e.Node.Text;
 
-            if (e.Node == TreeNodeGeomMeshes || e.Node == TreeNodeGeomObjects || e.Node == TreeNodeGeomProps || e.Node == TreeNodeGeomBoundaries)
+            if (e.Node == TreeNodeGeomMeshes || e.Node == TreeNodeGeomRefs || e.Node == TreeNodeGeomProps || e.Node == TreeNodeGeomBoundaries)
             {
                 List<Mesh>? list;
 
                 if (e.Node == TreeNodeGeomMeshes)
                     list = MeshGroups;
-                else if (e.Node == TreeNodeGeomObjects)
-                    list = MeshObjects;
+                else if (e.Node == TreeNodeGeomRefs)
+                    list = MeshRefs;
                 else if (e.Node == TreeNodeGeomBoundaries)
                     list = MeshBoundaries;
                 else if (e.Node == TreeNodeGeomProps)
@@ -680,6 +768,37 @@ namespace Haven
                 return;
 
             mesh.Visible = e.Node.Checked;
+
+            Scene.Render();
+        }
+
+        private void tbSpawnsFilter_KeyDown(object sender, KeyEventArgs e)
+        {
+            if (e.KeyCode == Keys.Enter)
+            {
+                PopulateGeomTreeView(tbSpawnsFilter.Text);
+            }
+        }
+
+        private void cbWireframe_CheckStateChanged(object sender, EventArgs e)
+        {
+            GL.Disable(EnableCap.PolygonSmooth);
+
+            switch (cbWireframe.CheckState)
+            {
+                case CheckState.Unchecked:
+                    GL.PolygonMode(MaterialFace.FrontAndBack, PolygonMode.Fill);
+                    break;
+                case CheckState.Checked:
+                    GL.PolygonMode(MaterialFace.FrontAndBack, PolygonMode.Line);
+                    break;
+                case CheckState.Indeterminate:
+                    GL.PolygonMode(MaterialFace.FrontAndBack, PolygonMode.Fill);
+                    GL.Enable(EnableCap.PolygonSmooth);
+                    break;
+                default:
+                    break;
+            }
 
             Scene.Render();
         }
@@ -929,7 +1048,7 @@ namespace Haven
                     {
                         ContextMenuGeomProp.Show(treeViewGeom, e.Location);
                     }
-                    else if (treeViewGeom.SelectedNode.Parent?.Text == "Meshes" || treeViewGeom.SelectedNode.Parent?.Text == "Objects")
+                    else if (treeViewGeom.SelectedNode.Parent?.Text == "Meshes" || treeViewGeom.SelectedNode.Parent?.Text == "References")
                     {
                         ContextMenuGeomMesh.Show(treeViewGeom, e.Location);
                     }
@@ -952,123 +1071,64 @@ namespace Haven
             PromptStageLoad(Stage.GameType.MGA);
         }
 
-        private void tbSpawnsFilter_KeyDown(object sender, KeyEventArgs e)
+        private void mergeReferencesToolStripMenuItem_Click(object sender, EventArgs e)
         {
-            if (e.KeyCode == Keys.Enter)
+            var baseFilePath = string.Empty;
+            var mergeFilePath = string.Empty;
+
+            using (OpenFileDialog openFileDialog = new OpenFileDialog())
             {
-                PopulateGeomTreeView(tbSpawnsFilter.Text);
-            }
-        }
+                openFileDialog.Filter = "geom files (*.geom)|*.geom|All files (*.*)|*.*";
+                openFileDialog.FilterIndex = 1;
+                openFileDialog.RestoreDirectory = true;
 
-        private void cbWireframe_CheckStateChanged(object sender, EventArgs e)
-        {
-            GL.Disable(EnableCap.PolygonSmooth);
-
-            switch (cbWireframe.CheckState)
-            {
-                case CheckState.Unchecked:
-                    GL.PolygonMode(MaterialFace.FrontAndBack, PolygonMode.Fill);
-                    break;
-                case CheckState.Checked:
-                    GL.PolygonMode(MaterialFace.FrontAndBack, PolygonMode.Line);
-                    break;
-                case CheckState.Indeterminate:
-                    GL.PolygonMode(MaterialFace.FrontAndBack, PolygonMode.Fill);
-                    GL.Enable(EnableCap.PolygonSmooth);
-                    break;
-                default:
-                    break;
-            }
-
-            Scene.Render();
-        }
-
-        private void UpdatePolyColors()  // todo: optimize..
-        {
-            if (Geom == null)
-                return;
-
-            foreach (var block in Geom.GeomBlocks)
-            {
-                if (!Geom.BlockFaceData.ContainsKey(block))
-                    continue;
-
-                var prims = Geom.BlockFaceData[block];
-
-                for (int i = 0; i < prims.Count; i++)
+                if (openFileDialog.ShowDialog() == DialogResult.OK)
                 {
-                    var face = prims[i];
-
-                    if (face.GetPrimType() != Parser.Geom.Geom.Primitive.GEO_POLY || face.Poly == null)
-                        continue;
-
-                    string? meshId;
-
-                    if (!GeomMesh.MeshLookup.TryGetValue(face, out meshId))
-                        continue;
-
-                    Mesh? mesh = Mesh.FromID(meshId);
-
-                    if (mesh == null || !MeshGroups.Contains(mesh))
-                        continue;
-
-                    var polyColor = Color.Gray;
-
-                    if ((face.Attribute & 0x1000) != 0) polyColor = Color.Green;
-                    else if ((face.Attribute & 0x400000) != 0) polyColor = Color.Purple;
-                    else if ((face.Attribute & 0x800000) != 0) polyColor = Color.Gray;
-                    else if ((face.Attribute & 0x1000000) != 0) polyColor = Color.Khaki;
-                    //else if ((face.Attribute & 0x4000000) != 0) polyColor = Color.Red;
-                    else if ((face.Attribute & 0x40000000) != 0) polyColor = Color.LightBlue;
-                    //else if ((face.Attribute & 0x800000000) != 0) polyColor = Color.Red;
-
-                    foreach (var poly in face.Poly)
-                    {
-                        var fa = poly.Data[0] + 1;
-                        var fb = poly.Data[1] + 1;
-                        var fc = poly.Data[2] + 1;
-                        var fd = poly.Data[3] + 1;
-                        var extraBit = poly.Data[4];
-
-                        Utils.FaceBitCalculation(extraBit, ref fa, ref fb, ref fc, ref fd);
-
-                        var alpha = cbFlagsAll.Checked ? 255 : 0;
-
-                        if (cbFlagsStairs.Checked && (prims[i].Attribute & 0x1000) != 0) alpha = 255;
-                        if (cbFlags800000.Checked && (prims[i].Attribute & 0x800000) != 0) alpha = 255;
-                        if (cbFlagsRail.Checked && (prims[i].Attribute & 0x400000) != 0) alpha = 255;
-                        if (cbFlags1000000.Checked && (prims[i].Attribute & 0x1000000) != 0) alpha = 255;
-                        if (cbFlagsWater.Checked && (prims[i].Attribute & 0x40000000) != 0) alpha = 255;
-
-                        polyColor = Color.FromArgb(alpha, polyColor.R, polyColor.G, polyColor.B);
-
-                        var colorCode = (uint)polyColor.A << 24 | (uint)polyColor.B << 16 | (uint)polyColor.G << 8 | (uint)polyColor.R;
-
-                        mesh.colors[fa - 1] = colorCode;
-                        mesh.colors[fb - 1] = colorCode;
-                        mesh.colors[fc - 1] = colorCode;
-
-                        mesh.colors[fa - 1] = colorCode;
-                        mesh.colors[fc - 1] = colorCode;
-                        mesh.colors[fd - 1] = colorCode;
-                    }
-
-                    mesh.UpdateColorBuffer();
+                    baseFilePath = openFileDialog.FileName;
                 }
             }
 
-            Scene.Render();
-        }
+            if (baseFilePath == string.Empty)
+                return;
 
-        private void cbFlags_CheckedChanged(object sender, EventArgs e)
-        {
-            UpdatePolyColors();
+            using (OpenFileDialog openFileDialog = new OpenFileDialog())
+            {
+                openFileDialog.Filter = "geom files (*.geom)|*.geom|All files (*.*)|*.*";
+                openFileDialog.FilterIndex = 1;
+                openFileDialog.RestoreDirectory = true;
 
-            cbFlagsStairs.Enabled = !cbFlagsAll.Checked;
-            cbFlags800000.Enabled = !cbFlagsAll.Checked;
-            cbFlagsRail.Enabled = !cbFlagsAll.Checked;
-            cbFlags1000000.Enabled = !cbFlagsAll.Checked;
-            cbFlagsWater.Enabled = !cbFlagsAll.Checked;
+                if (openFileDialog.ShowDialog() == DialogResult.OK)
+                {
+                    mergeFilePath = openFileDialog.FileName;
+                }
+            }
+
+            try
+            {
+                var baseGeom = new GeomFile(baseFilePath);
+                var mergeGeom = new GeomFile(mergeFilePath);
+                baseGeom.MergeObjects(mergeGeom);
+                mergeGeom.CloseStream();
+
+                using (SaveFileDialog saveFileDialog = new SaveFileDialog())
+                {
+                    saveFileDialog.Filter = "geom files (*.geom)|*.geom|All files (*.*)|*.*";
+                    saveFileDialog.FilterIndex = 1;
+                    saveFileDialog.RestoreDirectory = true;
+
+                    if (saveFileDialog.ShowDialog() == DialogResult.OK)
+                    {
+                        baseGeom.Save(saveFileDialog.FileName);
+                    }
+                }
+
+                baseGeom.CloseStream();
+            }
+            catch (Exception exception)
+            {
+                // leaks if failed
+                MessageBox.Show(exception.Message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
         }
     }
 }

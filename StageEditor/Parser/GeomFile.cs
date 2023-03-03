@@ -746,10 +746,13 @@ namespace Haven.Parser
                 GeoPrimRef obj = GeomRefs[i];
                 var blocks = GeomRefBlocks[obj];
 
+                var blockDiff = (int)stream.Position - GeomRefs[i].BlockOffset;
                 GeomRefs[i].BlockOffset = (int)stream.Position;
 
                 foreach (var block in blocks)
                 {
+                    block.MaterialOffset += blockDiff;
+
                     WriteBlock(block, writer);
 
                     var blockData = FindBlockFromOffsets(blocks, block.VertexOffset, block.FaceOffset);

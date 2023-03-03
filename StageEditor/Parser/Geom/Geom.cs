@@ -123,12 +123,10 @@ namespace Haven.Parser.Geom
                             Debug.WriteLine("WARNING: Empty block offset for GEO_REF {0:X} at {1:X} flag={2:X}!", Ref[i].Hash, pos, Flag);
                             if (Field003 == 0x5)
                             {
-                                Data = new byte[0x70 * Length];
-                                Ref = null;
+                                //Field003 = 0x4;
                             }
                         }
                     }
-                    //Data = reader.ReadBytes(0x70);
                     break;
                 case Primitive.GEO_UNKNOWN:
                 default:

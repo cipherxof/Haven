@@ -65,6 +65,8 @@
             this.labelStatus = new System.Windows.Forms.Label();
             this.timerRefresh = new System.Windows.Forms.Timer(this.components);
             this.labelCamPos = new System.Windows.Forms.Label();
+            this.labelVersion = new System.Windows.Forms.Label();
+            this.mergeReferencesToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.tabControl.SuspendLayout();
             this.tabPageFiles.SuspendLayout();
             this.tabPageGeom.SuspendLayout();
@@ -367,20 +369,20 @@
             this.encryptFileToolStripMenuItem,
             this.decryptFileToolStripMenuItem});
             this.solidEyeToolStripMenuItem.Name = "solidEyeToolStripMenuItem";
-            this.solidEyeToolStripMenuItem.Size = new System.Drawing.Size(135, 22);
+            this.solidEyeToolStripMenuItem.Size = new System.Drawing.Size(180, 22);
             this.solidEyeToolStripMenuItem.Text = "SolidEye";
             // 
             // encryptFileToolStripMenuItem
             // 
             this.encryptFileToolStripMenuItem.Name = "encryptFileToolStripMenuItem";
-            this.encryptFileToolStripMenuItem.Size = new System.Drawing.Size(136, 22);
+            this.encryptFileToolStripMenuItem.Size = new System.Drawing.Size(180, 22);
             this.encryptFileToolStripMenuItem.Text = "Encrypt File";
             this.encryptFileToolStripMenuItem.Click += new System.EventHandler(this.encryptFileToolStripMenuItem_Click);
             // 
             // decryptFileToolStripMenuItem
             // 
             this.decryptFileToolStripMenuItem.Name = "decryptFileToolStripMenuItem";
-            this.decryptFileToolStripMenuItem.Size = new System.Drawing.Size(136, 22);
+            this.decryptFileToolStripMenuItem.Size = new System.Drawing.Size(180, 22);
             this.decryptFileToolStripMenuItem.Text = "Decrypt File";
             this.decryptFileToolStripMenuItem.Click += new System.EventHandler(this.decryptFileToolStripMenuItem_Click);
             // 
@@ -388,37 +390,38 @@
             // 
             this.toolStripMenuItem1.DropDownItems.AddRange(new System.Windows.Forms.ToolStripItem[] {
             this.mergeToolStripMenuItem,
+            this.mergeReferencesToolStripMenuItem,
             this.mergeVLMToolStripMenuItem,
             this.toolStripMenuItem2});
             this.toolStripMenuItem1.Name = "toolStripMenuItem1";
-            this.toolStripMenuItem1.Size = new System.Drawing.Size(135, 22);
+            this.toolStripMenuItem1.Size = new System.Drawing.Size(180, 22);
             this.toolStripMenuItem1.Text = "Geom";
             // 
             // mergeToolStripMenuItem
             // 
             this.mergeToolStripMenuItem.Name = "mergeToolStripMenuItem";
-            this.mergeToolStripMenuItem.Size = new System.Drawing.Size(149, 22);
-            this.mergeToolStripMenuItem.Text = "Merge Groups";
+            this.mergeToolStripMenuItem.Size = new System.Drawing.Size(180, 22);
+            this.mergeToolStripMenuItem.Text = "Merge";
             this.mergeToolStripMenuItem.Click += new System.EventHandler(this.mergeToolStripMenuItem_Click);
             // 
             // mergeVLMToolStripMenuItem
             // 
             this.mergeVLMToolStripMenuItem.Name = "mergeVLMToolStripMenuItem";
-            this.mergeVLMToolStripMenuItem.Size = new System.Drawing.Size(149, 22);
+            this.mergeVLMToolStripMenuItem.Size = new System.Drawing.Size(180, 22);
             this.mergeVLMToolStripMenuItem.Text = "Merge VLM";
             this.mergeVLMToolStripMenuItem.Click += new System.EventHandler(this.mergeVLMToolStripMenuItem_Click);
             // 
             // toolStripMenuItem2
             // 
             this.toolStripMenuItem2.Name = "toolStripMenuItem2";
-            this.toolStripMenuItem2.Size = new System.Drawing.Size(149, 22);
+            this.toolStripMenuItem2.Size = new System.Drawing.Size(180, 22);
             this.toolStripMenuItem2.Text = "Endian Swap";
             this.toolStripMenuItem2.Click += new System.EventHandler(this.toolStripMenuItem2_Click);
             // 
             // stringHashUtilityToolStripMenuItem
             // 
             this.stringHashUtilityToolStripMenuItem.Name = "stringHashUtilityToolStripMenuItem";
-            this.stringHashUtilityToolStripMenuItem.Size = new System.Drawing.Size(135, 22);
+            this.stringHashUtilityToolStripMenuItem.Size = new System.Drawing.Size(180, 22);
             this.stringHashUtilityToolStripMenuItem.Text = "String Hash";
             this.stringHashUtilityToolStripMenuItem.Click += new System.EventHandler(this.stringHashUtilityToolStripMenuItem_Click);
             // 
@@ -449,11 +452,29 @@
             this.labelCamPos.TabIndex = 3;
             this.labelCamPos.TextAlign = System.Drawing.ContentAlignment.BottomRight;
             // 
+            // labelVersion
+            // 
+            this.labelVersion.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Right)));
+            this.labelVersion.AutoSize = true;
+            this.labelVersion.Location = new System.Drawing.Point(843, 541);
+            this.labelVersion.Name = "labelVersion";
+            this.labelVersion.Size = new System.Drawing.Size(37, 15);
+            this.labelVersion.TabIndex = 4;
+            this.labelVersion.Text = "v0.0.6";
+            // 
+            // mergeReferencesToolStripMenuItem
+            // 
+            this.mergeReferencesToolStripMenuItem.Name = "mergeReferencesToolStripMenuItem";
+            this.mergeReferencesToolStripMenuItem.Size = new System.Drawing.Size(180, 22);
+            this.mergeReferencesToolStripMenuItem.Text = "Merge References";
+            this.mergeReferencesToolStripMenuItem.Click += new System.EventHandler(this.mergeReferencesToolStripMenuItem_Click);
+            // 
             // MainForm
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.ClientSize = new System.Drawing.Size(884, 561);
+            this.Controls.Add(this.labelVersion);
             this.Controls.Add(this.labelCamPos);
             this.Controls.Add(this.labelStatus);
             this.Controls.Add(this.toolStrip1);
@@ -461,7 +482,7 @@
             this.Icon = ((System.Drawing.Icon)(resources.GetObject("$this.Icon")));
             this.MinimumSize = new System.Drawing.Size(720, 500);
             this.Name = "MainForm";
-            this.Text = "Haven v0.0.6";
+            this.Text = "Haven";
             this.Load += new System.EventHandler(this.MainForm_Load);
             this.tabControl.ResumeLayout(false);
             this.tabPageFiles.ResumeLayout(false);
@@ -513,5 +534,7 @@
         private CheckBox cbFlagsWater;
         private CheckBox cbFlags1000000;
         private CheckBox cbFlagsAll;
+        private Label labelVersion;
+        private ToolStripMenuItem mergeReferencesToolStripMenuItem;
     }
 }
