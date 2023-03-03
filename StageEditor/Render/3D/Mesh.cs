@@ -77,11 +77,6 @@ namespace Haven.Render
         public bool HasColor { get; private set; }
 
         /// <summary>
-        /// A lookup table for mapping face ID to triangle vertices
-        /// </summary>
-        private Dictionary<uint, Triangle> revLookup = new Dictionary<uint, Triangle>();
-
-        /// <summary>
         /// The triangle indices of this mesh
         /// </summary>
         private int[] triangleIndices;
@@ -302,6 +297,11 @@ namespace Haven.Render
 
         public void UpdateColorBuffer()
         {
+            if (handle.colorId != 0)
+            {
+                GL.DeleteBuffer(handle.colorId);
+            }
+
             int size;
             GL.GenBuffers(1, out handle.colorId);
             GL.BindBuffer(BufferTarget.ArrayBuffer, handle.colorId);
@@ -389,9 +389,18 @@ namespace Haven.Render
             this.vertices = new Vector3d[0];
             this.triangleIndices = new int[0];
             this.normals = new Vector3d[0];
+            this.colors = new uint[0];
+
             if (this.Triangles != null)
             {
                 this.Triangles.Clear();
+            }
+
+            if (handle.colorId != 0)
+            {
+                GL.DeleteBuffer(handle.colorId);
+                GL.DeleteBuffer(handle.faceId);
+                GL.DeleteBuffer(handle.vertexId);
             }
         }
 

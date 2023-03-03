@@ -35,6 +35,13 @@
             this.treeViewFiles = new System.Windows.Forms.TreeView();
             this.imageListFileTypes = new System.Windows.Forms.ImageList(this.components);
             this.tabPageGeom = new System.Windows.Forms.TabPage();
+            this.groupBox1 = new System.Windows.Forms.GroupBox();
+            this.cbFlagsAll = new System.Windows.Forms.CheckBox();
+            this.cbFlags1000000 = new System.Windows.Forms.CheckBox();
+            this.cbFlagsWater = new System.Windows.Forms.CheckBox();
+            this.cbFlagsRail = new System.Windows.Forms.CheckBox();
+            this.cbFlagsStairs = new System.Windows.Forms.CheckBox();
+            this.cbFlags800000 = new System.Windows.Forms.CheckBox();
             this.cbWireframe = new System.Windows.Forms.CheckBox();
             this.btnExportMesh = new System.Windows.Forms.Button();
             this.tbSpawnsFilter = new System.Windows.Forms.TextBox();
@@ -61,6 +68,7 @@
             this.tabControl.SuspendLayout();
             this.tabPageFiles.SuspendLayout();
             this.tabPageGeom.SuspendLayout();
+            this.groupBox1.SuspendLayout();
             this.toolStrip1.SuspendLayout();
             this.SuspendLayout();
             // 
@@ -113,6 +121,7 @@
             // 
             // tabPageGeom
             // 
+            this.tabPageGeom.Controls.Add(this.groupBox1);
             this.tabPageGeom.Controls.Add(this.cbWireframe);
             this.tabPageGeom.Controls.Add(this.btnExportMesh);
             this.tabPageGeom.Controls.Add(this.tbSpawnsFilter);
@@ -125,10 +134,112 @@
             this.tabPageGeom.Text = "Geom";
             this.tabPageGeom.UseVisualStyleBackColor = true;
             // 
+            // groupBox1
+            // 
+            this.groupBox1.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left)));
+            this.groupBox1.BackColor = System.Drawing.Color.Transparent;
+            this.groupBox1.Controls.Add(this.cbFlagsAll);
+            this.groupBox1.Controls.Add(this.cbFlags1000000);
+            this.groupBox1.Controls.Add(this.cbFlagsWater);
+            this.groupBox1.Controls.Add(this.cbFlagsRail);
+            this.groupBox1.Controls.Add(this.cbFlagsStairs);
+            this.groupBox1.Controls.Add(this.cbFlags800000);
+            this.groupBox1.Location = new System.Drawing.Point(8, 298);
+            this.groupBox1.Name = "groupBox1";
+            this.groupBox1.Size = new System.Drawing.Size(208, 181);
+            this.groupBox1.TabIndex = 11;
+            this.groupBox1.TabStop = false;
+            this.groupBox1.Text = "Flags";
+            // 
+            // cbFlagsAll
+            // 
+            this.cbFlagsAll.AutoSize = true;
+            this.cbFlagsAll.BackColor = System.Drawing.Color.Transparent;
+            this.cbFlagsAll.Location = new System.Drawing.Point(6, 22);
+            this.cbFlagsAll.Name = "cbFlagsAll";
+            this.cbFlagsAll.Size = new System.Drawing.Size(40, 19);
+            this.cbFlagsAll.TabIndex = 6;
+            this.cbFlagsAll.Text = "All";
+            this.cbFlagsAll.UseVisualStyleBackColor = false;
+            this.cbFlagsAll.CheckedChanged += new System.EventHandler(this.cbFlags_CheckedChanged);
+            // 
+            // cbFlags1000000
+            // 
+            this.cbFlags1000000.AutoSize = true;
+            this.cbFlags1000000.BackColor = System.Drawing.Color.Transparent;
+            this.cbFlags1000000.Checked = true;
+            this.cbFlags1000000.CheckState = System.Windows.Forms.CheckState.Checked;
+            this.cbFlags1000000.ForeColor = System.Drawing.Color.Khaki;
+            this.cbFlags1000000.Location = new System.Drawing.Point(6, 147);
+            this.cbFlags1000000.Name = "cbFlags1000000";
+            this.cbFlags1000000.Size = new System.Drawing.Size(80, 19);
+            this.cbFlags1000000.TabIndex = 5;
+            this.cbFlags1000000.Text = "0x1000000";
+            this.cbFlags1000000.UseVisualStyleBackColor = false;
+            this.cbFlags1000000.CheckedChanged += new System.EventHandler(this.cbFlags_CheckedChanged);
+            // 
+            // cbFlagsWater
+            // 
+            this.cbFlagsWater.AutoSize = true;
+            this.cbFlagsWater.BackColor = System.Drawing.Color.Transparent;
+            this.cbFlagsWater.Checked = true;
+            this.cbFlagsWater.CheckState = System.Windows.Forms.CheckState.Checked;
+            this.cbFlagsWater.ForeColor = System.Drawing.Color.Teal;
+            this.cbFlagsWater.Location = new System.Drawing.Point(6, 122);
+            this.cbFlagsWater.Name = "cbFlagsWater";
+            this.cbFlagsWater.Size = new System.Drawing.Size(57, 19);
+            this.cbFlagsWater.TabIndex = 3;
+            this.cbFlagsWater.Text = "Water";
+            this.cbFlagsWater.UseVisualStyleBackColor = false;
+            this.cbFlagsWater.CheckedChanged += new System.EventHandler(this.cbFlags_CheckedChanged);
+            // 
+            // cbFlagsRail
+            // 
+            this.cbFlagsRail.AutoSize = true;
+            this.cbFlagsRail.BackColor = System.Drawing.Color.Transparent;
+            this.cbFlagsRail.Checked = true;
+            this.cbFlagsRail.CheckState = System.Windows.Forms.CheckState.Checked;
+            this.cbFlagsRail.ForeColor = System.Drawing.Color.Purple;
+            this.cbFlagsRail.Location = new System.Drawing.Point(6, 97);
+            this.cbFlagsRail.Name = "cbFlagsRail";
+            this.cbFlagsRail.Size = new System.Drawing.Size(50, 19);
+            this.cbFlagsRail.TabIndex = 2;
+            this.cbFlagsRail.Text = "Rails";
+            this.cbFlagsRail.UseVisualStyleBackColor = false;
+            this.cbFlagsRail.CheckedChanged += new System.EventHandler(this.cbFlags_CheckedChanged);
+            // 
+            // cbFlagsStairs
+            // 
+            this.cbFlagsStairs.AutoSize = true;
+            this.cbFlagsStairs.BackColor = System.Drawing.Color.Transparent;
+            this.cbFlagsStairs.Checked = true;
+            this.cbFlagsStairs.CheckState = System.Windows.Forms.CheckState.Checked;
+            this.cbFlagsStairs.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(0)))), ((int)(((byte)(192)))), ((int)(((byte)(0)))));
+            this.cbFlagsStairs.Location = new System.Drawing.Point(6, 72);
+            this.cbFlagsStairs.Name = "cbFlagsStairs";
+            this.cbFlagsStairs.Size = new System.Drawing.Size(54, 19);
+            this.cbFlagsStairs.TabIndex = 1;
+            this.cbFlagsStairs.Text = "Stairs";
+            this.cbFlagsStairs.UseVisualStyleBackColor = false;
+            this.cbFlagsStairs.CheckedChanged += new System.EventHandler(this.cbFlags_CheckedChanged);
+            // 
+            // cbFlags800000
+            // 
+            this.cbFlags800000.AutoSize = true;
+            this.cbFlags800000.Checked = true;
+            this.cbFlags800000.CheckState = System.Windows.Forms.CheckState.Checked;
+            this.cbFlags800000.Location = new System.Drawing.Point(6, 47);
+            this.cbFlags800000.Name = "cbFlags800000";
+            this.cbFlags800000.Size = new System.Drawing.Size(74, 19);
+            this.cbFlags800000.TabIndex = 0;
+            this.cbFlags800000.Text = "0x800000";
+            this.cbFlags800000.UseVisualStyleBackColor = true;
+            this.cbFlags800000.CheckedChanged += new System.EventHandler(this.cbFlags_CheckedChanged);
+            // 
             // cbWireframe
             // 
             this.cbWireframe.AutoSize = true;
-            this.cbWireframe.Location = new System.Drawing.Point(8, 40);
+            this.cbWireframe.Location = new System.Drawing.Point(8, 11);
             this.cbWireframe.Name = "cbWireframe";
             this.cbWireframe.Size = new System.Drawing.Size(81, 19);
             this.cbWireframe.TabIndex = 10;
@@ -139,7 +250,7 @@
             // 
             // btnExportMesh
             // 
-            this.btnExportMesh.Location = new System.Drawing.Point(8, 11);
+            this.btnExportMesh.Location = new System.Drawing.Point(8, 34);
             this.btnExportMesh.Name = "btnExportMesh";
             this.btnExportMesh.Size = new System.Drawing.Size(208, 23);
             this.btnExportMesh.TabIndex = 9;
@@ -162,7 +273,7 @@
             | System.Windows.Forms.AnchorStyles.Left)));
             this.treeViewGeom.Location = new System.Drawing.Point(8, 92);
             this.treeViewGeom.Name = "treeViewGeom";
-            this.treeViewGeom.Size = new System.Drawing.Size(208, 387);
+            this.treeViewGeom.Size = new System.Drawing.Size(208, 200);
             this.treeViewGeom.TabIndex = 6;
             this.treeViewGeom.AfterCheck += new System.Windows.Forms.TreeViewEventHandler(this.treeViewGeom_AfterCheck);
             this.treeViewGeom.AfterSelect += new System.Windows.Forms.TreeViewEventHandler(this.treeViewGeom_AfterSelect);
@@ -356,6 +467,8 @@
             this.tabPageFiles.ResumeLayout(false);
             this.tabPageGeom.ResumeLayout(false);
             this.tabPageGeom.PerformLayout();
+            this.groupBox1.ResumeLayout(false);
+            this.groupBox1.PerformLayout();
             this.toolStrip1.ResumeLayout(false);
             this.toolStrip1.PerformLayout();
             this.ResumeLayout(false);
@@ -393,5 +506,12 @@
         private ToolStripMenuItem mGS4StageToolStripMenuItem;
         private ToolStripMenuItem mGAStageToolStripMenuItem;
         private CheckBox cbWireframe;
+        private GroupBox groupBox1;
+        private CheckBox cbFlagsStairs;
+        private CheckBox cbFlags800000;
+        private CheckBox cbFlagsRail;
+        private CheckBox cbFlagsWater;
+        private CheckBox cbFlags1000000;
+        private CheckBox cbFlagsAll;
     }
 }

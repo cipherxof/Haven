@@ -14,6 +14,7 @@ namespace Haven.Render
     public static class GeomMesh
     {
         public static Dictionary<Mesh, GeoBlock> BlockLookup = new Dictionary<Mesh, GeoBlock>();
+        public static Dictionary<Geom, string> MeshLookup = new Dictionary<Geom, string>();
 
         /// <summary>
         /// Generates mesh data from a list of geom indicies
@@ -24,10 +25,12 @@ namespace Haven.Render
         /// <returns></returns>
         public static List<Mesh> GetGeomBlockMeshes(GeomFile geomFile, List<GeoBlock> blocks, Color color, string id = "")
         {
-
             List<Vector3d> verts = new List<Vector3d>();
             List<int> faces = new List<int>();
             List<Mesh> meshes = new List<Mesh>();
+            List<uint> colors = new List<uint>();
+
+            var colorCode = (uint)color.A << 24 | (uint)color.B << 16 | (uint)color.G << 8 | (uint)color.R;
 
             for (int y = 0; y < blocks.Count; y++)
             {
@@ -55,15 +58,19 @@ namespace Haven.Render
                     var vw = geomFile.Reader.ReadUInt32();
 
                     verts.Add(new Vector3d(vx + posX, vy + posY, vz + posZ));
+                    colors.Add((uint)color.ToArgb());
                 }
 
-                var faceData = geomFile.BlockFaceData[block];
                 string name = block.VertexOffset.ToString("X4");
+
+                var faceData = geomFile.BlockFaceData[block];
 
                 geomFile.Stream.Seek(block.FaceOffset, SeekOrigin.Begin);
 
                 foreach (var face in faceData)
                 {
+                    MeshLookup[face] = id != "" ? id : name;
+
                     if (face.GetPrimType() != Geom.Primitive.GEO_POLY || face.Poly == null)
                         continue;
 
@@ -84,18 +91,26 @@ namespace Haven.Render
                         faces.Add(fa - 1);
                         faces.Add(fc - 1);
                         faces.Add(fd - 1);
+
+                        colors[fa - 1] = colorCode;
+                        colors[fb - 1] = colorCode;
+                        colors[fc - 1] = colorCode;
+
+                        colors[fa - 1] = colorCode;
+                        colors[fc - 1] = colorCode;
+                        colors[fd - 1] = colorCode;
                     }
                 }
 
-                Mesh mesh = new Mesh(verts.ToArray(), faces.ToArray());
+                Mesh mesh = new Mesh(verts.ToArray(), faces.ToArray(), colors.ToArray());
                 mesh.ID = id != "" ? id : name;
                 mesh.SetColor(color, false);
                 meshes.Add(mesh);
                 verts = new List<Vector3d>();
                 faces = new List<int>();
+                colors = new List<uint>();
 
                 BlockLookup[mesh] = block;
-
             }
 
             return meshes;

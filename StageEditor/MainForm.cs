@@ -238,6 +238,7 @@ namespace Haven
             treeViewFiles.Nodes.Clear();
             treeViewGeom.Nodes.Clear();
             GeomMesh.BlockLookup.Clear();
+            GeomMesh.MeshLookup.Clear();
             PropEditor.GeomPropOriginal.Clear();
             Mesh.ResetID();
 
@@ -294,6 +295,8 @@ namespace Haven
                 });
 
                 await Task.Run(() => GenerateGeomPropMeshes());
+
+                UpdatePolyColors();
             }
             catch (Exception exception)
             {
@@ -980,5 +983,92 @@ namespace Haven
             Scene.Render();
         }
 
+        private void UpdatePolyColors()  // todo: optimize..
+        {
+            if (Geom == null)
+                return;
+
+            foreach (var block in Geom.GeomBlocks)
+            {
+                if (!Geom.BlockFaceData.ContainsKey(block))
+                    continue;
+
+                var prims = Geom.BlockFaceData[block];
+
+                for (int i = 0; i < prims.Count; i++)
+                {
+                    var face = prims[i];
+
+                    if (face.GetPrimType() != Parser.Geom.Geom.Primitive.GEO_POLY || face.Poly == null)
+                        continue;
+
+                    string? meshId;
+
+                    if (!GeomMesh.MeshLookup.TryGetValue(face, out meshId))
+                        continue;
+
+                    Mesh? mesh = Mesh.FromID(meshId);
+
+                    if (mesh == null || !MeshGroups.Contains(mesh))
+                        continue;
+
+                    var polyColor = Color.Gray;
+
+                    if ((face.Attribute & 0x1000) != 0) polyColor = Color.Green;
+                    else if ((face.Attribute & 0x400000) != 0) polyColor = Color.Purple;
+                    else if ((face.Attribute & 0x800000) != 0) polyColor = Color.Gray;
+                    else if ((face.Attribute & 0x1000000) != 0) polyColor = Color.Khaki;
+                    //else if ((face.Attribute & 0x4000000) != 0) polyColor = Color.Red;
+                    else if ((face.Attribute & 0x40000000) != 0) polyColor = Color.LightBlue;
+                    //else if ((face.Attribute & 0x800000000) != 0) polyColor = Color.Red;
+
+                    foreach (var poly in face.Poly)
+                    {
+                        var fa = poly.Data[0] + 1;
+                        var fb = poly.Data[1] + 1;
+                        var fc = poly.Data[2] + 1;
+                        var fd = poly.Data[3] + 1;
+                        var extraBit = poly.Data[4];
+
+                        Utils.FaceBitCalculation(extraBit, ref fa, ref fb, ref fc, ref fd);
+
+                        var alpha = cbFlagsAll.Checked ? 255 : 0;
+
+                        if (cbFlagsStairs.Checked && (prims[i].Attribute & 0x1000) != 0) alpha = 255;
+                        if (cbFlags800000.Checked && (prims[i].Attribute & 0x800000) != 0) alpha = 255;
+                        if (cbFlagsRail.Checked && (prims[i].Attribute & 0x400000) != 0) alpha = 255;
+                        if (cbFlags1000000.Checked && (prims[i].Attribute & 0x1000000) != 0) alpha = 255;
+                        if (cbFlagsWater.Checked && (prims[i].Attribute & 0x40000000) != 0) alpha = 255;
+
+                        polyColor = Color.FromArgb(alpha, polyColor.R, polyColor.G, polyColor.B);
+
+                        var colorCode = (uint)polyColor.A << 24 | (uint)polyColor.B << 16 | (uint)polyColor.G << 8 | (uint)polyColor.R;
+
+                        mesh.colors[fa - 1] = colorCode;
+                        mesh.colors[fb - 1] = colorCode;
+                        mesh.colors[fc - 1] = colorCode;
+
+                        mesh.colors[fa - 1] = colorCode;
+                        mesh.colors[fc - 1] = colorCode;
+                        mesh.colors[fd - 1] = colorCode;
+                    }
+
+                    mesh.UpdateColorBuffer();
+                }
+            }
+
+            Scene.Render();
+        }
+
+        private void cbFlags_CheckedChanged(object sender, EventArgs e)
+        {
+            UpdatePolyColors();
+
+            cbFlagsStairs.Enabled = !cbFlagsAll.Checked;
+            cbFlags800000.Enabled = !cbFlagsAll.Checked;
+            cbFlagsRail.Enabled = !cbFlagsAll.Checked;
+            cbFlags1000000.Enabled = !cbFlagsAll.Checked;
+            cbFlagsWater.Enabled = !cbFlagsAll.Checked;
+        }
     }
 }

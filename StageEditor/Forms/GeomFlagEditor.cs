@@ -36,7 +36,7 @@ namespace Haven.Forms
         public const ulong GEO_COL_A_SHADOW = 0x80000;  //19
         public const ulong GEO_COL_A_INTRUDE = 0x100000;  //20
         public const ulong GEO_COL_A_ATTACK_GUARD = 0x200000;  //21 (wall?)
-        public const ulong GEO_COL_A_CLIFF_FLOOR = 0x400000;  //22 (rail?)
+        public const ulong GEO_COL_A_RAIL = 0x400000;  //22 (rail?)
         public const ulong GEO_COL_A_BULLET_MARK = 0x800000;  //23
         public const ulong GEO_COL_A_HEIGHT_LIMIT = 0x1000000;  //24
         public const ulong GEO_COL_A_NO_BEHIND = 0x2000000;  //25
@@ -44,7 +44,7 @@ namespace Haven.Forms
         public const ulong GEO_COL_A_27 = 0x8000000; // 27
         public const ulong GEO_COL_A_28 = 0x10000000; // 28
         public const ulong GEO_COL_A_29 = 0x20000000; // 29
-        public const ulong GEO_COL_A_30 = 0x40000000; // 30
+        public const ulong GEO_COL_A_WATER = 0x40000000; // 30
         public const ulong GEO_COL_A_31 = 0x80000000; // 31
         public const ulong GEO_COL_A_32 = 0x100000000; // 32
         public const ulong GEO_COL_A_33 = 0x200000000; // 33
@@ -87,7 +87,7 @@ namespace Haven.Forms
             checkBox13.Checked = (attribute & GEO_COL_A_INTRUDE) != 0;
             checkBox8.Checked = (attribute & GEO_COL_A_ATTACK_GUARD) != 0;
 
-            checkBox21.Checked = (attribute & GEO_COL_A_CLIFF_FLOOR) != 0;
+            checkBox21.Checked = (attribute & GEO_COL_A_RAIL) != 0;
             checkBox4.Checked = (attribute & GEO_COL_A_BULLET_MARK) != 0;
             checkBox17.Checked = (attribute & GEO_COL_A_HEIGHT_LIMIT) != 0;
 
@@ -97,7 +97,7 @@ namespace Haven.Forms
 
             checkBox28.Checked = (attribute & GEO_COL_A_28) != 0;
             checkBox29.Checked = (attribute & GEO_COL_A_29) != 0;
-            checkBox30.Checked = (attribute & GEO_COL_A_30) != 0;
+            checkBox30.Checked = (attribute & GEO_COL_A_WATER) != 0;
 
             checkBox31.Checked = (attribute & GEO_COL_A_31) != 0;
             checkBox32.Checked = (attribute & GEO_COL_A_32) != 0;
@@ -146,7 +146,7 @@ namespace Haven.Forms
             SetFlag(checkBox13.Checked, ref attribute, GEO_COL_A_INTRUDE);
             SetFlag(checkBox8.Checked, ref attribute, GEO_COL_A_ATTACK_GUARD);
 
-            SetFlag(checkBox21.Checked, ref attribute, GEO_COL_A_CLIFF_FLOOR);
+            SetFlag(checkBox21.Checked, ref attribute, GEO_COL_A_RAIL);
             SetFlag(checkBox4.Checked, ref attribute, GEO_COL_A_BULLET_MARK);
             SetFlag(checkBox17.Checked, ref attribute, GEO_COL_A_HEIGHT_LIMIT);
 
@@ -156,7 +156,7 @@ namespace Haven.Forms
 
             SetFlag(checkBox28.Checked, ref attribute, GEO_COL_A_28);
             SetFlag(checkBox29.Checked, ref attribute, GEO_COL_A_29);
-            SetFlag(checkBox30.Checked, ref attribute, GEO_COL_A_30);
+            SetFlag(checkBox30.Checked, ref attribute, GEO_COL_A_WATER);
 
             SetFlag(checkBox31.Checked, ref attribute, GEO_COL_A_31);
             SetFlag(checkBox32.Checked, ref attribute, GEO_COL_A_32);

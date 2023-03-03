@@ -49,7 +49,9 @@ namespace Haven.Render
         {
             initialized = true;
 
+            GL.AlphaFunc(AlphaFunction.Greater, 0.5f);
             GL.Enable(EnableCap.DepthTest);
+            GL.Enable(EnableCap.AlphaTest);
             GL.ClearColor(Color.FromArgb(0x6A6A6A));
 
             GL.PolygonMode(MaterialFace.FrontAndBack, PolygonMode.Fill);
@@ -66,6 +68,7 @@ namespace Haven.Render
 
             GL.Enable(EnableCap.Lighting);
             GL.Enable(EnableCap.ColorMaterial);
+            //GL.Enable(EnableCap.CullFace);
             GL.FrontFace(FrontFaceDirection.Ccw);
             GL.ShadeModel(ShadingModel.Smooth);
 

@@ -268,9 +268,9 @@
             this.checkBox21.AutoSize = true;
             this.checkBox21.Location = new System.Drawing.Point(12, 310);
             this.checkBox21.Name = "checkBox21";
-            this.checkBox21.Size = new System.Drawing.Size(166, 19);
+            this.checkBox21.Size = new System.Drawing.Size(119, 19);
             this.checkBox21.TabIndex = 19;
-            this.checkBox21.Text = "GEO_COL_A_CLIFF_FLOOR";
+            this.checkBox21.Text = "GEO_COL_A_RAIL";
             this.checkBox21.UseVisualStyleBackColor = true;
             // 
             // checkBox22
@@ -358,9 +358,9 @@
             this.checkBox30.AutoSize = true;
             this.checkBox30.Location = new System.Drawing.Point(420, 395);
             this.checkBox30.Name = "checkBox30";
-            this.checkBox30.Size = new System.Drawing.Size(107, 19);
+            this.checkBox30.Size = new System.Drawing.Size(132, 19);
             this.checkBox30.TabIndex = 29;
-            this.checkBox30.Text = "GEO_COL_A_30";
+            this.checkBox30.Text = "GEO_COL_A_WATER";
             this.checkBox30.UseVisualStyleBackColor = true;
             // 
             // checkBox31
