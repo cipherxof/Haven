@@ -630,7 +630,7 @@ namespace Haven
                 }
                 else
                 {
-                    Scene.Camera.Position = mesh.AABB.Center;
+                    Scene.Camera.Position = mesh.Vertices[0];
                 }
 
                 Scene.SelectMesh(mesh);
