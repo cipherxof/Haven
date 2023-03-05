@@ -73,19 +73,25 @@ namespace Haven.Parser
             writer.Write(EntryNumber);
             writer.Write(Padding);
             writer.Write(Data);
+
+            int padding = (16 - ((int)writer.BaseStream.Position % 16));
+            if (padding != 16)
+                writer.Write(new byte[padding]);
         }
     }
 
     public class DldFile
     {
         public List<DldTexture> Textures = new List<DldTexture>();
-        public string Name = "";
+        public readonly string Name = "";
+        public readonly string Filename = "";
 
         public DldFile() { }
 
         public DldFile(string path)
         {
             Name = Path.GetFileName(path);
+            Filename = path;
 
             using (var stream = new FileStream(path, FileMode.Open, FileAccess.Read))
             {
@@ -135,6 +141,25 @@ namespace Haven.Parser
             }
 
             return null;
+        }
+
+        public bool RemoveTexture(DldTexture texture)
+        {
+            for (int i = 0; i < Textures.Count; i++)
+            {
+                if (Textures[i] == texture)
+                {
+                    for (int n = 0; n < Textures.Count; n++)
+                    {
+                        if (Textures[n].HashId == texture.HashId && Textures[n].EntryNumber > texture.EntryNumber)
+                        {
+                            Textures[n].EntryNumber -= 1;
+                        }
+                    }
+                }
+            }
+
+            return Textures.Remove(texture);
         }
     }
 }

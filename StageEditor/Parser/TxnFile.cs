@@ -161,8 +161,8 @@ namespace Haven.Parser
     {
         public readonly TxnHeader Header;
         public readonly string Path;
-        public readonly List<TxnIndex> Indicies = new List<TxnIndex>();
-        public readonly List<TxnIndex2> Indicies2 = new List<TxnIndex2>();
+        public  List<TxnIndex> Indicies = new List<TxnIndex>();
+        public  List<TxnIndex2> Indicies2 = new List<TxnIndex2>();
 
         public readonly Dictionary<TxnIndex2, int> IndexLookup = new Dictionary<TxnIndex2, int>();
 
@@ -241,6 +241,8 @@ namespace Haven.Parser
             {
                 using (var writer = new BinaryWriterEx(stream, bigEndian))
                 {
+                    stream.SetLength(0);
+
                     Header.TextureCount = (uint)Indicies.Count;
                     Header.TextureCount2 = (uint)Indicies2.Count;
                     Header.WriteTo(writer);
@@ -258,7 +260,7 @@ namespace Haven.Parser
                     for (int i = 0; i < Indicies2.Count; i++)
                     {
                         var index1 = GetIndex(Indicies2[i]);
-                        Indicies2[i].Offset = offsets[index1];
+                        Indicies2[i].Offset = offsets[i];
                         Indicies2[i].WriteTo(writer);
                     }
 

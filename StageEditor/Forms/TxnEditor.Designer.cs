@@ -48,6 +48,7 @@
             this.ColumnOffset = new System.Windows.Forms.DataGridViewTextBoxColumn();
             this.ColumnMipmaps = new System.Windows.Forms.DataGridViewTextBoxColumn();
             this.ColumnFlags = new System.Windows.Forms.DataGridViewTextBoxColumn();
+            this.btnTxnDelete = new System.Windows.Forms.Button();
             this.groupBox1.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.dataGridTxn)).BeginInit();
             this.SuspendLayout();
@@ -56,6 +57,7 @@
             // 
             this.groupBox1.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
             | System.Windows.Forms.AnchorStyles.Right)));
+            this.groupBox1.Controls.Add(this.btnTxnDelete);
             this.groupBox1.Controls.Add(this.btnTxnDump);
             this.groupBox1.Controls.Add(this.label2);
             this.groupBox1.Controls.Add(this.label1);
@@ -66,7 +68,7 @@
             this.groupBox1.Controls.Add(this.comboBoxDlz);
             this.groupBox1.Location = new System.Drawing.Point(12, 12);
             this.groupBox1.Name = "groupBox1";
-            this.groupBox1.Size = new System.Drawing.Size(848, 49);
+            this.groupBox1.Size = new System.Drawing.Size(875, 49);
             this.groupBox1.TabIndex = 0;
             this.groupBox1.TabStop = false;
             this.groupBox1.Text = "Tools";
@@ -76,7 +78,7 @@
             this.btnTxnDump.Anchor = System.Windows.Forms.AnchorStyles.Right;
             this.btnTxnDump.Image = ((System.Drawing.Image)(resources.GetObject("btnTxnDump.Image")));
             this.btnTxnDump.ImageAlign = System.Drawing.ContentAlignment.MiddleLeft;
-            this.btnTxnDump.Location = new System.Drawing.Point(592, 21);
+            this.btnTxnDump.Location = new System.Drawing.Point(619, 21);
             this.btnTxnDump.Name = "btnTxnDump";
             this.btnTxnDump.Size = new System.Drawing.Size(80, 23);
             this.btnTxnDump.TabIndex = 7;
@@ -128,7 +130,7 @@
             this.btnTxnAdd.Anchor = System.Windows.Forms.AnchorStyles.Right;
             this.btnTxnAdd.Image = ((System.Drawing.Image)(resources.GetObject("btnTxnAdd.Image")));
             this.btnTxnAdd.ImageAlign = System.Drawing.ContentAlignment.MiddleLeft;
-            this.btnTxnAdd.Location = new System.Drawing.Point(678, 21);
+            this.btnTxnAdd.Location = new System.Drawing.Point(705, 21);
             this.btnTxnAdd.Name = "btnTxnAdd";
             this.btnTxnAdd.Size = new System.Drawing.Size(80, 23);
             this.btnTxnAdd.TabIndex = 2;
@@ -141,7 +143,7 @@
             this.btnTxnSave.Anchor = System.Windows.Forms.AnchorStyles.Right;
             this.btnTxnSave.Image = ((System.Drawing.Image)(resources.GetObject("btnTxnSave.Image")));
             this.btnTxnSave.ImageAlign = System.Drawing.ContentAlignment.MiddleLeft;
-            this.btnTxnSave.Location = new System.Drawing.Point(762, 21);
+            this.btnTxnSave.Location = new System.Drawing.Point(789, 21);
             this.btnTxnSave.Name = "btnTxnSave";
             this.btnTxnSave.Size = new System.Drawing.Size(80, 23);
             this.btnTxnSave.TabIndex = 1;
@@ -180,7 +182,7 @@
             this.dataGridTxn.Name = "dataGridTxn";
             this.dataGridTxn.RowTemplate.Height = 25;
             this.dataGridTxn.SelectionMode = System.Windows.Forms.DataGridViewSelectionMode.FullRowSelect;
-            this.dataGridTxn.Size = new System.Drawing.Size(848, 439);
+            this.dataGridTxn.Size = new System.Drawing.Size(875, 439);
             this.dataGridTxn.TabIndex = 1;
             this.dataGridTxn.CellContentClick += new System.Windows.Forms.DataGridViewCellEventHandler(this.dataGridTxn_CellContentClick);
             // 
@@ -242,14 +244,27 @@
             this.ColumnFlags.HeaderText = "Flags";
             this.ColumnFlags.Name = "ColumnFlags";
             // 
+            // btnTxnDelete
+            // 
+            this.btnTxnDelete.Anchor = System.Windows.Forms.AnchorStyles.Right;
+            this.btnTxnDelete.Image = ((System.Drawing.Image)(resources.GetObject("btnTxnDelete.Image")));
+            this.btnTxnDelete.ImageAlign = System.Drawing.ContentAlignment.MiddleLeft;
+            this.btnTxnDelete.Location = new System.Drawing.Point(533, 21);
+            this.btnTxnDelete.Name = "btnTxnDelete";
+            this.btnTxnDelete.Size = new System.Drawing.Size(80, 23);
+            this.btnTxnDelete.TabIndex = 8;
+            this.btnTxnDelete.Text = "Delete";
+            this.btnTxnDelete.UseVisualStyleBackColor = true;
+            this.btnTxnDelete.Click += new System.EventHandler(this.btnTxnDelete_Click);
+            // 
             // TxnEditor
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.ClientSize = new System.Drawing.Size(872, 525);
+            this.ClientSize = new System.Drawing.Size(899, 525);
             this.Controls.Add(this.dataGridTxn);
             this.Controls.Add(this.groupBox1);
-            this.MinimumSize = new System.Drawing.Size(888, 564);
+            this.MinimumSize = new System.Drawing.Size(880, 560);
             this.Name = "TxnEditor";
             this.StartPosition = System.Windows.Forms.FormStartPosition.CenterParent;
             this.Text = "TxnEditor";
@@ -282,5 +297,6 @@
         private DataGridViewTextBoxColumn ColumnOffset;
         private DataGridViewTextBoxColumn ColumnMipmaps;
         private DataGridViewTextBoxColumn ColumnFlags;
+        private Button btnTxnDelete;
     }
 }

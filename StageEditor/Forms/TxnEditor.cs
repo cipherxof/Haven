@@ -347,5 +347,91 @@ namespace Haven
 
             AddRowTxnIndex(Txn.Indicies.Count-1);
         }
+
+        private void btnTxnDelete_Click(object sender, EventArgs e)
+        {
+            if (dataGridTxn.SelectedRows.Count == 0)
+                return;
+
+            var row = dataGridTxn.SelectedRows[0];
+
+            if (row == null)
+                return;
+
+            var txnIndex = (int)row.Cells["ColumnIndex"].Value;
+            var index1 = Txn.Indicies[txnIndex];
+            var index2 = Txn.Indicies2[txnIndex];
+
+            var safeobjs = new List<uint> { 0x9A9116, 0x9A53B7, 0x4AAF74, 0x4ADF14, 0x6D60FF };
+
+            if (safeobjs.Contains(index2.MaterialId)) 
+                return;
+
+            bool[] deleted = new bool[] { false, false };
+
+            for (int i = 0; i < TextureData.Count; i++)
+            {
+                var dld = TextureData[i];
+                var updatedIndex = GetIndexDldEntry(txnIndex);
+                var objectId = Txn.Indicies2[txnIndex].ObjectId;
+
+                if (!deleted[0])
+                {
+                    var texture = dld.FindTexture(objectId, updatedIndex, DldTextureType.MAIN);
+
+                    if (texture != null)
+                    {
+                        if (dld.RemoveTexture(texture))
+                        {
+                            deleted[0] = true;
+                            dld.Save(dld.Filename);
+                        }
+                    }
+                }
+
+                if (!deleted[1])
+                {
+                    var textureMips = dld.FindTexture(objectId, updatedIndex, DldTextureType.MIPS);
+
+                    if (textureMips != null)
+                    {
+                        if (dld.RemoveTexture(textureMips))
+                        {
+                            deleted[1] = true;
+                            dld.Save(dld.Filename);
+                        }
+                    }
+                }
+            }
+
+            /*if (!deleted[0] && !deleted[1])
+            {
+                MessageBox.Show("FAILED DELETE");
+                return;
+            }
+
+            if (!deleted[0] || !deleted[1])
+            {
+                MessageBox.Show("FAILED DELETE 2");
+            }*/
+
+            for (int i = txnIndex + 1; i < Txn.Indicies.Count; i++)
+            {
+                Txn.Indicies[i].Offset -= Txn.Indicies[txnIndex].MipMapOffset - Txn.Indicies[txnIndex].Offset;
+                Txn.Indicies[i].MipMapOffset -= Txn.Indicies[txnIndex].MipMapOffset - Txn.Indicies[txnIndex].Offset;
+            }
+
+            Txn.Indicies.Remove(index1);
+            Txn.Indicies2.Remove(index2);
+
+            dataGridTxn.Rows.Clear();
+
+            for (int i = 0; i < Txn.Indicies.Count; i++)
+            {
+                AddRowTxnIndex(i);
+            }
+
+            dataGridTxn.Sort(dataGridTxn.Columns[5], ListSortDirection.Descending);
+        }
     }
 }
