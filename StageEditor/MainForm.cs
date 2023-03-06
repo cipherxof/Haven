@@ -1130,5 +1130,33 @@ namespace Haven
                 MessageBox.Show(exception.Message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
+
+        private void generateTexturesToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            try
+            {
+                if (CurrentStage == null)
+                {
+                    MessageBox.Show("You must open a stage first.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    return;
+                }
+
+                using (var fbd = new FolderBrowserDialog())
+                {
+                    DialogResult result = fbd.ShowDialog();
+
+                    if (result != DialogResult.OK || string.IsNullOrWhiteSpace(fbd.SelectedPath))
+                    {
+                        return;
+                    }
+
+                    Utils.BuildStageTextures(fbd.SelectedPath, "stage\\_dlz", "stage\\_cache.qar\\Qar");
+                }
+            }
+            catch (Exception exception)
+            {
+                MessageBox.Show(exception.Message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
     }
 }

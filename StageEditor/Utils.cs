@@ -1,4 +1,5 @@
 ﻿using Haven.Parser;
+using Haven.TextureLoaders;
 using Joveler.Compression;
 using Joveler.Compression.ZLib;
 using OpenTK.Input;
@@ -6,11 +7,13 @@ using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Diagnostics;
+using System.Globalization;
 using System.Linq;
 using System.Reflection.Metadata;
 using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Forms;
+using System.Xml.Linq;
 
 namespace Haven
 {
@@ -22,8 +25,8 @@ namespace Haven
 
             var process = new Process
             {
-                StartInfo = { 
-                    FileName = fileName, 
+                StartInfo = {
+                    FileName = fileName,
                     Arguments = args,
                     UseShellExecute = false,
                     CreateNoWindow = true
@@ -115,8 +118,8 @@ namespace Haven
             };
 
             using (MemoryStream fsOrigin = new MemoryStream(uncompressedBytes))
-            using (MemoryStream fsComp = new MemoryStream()) 
-            { 
+            using (MemoryStream fsComp = new MemoryStream())
+            {
                 using (DeflateStream zs = new DeflateStream(fsComp, compOpts))
                 {
                     fsOrigin.CopyTo(zs);
@@ -166,6 +169,90 @@ namespace Haven
             }
 
             return containers;
+        }
+
+        public static void BuildStageTextures(string dirPath, string dldDir, string txnDir)
+        {
+            var cache = new DldFile();
+            var cacheMips = new DldFile();
+            //var cacheDld = new DldFile();
+
+            string[] directories = Directory.GetDirectories(dirPath);
+
+            foreach (string dir in directories)
+            {
+                DirectoryInfo dirInfo = new DirectoryInfo(dir);
+                FileInfo[] files = dirInfo.GetFiles("*.dds");
+
+                var txn = new TxnFile();
+                uint objectId;
+
+                if (!uint.TryParse(dirInfo.Name, NumberStyles.HexNumber, CultureInfo.InvariantCulture, out objectId))
+                    objectId = HashString(dirInfo.Name);
+
+                uint entry = 0;
+
+                foreach (FileInfo file in files)
+                {
+                    var dds = new ImageDDS(file.FullName);
+
+                    string name = file.Name.Replace(".dds", "");
+
+                    uint materialId;
+
+                    if (!uint.TryParse(name, NumberStyles.HexNumber, CultureInfo.InvariantCulture, out materialId))
+                        materialId = HashString(name);
+
+                    int fcc = (ImageDDS.eFOURCC)dds.PfFourCC == ImageDDS.eFOURCC.DXT1 ? 0x9 : 0xB;
+                    var index1 = new TxnIndex((ushort)dds.Width, (ushort)dds.Height, (ushort)fcc, 0xF1, 0, 0);
+                    var index2 = new TxnIndex2(materialId, objectId, (ushort)dds.Width, (ushort)dds.Height, 0, 0, (uint)(txn.Indicies.Count * 0x10) + 0x20, 1f, 1f, 0, 0);
+                    uint mipMapCount = (uint)Math.Log2(Math.Max(dds.Height, dds.Width));
+
+                    if (dds.MipMapOffset != 0)
+                    {
+                        int textureSize = dds.MipMapOffset - 0x80;
+                        byte[] data = new byte[textureSize];
+                        Array.Copy(dds.Data, 0x80, data, 0, textureSize);
+                        var tex = new DldTexture((uint)DldTextureType.MAIN, objectId, 0, (uint)textureSize, 1, entry, data);
+
+                        int mipsSize = dds.Data.Length - dds.MipMapOffset;
+                        byte[] mipsData = new byte[mipsSize];
+                        Array.Copy(dds.Data, dds.MipMapOffset, mipsData, 0, mipsSize);
+                        var texMips = new DldTexture((uint)DldTextureType.MIPS, objectId, (uint)textureSize, (uint)mipsSize, 0xE, entry, mipsData);
+                        cache.Textures.Add(tex);
+                        cacheMips.Textures.Add(texMips);
+                    }
+                    else
+                    {
+                        int textureSize = dds.Data.Length - 0x80;
+                        byte[] data = new byte[textureSize];
+                        Array.Copy(dds.Data, 0x80, data, 0, textureSize);
+                        var tex = new DldTexture((uint)DldTextureType.MIPS, objectId, 0, (uint)textureSize, 0xF, entry, data);
+
+                        index1.Flag = 0xF0;
+
+                        cacheMips.Textures.Add(tex);
+                    }
+
+                    txn.Indicies.Add(index1);
+                    txn.Indicies2.Add(index2);
+
+                    entry++;
+                }
+
+                txn.Header.IndexOffset = 0x20;
+                txn.Header.IndexOffset2 = (uint)(0x20 + (txn.Indicies.Count * 0x10));
+                txn.Header.TextureCount = (uint)(txn.Indicies.Count);
+                txn.Header.TextureCount2 = (uint)(txn.Indicies2.Count);
+                txn.Header.Flags = 0x120;
+
+                string txnName = DictionaryFile.Lookup.ContainsKey(objectId) ? DictionaryFile.GetHashString(objectId) : objectId.ToString("X4").ToLower();
+                txn.Save(txnDir + "\\" + txnName + ".txn");
+            }
+
+            cache.Save(dldDir + "\\cache_d.dld");
+            cacheMips.Save(dldDir + "\\cache.dld");
+            //cacheDld.Save("cache_nodld.dld");
         }
 
         public static void FaceBitCalculation(int extraBit, ref int fa, ref int fb, ref int fc, ref int fd)

@@ -59,6 +59,7 @@
             this.decryptFileToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.toolStripMenuItem1 = new System.Windows.Forms.ToolStripMenuItem();
             this.mergeToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            this.mergeReferencesToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.mergeVLMToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.toolStripMenuItem2 = new System.Windows.Forms.ToolStripMenuItem();
             this.stringHashUtilityToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
@@ -66,7 +67,8 @@
             this.timerRefresh = new System.Windows.Forms.Timer(this.components);
             this.labelCamPos = new System.Windows.Forms.Label();
             this.labelVersion = new System.Windows.Forms.Label();
-            this.mergeReferencesToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            this.stageToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            this.generateTexturesToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.tabControl.SuspendLayout();
             this.tabPageFiles.SuspendLayout();
             this.tabPageGeom.SuspendLayout();
@@ -356,6 +358,7 @@
             this.toolStripDropDownButtonTools.DropDownItems.AddRange(new System.Windows.Forms.ToolStripItem[] {
             this.solidEyeToolStripMenuItem,
             this.toolStripMenuItem1,
+            this.stageToolStripMenuItem,
             this.stringHashUtilityToolStripMenuItem});
             this.toolStripDropDownButtonTools.Image = ((System.Drawing.Image)(resources.GetObject("toolStripDropDownButtonTools.Image")));
             this.toolStripDropDownButtonTools.ImageTransparentColor = System.Drawing.Color.Magenta;
@@ -403,6 +406,13 @@
             this.mergeToolStripMenuItem.Size = new System.Drawing.Size(180, 22);
             this.mergeToolStripMenuItem.Text = "Merge";
             this.mergeToolStripMenuItem.Click += new System.EventHandler(this.mergeToolStripMenuItem_Click);
+            // 
+            // mergeReferencesToolStripMenuItem
+            // 
+            this.mergeReferencesToolStripMenuItem.Name = "mergeReferencesToolStripMenuItem";
+            this.mergeReferencesToolStripMenuItem.Size = new System.Drawing.Size(180, 22);
+            this.mergeReferencesToolStripMenuItem.Text = "Merge References";
+            this.mergeReferencesToolStripMenuItem.Click += new System.EventHandler(this.mergeReferencesToolStripMenuItem_Click);
             // 
             // mergeVLMToolStripMenuItem
             // 
@@ -462,12 +472,20 @@
             this.labelVersion.TabIndex = 4;
             this.labelVersion.Text = "v0.0.6";
             // 
-            // mergeReferencesToolStripMenuItem
+            // stageToolStripMenuItem
             // 
-            this.mergeReferencesToolStripMenuItem.Name = "mergeReferencesToolStripMenuItem";
-            this.mergeReferencesToolStripMenuItem.Size = new System.Drawing.Size(180, 22);
-            this.mergeReferencesToolStripMenuItem.Text = "Merge References";
-            this.mergeReferencesToolStripMenuItem.Click += new System.EventHandler(this.mergeReferencesToolStripMenuItem_Click);
+            this.stageToolStripMenuItem.DropDownItems.AddRange(new System.Windows.Forms.ToolStripItem[] {
+            this.generateTexturesToolStripMenuItem});
+            this.stageToolStripMenuItem.Name = "stageToolStripMenuItem";
+            this.stageToolStripMenuItem.Size = new System.Drawing.Size(180, 22);
+            this.stageToolStripMenuItem.Text = "Stage";
+            // 
+            // generateTexturesToolStripMenuItem
+            // 
+            this.generateTexturesToolStripMenuItem.Name = "generateTexturesToolStripMenuItem";
+            this.generateTexturesToolStripMenuItem.Size = new System.Drawing.Size(180, 22);
+            this.generateTexturesToolStripMenuItem.Text = "Generate Textures";
+            this.generateTexturesToolStripMenuItem.Click += new System.EventHandler(this.generateTexturesToolStripMenuItem_Click);
             // 
             // MainForm
             // 
@@ -536,5 +554,7 @@
         private CheckBox cbFlagsAll;
         private Label labelVersion;
         private ToolStripMenuItem mergeReferencesToolStripMenuItem;
+        private ToolStripMenuItem stageToolStripMenuItem;
+        private ToolStripMenuItem generateTexturesToolStripMenuItem;
     }
 }

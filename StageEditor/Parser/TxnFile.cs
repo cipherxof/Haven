@@ -68,7 +68,7 @@ namespace Haven.Parser
 
         public TxnIndex2(uint materialId, uint objectId, ushort width, ushort height, ushort positionX, ushort positionY, uint offset, float weightX, float weightY, float weightX2, float weightY2)
         {
-            Unknown = 0;
+            Unknown = 6;
             MaterialId = materialId;
             ObjectId = objectId;
             Width = width;
@@ -123,15 +123,18 @@ namespace Haven.Parser
 
     public class TxnHeader
     {
-        public uint NullBytes;
-        public uint Flags;
-        public uint TextureCount;
-        public uint IndexOffset;
-        public uint TextureCount2;
-        public uint IndexOffset2;
-        public uint NullBytes2;
-        public uint NullBytes3;
+        public uint NullBytes = 0;
+        public uint Flags = 0;
+        public uint TextureCount = 0;
+        public uint IndexOffset = 0;
+        public uint TextureCount2 = 0;
+        public uint IndexOffset2 = 0;
+        public uint NullBytes2 = 0;
+        public uint NullBytes3 = 0;
 
+        public TxnHeader()
+        {
+        }
         public TxnHeader(BinaryReader reader)
         {
             NullBytes = reader.ReadUInt32();
@@ -166,14 +169,21 @@ namespace Haven.Parser
 
         public readonly Dictionary<TxnIndex2, int> IndexLookup = new Dictionary<TxnIndex2, int>();
 
+        public TxnFile()
+        {
+            Path = "";
+            Header = new TxnHeader();
+        }
+
         public TxnFile(string path)
         {
+            Path = path;
+
             using (var stream = new FileStream(path, FileMode.Open, FileAccess.Read))
             {
                 using (var reader = new BinaryReaderEx(stream))
                 {
                     Header = new TxnHeader(reader);
-                    Path = path;
 
                     if (Header.TextureCount != Header.TextureCount2)
                     {
