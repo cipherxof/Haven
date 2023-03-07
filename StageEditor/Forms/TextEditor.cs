@@ -22,7 +22,7 @@ namespace Haven
             Filename = stageFile.GetLocalPath();
             ReadOnly = readOnly;
 
-            Text = $"TxnEditor - {stageFile.Name}";
+            Text = $"TextEditor - {stageFile.Name}";
         }
 
         private void TextEditor_Load(object sender, EventArgs e)

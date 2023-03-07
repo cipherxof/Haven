@@ -110,10 +110,10 @@ namespace Haven.Parser
         public byte[] GeomChunk7 = new byte[0];
         public uint UnkHash = 0;
 
-        public GeomFile(string path)
+        public GeomFile(string path, bool? isBigEndian = null)
         {
             Stream = new FileStream(path, FileMode.Open, FileAccess.Read);
-            Reader = new BinaryReaderEx(Stream);
+            Reader = new BinaryReaderEx(Stream, isBigEndian);
             Header = new GeoDef(Reader);
 
             Stream.Seek(0x8, SeekOrigin.Current);
@@ -673,7 +673,7 @@ namespace Haven.Parser
             geomFile.BlockVertexData.ToList().ForEach(x => BlockVertexData.Add(x.Key, x.Value));
         }
 
-        public void MergeObjects(GeomFile geomFile)
+        public void MergeReferences(GeomFile geomFile)
         {
             GeomRefs.AddRange(geomFile.GeomRefs);
             geomFile.GeomRefBlocks.ToList().ForEach(x => GeomRefBlocks.Add(x.Key, x.Value));

@@ -17,9 +17,9 @@ namespace Haven
             MGS4,
             MGA
         }
+        public string Key;
 
         public readonly string Dir;
-        public readonly string Key;
         public readonly List<StageFile> Files = new List<StageFile>();
         public readonly StageFile? Geom;
         public readonly GameType Game;

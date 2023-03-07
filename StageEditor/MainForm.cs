@@ -9,6 +9,7 @@ using Haven.Forms;
 using Haven.Parser.Geom;
 using Joveler.Compression.ZLib;
 using OpenTK.Graphics.OpenGL;
+using System.IO;
 
 namespace Haven
 {
@@ -228,10 +229,10 @@ namespace Haven
                 Geom.Clear();
             }
 
-            MeshGroups = new List<Mesh>();
-            MeshRefs = new List<Mesh>();
-            MeshProps = new List<Mesh>();
-            GeomPropMeshLookup = new Dictionary<GeomProp, Mesh>();
+            MeshGroups.Clear();
+            MeshRefs.Clear();
+            MeshProps.Clear();
+            GeomPropMeshLookup.Clear();
             CurrentStage = null;
             Geom = null;
             Scene.Children.Clear();
@@ -626,6 +627,8 @@ namespace Haven
 
                 if (result == DialogResult.OK && !string.IsNullOrWhiteSpace(fbd.SelectedPath))
                 {
+                    CurrentStage.Key = Directory.GetParent(fbd.SelectedPath)?.Name + "/" + new DirectoryInfo(fbd.SelectedPath).Name;
+
                     labelStatus.Text = "Packing...";
                     await CurrentStage.Pack();
 
@@ -1005,8 +1008,8 @@ namespace Haven
 
                 if (saveFileDialog.ShowDialog() == DialogResult.OK)
                 {
-                    var baseGeom = new GeomFile(baseFilePath);
-                    baseGeom.Save(saveFileDialog.FileName);
+                    var baseGeom = new GeomFile(baseFilePath, false);
+                    baseGeom.Save(saveFileDialog.FileName, true);
                     baseGeom.CloseStream();
                 }
             }
@@ -1107,7 +1110,7 @@ namespace Haven
             {
                 var baseGeom = new GeomFile(baseFilePath);
                 var mergeGeom = new GeomFile(mergeFilePath);
-                baseGeom.MergeObjects(mergeGeom);
+                baseGeom.MergeReferences(mergeGeom);
                 mergeGeom.CloseStream();
 
                 using (SaveFileDialog saveFileDialog = new SaveFileDialog())
@@ -1133,8 +1136,8 @@ namespace Haven
 
         private void generateTexturesToolStripMenuItem_Click(object sender, EventArgs e)
         {
-            try
-            {
+            //try
+           // {
                 if (CurrentStage == null)
                 {
                     MessageBox.Show("You must open a stage first.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
@@ -1152,11 +1155,11 @@ namespace Haven
 
                     Utils.BuildStageTextures(fbd.SelectedPath, "stage\\_dlz", "stage\\_cache.qar\\Qar");
                 }
-            }
-            catch (Exception exception)
-            {
-                MessageBox.Show(exception.Message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
-            }
+            //}
+            //catch (Exception exception)
+           // {
+            //    MessageBox.Show(exception.Message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            //}
         }
     }
 }
