@@ -9,6 +9,8 @@ using Haven.Parser.Geom.Prim;
 using Haven.Render;
 using OpenTK;
 
+// GeomFile has gotten out of hand, needs refactoring...
+
 namespace Haven.Parser
 {
     public enum GeoChunkType
@@ -680,6 +682,26 @@ namespace Haven.Parser
             geomFile.GeomRefBlockMaterial.ToList().ForEach(x => GeomRefBlockMaterial.Add(x.Key, x.Value));
             geomFile.BlockFaceData.ToList().ForEach(x => BlockFaceData.Add(x.Key, x.Value));
             geomFile.BlockVertexData.ToList().ForEach(x => BlockVertexData.Add(x.Key, x.Value));
+        }
+
+        public void MergeExistingProps(GeomFile geomFile)
+        {
+            foreach (var prop in geomFile.GeomProps)
+            {
+                var existingProp = GeomProps.Find(p => p.Hash == prop.Hash);
+
+                if (existingProp != null)
+                {
+                    existingProp.X = prop.X;
+                    existingProp.Y = prop.Y;
+                    existingProp.Z = prop.Z;
+
+                    if (existingProp.Data.Length == prop.Data.Length)
+                    {
+                        existingProp.Data = prop.Data;
+                    }
+                }
+            }
         }
 
         private void WriteGroupsHeader(BinaryWriterEx writer)
