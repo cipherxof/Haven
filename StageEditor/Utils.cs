@@ -204,8 +204,8 @@ namespace Haven
                         materialId = HashString(name);
 
                     int fcc = (ImageDDS.eFOURCC)dds.PfFourCC == ImageDDS.eFOURCC.DXT1 ? 0x9 : 0xB;
-                    var index1 = new TxnIndex((ushort)dds.Width, (ushort)dds.Height, (ushort)fcc, 0xF1, 0, 0);
-                    var index2 = new TxnIndex2(materialId, objectId, (ushort)dds.Width, (ushort)dds.Height, 0, 0, (uint)(txn.Indicies.Count * 0x10) + 0x20, 1f, 1f, 0, 0);
+                    var index1 = new TxnImage((ushort)dds.Width, (ushort)dds.Height, (ushort)fcc, 0xF1, 0, 0);
+                    var index2 = new TxnInfo(materialId, objectId, (ushort)dds.Width, (ushort)dds.Height, 0, 0, (uint)(txn.Images.Count * 0x10) + 0x20, 1f, 1f, 0, 0);
                     uint mipMapCount = (uint)Math.Log2(Math.Max(dds.Height, dds.Width));
 
                     if (dds.MipMapOffset != 0)
@@ -234,16 +234,16 @@ namespace Haven
                         cacheMips.Textures.Add(tex);
                     }
 
-                    txn.Indicies.Add(index1);
-                    txn.Indicies2.Add(index2);
+                    txn.Images.Add(index1);
+                    txn.ImageInfo.Add(index2);
 
                     entry++;
                 }
 
                 txn.Header.IndexOffset = 0x20;
-                txn.Header.IndexOffset2 = (uint)(0x20 + (txn.Indicies.Count * 0x10));
-                txn.Header.TextureCount = (uint)(txn.Indicies.Count);
-                txn.Header.TextureCount2 = (uint)(txn.Indicies2.Count);
+                txn.Header.IndexOffset2 = (uint)(0x20 + (txn.Images.Count * 0x10));
+                txn.Header.TextureCount = (uint)(txn.Images.Count);
+                txn.Header.TextureCount2 = (uint)(txn.ImageInfo.Count);
                 txn.Header.Flags = 0x120;
 
                 string txnName = DictionaryFile.Lookup.ContainsKey(objectId) ? DictionaryFile.GetHashString(objectId) : objectId.ToString("X4").ToLower();

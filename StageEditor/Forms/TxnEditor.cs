@@ -41,7 +41,7 @@ namespace Haven
 
         private int GetIndexDldEntry(int txnIndex)
         {
-            var index = Txn.Indicies2[txnIndex];
+            var index = Txn.ImageInfo[txnIndex];
 
             foreach (var dci in DciFilesList)
             {
@@ -50,7 +50,7 @@ namespace Haven
                     if (entry.Offset <= 1)
                         continue;
 
-                    if (entry.Hash == index.ObjectId)
+                    if (entry.Hash == index.TriId)
                     {
                         foreach (var alias in dci.Aliases[entry])
                         {
@@ -70,19 +70,19 @@ namespace Haven
         {
             int rowIndex = dataGridTxn.Rows.Add();
             var row = dataGridTxn.Rows[rowIndex];
-            var index1 = Txn.Indicies[txnIndex];
-            var index2 = Txn.Indicies2[txnIndex];
+            var index1 = Txn.Images[txnIndex];
+            var index2 = Txn.ImageInfo[txnIndex];
 
             row.Cells["ColumnIndex"].Value = txnIndex;
-            row.Cells["ColumnMaterial"].Value = DictionaryFile.GetHashString(index2.MaterialId);
-            row.Cells["ColumnMaterial"].ToolTipText = index2.MaterialId.ToString("X4");
-            row.Cells["ColumnObject"].Value = DictionaryFile.GetHashString(index2.ObjectId);
-            row.Cells["ColumnObject"].ToolTipText = index2.ObjectId.ToString("X4");
+            row.Cells["ColumnMaterial"].Value = DictionaryFile.GetHashString(index2.TexId);
+            row.Cells["ColumnMaterial"].ToolTipText = index2.TexId.ToString("X4");
+            row.Cells["ColumnObject"].Value = DictionaryFile.GetHashString(index2.TriId);
+            row.Cells["ColumnObject"].ToolTipText = index2.TriId.ToString("X4");
             row.Cells["ColumnWidth"].Value = index2.Width;
             row.Cells["ColumnHeight"].Value = index2.Height;
             row.Cells["ColumnFlags"].Value = index1.Flag;
             row.Cells["ColumnOffset"].Value = index1.Offset.ToString("X4");
-            row.Cells["ColumnMipmaps"].Value = index1.MipMapOffset.ToString("X4");
+            row.Cells["ColumnMipmaps"].Value = index1.OffsetMips.ToString("X4");
             row.Cells["ColumnExport"].Value = "Export";
         }
 
@@ -110,7 +110,7 @@ namespace Haven
             if (TextureData.Count > 0)
                 CurrentDld = TextureData[0];
 
-            for (int i = 0; i < Txn.Indicies.Count; i++)
+            for (int i = 0; i < Txn.Images.Count; i++)
             {
                 AddRowTxnIndex(i);
             }
@@ -185,7 +185,7 @@ namespace Haven
                     MessageBox.Show($"Multiple entires were found for this texture", "Information", MessageBoxButtons.OK, MessageBoxIcon.Information);
                 }
 
-                var objectId = index2List[0].ObjectId;
+                var objectId = index2List[0].TriId;
                 var texture = CurrentDld.FindTexture(objectId, txnIndexUpdated, DldTextureType.MAIN);
 
                 if (texture == null)
@@ -200,7 +200,7 @@ namespace Haven
 
                 using (SaveFileDialog saveFileDialog1 = new SaveFileDialog())
                 {
-                    string filename = DictionaryFile.GetHashString(Txn.Indicies2[txnIndex].MaterialId);
+                    string filename = DictionaryFile.GetHashString(Txn.ImageInfo[txnIndex].TexId);
                     saveFileDialog1.FileName = $"{filename}.dds";
                     saveFileDialog1.Filter = "DDS files (*.dds)|*.dds";
                     saveFileDialog1.RestoreDirectory = true;
@@ -255,7 +255,7 @@ namespace Haven
             {
                 var dld = TextureData[i];
 
-                var objectId = Txn.Indicies2[txnIndex].ObjectId;
+                var objectId = Txn.ImageInfo[txnIndex].TriId;
                 var updatedIndex = GetIndexDldEntry(txnIndex);
 
                 var texture = dld.FindTexture(objectId, updatedIndex, DldTextureType.MAIN);
@@ -292,11 +292,11 @@ namespace Haven
                 {
                     var dir = fbd.SelectedPath;
 
-                    for (int txnIndex = 0; txnIndex < Txn.Indicies.Count; txnIndex++)
+                    for (int txnIndex = 0; txnIndex < Txn.Images.Count; txnIndex++)
                     {
                         DldTexture? texture = null;
                         DldTexture? textureMips = null;
-                        var objectId = Txn.Indicies2[txnIndex].ObjectId;
+                        var objectId = Txn.ImageInfo[txnIndex].TriId;
                         var txnIndexUpdated = GetIndexDldEntry(txnIndex);
 
                         for (int i = TextureData.Count - 1; i >= 0; i--)
@@ -310,7 +310,7 @@ namespace Haven
                                 textureMips = dld.FindTexture(objectId, txnIndexUpdated, DldTextureType.MIPS);
                         }
 
-                        string filename = DictionaryFile.GetHashString(Txn.Indicies2[txnIndex].MaterialId);
+                        string filename = DictionaryFile.GetHashString(Txn.ImageInfo[txnIndex].TexId);
                         string fullDir = $"{dir}\\{System.IO.Path.GetFileNameWithoutExtension(Txn.Path)}";
 
                         if (!Directory.Exists(fullDir)) 
@@ -336,16 +336,16 @@ namespace Haven
             var row = dataGridTxn.SelectedRows[0];
             var txnIndex = (int)row.Cells["ColumnIndex"].Value;
 
-            var index = Txn.Indicies[txnIndex];
-            var index2 = Txn.Indicies2[txnIndex];
+            var index = Txn.Images[txnIndex];
+            var index2 = Txn.ImageInfo[txnIndex];
 
-            var newIndex = new TxnIndex(index.Width, index.Height, index.FourCC, index.Flag, index.Offset, index.MipMapOffset);
-            var newIndex2 = new TxnIndex2(index2.MaterialId, index2.ObjectId, index2.Width, index2.Height, index2.PositionX, index2.PositionY, index2.Offset, index2.WeightX, index2.WeightY, index2.WeightX2, index2.WeightY2);
+            var newIndex = new TxnImage(index.Width, index.Height, index.FourCC, index.Flag, index.Offset, index.OffsetMips);
+            var newIndex2 = new TxnInfo(index2.TexId, index2.TriId, index2.Width, index2.Height, index2.OffsetX, index2.OffsetY, index2.TxnImageOffset, index2.ScaleU, index2.ScaleV, index2.OffsetU, index2.OffsetV);
 
-            Txn.Indicies.Add(newIndex);
-            Txn.Indicies2.Add(newIndex2);
+            Txn.Images.Add(newIndex);
+            Txn.ImageInfo.Add(newIndex2);
 
-            AddRowTxnIndex(Txn.Indicies.Count-1);
+            AddRowTxnIndex(Txn.Images.Count-1);
         }
 
         private void btnTxnDelete_Click(object sender, EventArgs e)
@@ -359,12 +359,12 @@ namespace Haven
                 return;
 
             var txnIndex = (int)row.Cells["ColumnIndex"].Value;
-            var index1 = Txn.Indicies[txnIndex];
-            var index2 = Txn.Indicies2[txnIndex];
+            var index1 = Txn.Images[txnIndex];
+            var index2 = Txn.ImageInfo[txnIndex];
 
             var safeobjs = new List<uint> { 0x9A9116, 0x9A53B7, 0x4AAF74, 0x4ADF14, 0x6D60FF };
 
-            if (safeobjs.Contains(index2.MaterialId)) 
+            if (safeobjs.Contains(index2.TexId)) 
                 return;
 
             bool[] deleted = new bool[] { false, false };
@@ -373,7 +373,7 @@ namespace Haven
             {
                 var dld = TextureData[i];
                 var updatedIndex = GetIndexDldEntry(txnIndex);
-                var objectId = Txn.Indicies2[txnIndex].ObjectId;
+                var objectId = Txn.ImageInfo[txnIndex].TriId;
 
                 if (!deleted[0])
                 {
@@ -415,18 +415,18 @@ namespace Haven
                 MessageBox.Show("FAILED DELETE 2");
             }*/
 
-            for (int i = txnIndex + 1; i < Txn.Indicies.Count; i++)
+            for (int i = txnIndex + 1; i < Txn.Images.Count; i++)
             {
-                Txn.Indicies[i].Offset -= Txn.Indicies[txnIndex].MipMapOffset - Txn.Indicies[txnIndex].Offset;
-                Txn.Indicies[i].MipMapOffset -= Txn.Indicies[txnIndex].MipMapOffset - Txn.Indicies[txnIndex].Offset;
+                Txn.Images[i].Offset -= Txn.Images[txnIndex].OffsetMips - Txn.Images[txnIndex].Offset;
+                Txn.Images[i].OffsetMips -= Txn.Images[txnIndex].OffsetMips - Txn.Images[txnIndex].Offset;
             }
 
-            Txn.Indicies.Remove(index1);
-            Txn.Indicies2.Remove(index2);
+            Txn.Images.Remove(index1);
+            Txn.ImageInfo.Remove(index2);
 
             dataGridTxn.Rows.Clear();
 
-            for (int i = 0; i < Txn.Indicies.Count; i++)
+            for (int i = 0; i < Txn.Images.Count; i++)
             {
                 AddRowTxnIndex(i);
             }

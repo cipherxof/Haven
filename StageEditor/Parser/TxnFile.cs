@@ -9,33 +9,33 @@ using System.Threading.Tasks;
 
 namespace Haven.Parser
 {
-    public class TxnIndex
+    public class TxnImage
     {
         public ushort Width;
         public ushort Height;
         public ushort FourCC;
         public ushort Flag;
         public uint Offset;
-        public uint MipMapOffset;
+        public uint OffsetMips;
 
-        public TxnIndex(ushort width, ushort height, ushort fourCC, ushort flag, uint offset, uint mipmapOffset)
+        public TxnImage(ushort width, ushort height, ushort fourCC, ushort flag, uint offset, uint mipmapOffset)
         {
             Width = width;
             Height = height;
             FourCC = fourCC;
             Flag = flag;
             Offset = offset;
-            MipMapOffset = mipmapOffset;
+            OffsetMips = mipmapOffset;
         }
 
-        public TxnIndex(BinaryReader reader)
+        public TxnImage(BinaryReader reader)
         {
             Width = reader.ReadUInt16();
             Height = reader.ReadUInt16();
             FourCC = reader.ReadUInt16();
             Flag = reader.ReadUInt16();
             Offset = reader.ReadUInt32();
-            MipMapOffset = reader.ReadUInt32();
+            OffsetMips = reader.ReadUInt32();
         }
 
         public void WriteTo(BinaryWriter writer)
@@ -45,79 +45,79 @@ namespace Haven.Parser
             writer.Write(FourCC);
             writer.Write(Flag);
             writer.Write(Offset);
-            writer.Write(MipMapOffset);
+            writer.Write(OffsetMips);
         }
     }
 
-    public class TxnIndex2
+    public class TxnInfo
     {
-        public uint Unknown;
-        public uint MaterialId;
-        public uint ObjectId;
+        public uint Flag;
+        public uint TexId;
+        public uint TriId;
         public ushort Width;
         public ushort Height;
-        public ushort PositionX;
-        public ushort PositionY;
-        public uint Offset;
+        public ushort OffsetX;
+        public ushort OffsetY;
+        public uint TxnImageOffset;
         public uint NullBytes2;
-        public float WeightX;
-        public float WeightY;
-        public float WeightX2;
-        public float WeightY2;
-        public uint NullBytes3;
+        public float ScaleU;
+        public float ScaleV;
+        public float OffsetU;
+        public float OffsetV;
+        public float OffsetLOD;
 
-        public TxnIndex2(uint materialId, uint objectId, ushort width, ushort height, ushort positionX, ushort positionY, uint offset, float weightX, float weightY, float weightX2, float weightY2)
+        public TxnInfo(uint materialId, uint objectId, ushort width, ushort height, ushort positionX, ushort positionY, uint offset, float weightX, float weightY, float weightX2, float weightY2)
         {
-            Unknown = 6;
-            MaterialId = materialId;
-            ObjectId = objectId;
+            Flag = 6;
+            TexId = materialId;
+            TriId = objectId;
             Width = width;
             Height = height;
-            PositionX = positionX;
-            PositionY = positionY;
-            Offset = offset;
+            OffsetX = positionX;
+            OffsetY = positionY;
+            TxnImageOffset = offset;
             NullBytes2 = 0;
-            WeightX = weightX;
-            WeightY = weightY;
-            WeightX2 = weightX2;
-            WeightY2 = weightY2;
-            NullBytes3 = 0;
+            ScaleU = weightX;
+            ScaleV = weightY;
+            OffsetU = weightX2;
+            OffsetV = weightY2;
+            OffsetLOD = 0;
         }
 
-        public TxnIndex2(BinaryReader reader) 
+        public TxnInfo(BinaryReader reader) 
         {
-            Unknown = reader.ReadUInt32();
-            MaterialId = reader.ReadUInt32();
-            ObjectId = reader.ReadUInt32();
+            Flag = reader.ReadUInt32();
+            TexId = reader.ReadUInt32();
+            TriId = reader.ReadUInt32();
             Width = reader.ReadUInt16();
             Height = reader.ReadUInt16();
-            PositionX = reader.ReadUInt16();
-            PositionY = reader.ReadUInt16();
-            Offset = reader.ReadUInt32();
+            OffsetX = reader.ReadUInt16();
+            OffsetY = reader.ReadUInt16();
+            TxnImageOffset = reader.ReadUInt32();
             NullBytes2 = reader.ReadUInt32();
-            WeightX = reader.ReadSingle();
-            WeightY = reader.ReadSingle();
-            WeightX2 = reader.ReadSingle();
-            WeightY2 = reader.ReadSingle();
-            NullBytes3 = reader.ReadUInt32();
+            ScaleU = reader.ReadSingle();
+            ScaleV = reader.ReadSingle();
+            OffsetU = reader.ReadSingle();
+            OffsetV = reader.ReadSingle();
+            OffsetLOD = reader.ReadUInt32();
         }
 
         public void WriteTo(BinaryWriter writer)
         {
-            writer.Write(Unknown);
-            writer.Write(MaterialId);
-            writer.Write(ObjectId);
+            writer.Write(Flag);
+            writer.Write(TexId);
+            writer.Write(TriId);
             writer.Write(Width);
             writer.Write(Height);   
-            writer.Write(PositionX);
-            writer.Write(PositionY);
-            writer.Write(Offset);
+            writer.Write(OffsetX);
+            writer.Write(OffsetY);
+            writer.Write(TxnImageOffset);
             writer.Write(NullBytes2);
-            writer.Write(WeightX);
-            writer.Write(WeightY);
-            writer.Write(WeightX2);
-            writer.Write(WeightY2);
-            writer.Write(NullBytes3);
+            writer.Write(ScaleU);
+            writer.Write(ScaleV);
+            writer.Write(OffsetU);
+            writer.Write(OffsetV);
+            writer.Write(OffsetLOD);
         }
     }
 
@@ -164,10 +164,10 @@ namespace Haven.Parser
     {
         public readonly TxnHeader Header;
         public readonly string Path;
-        public  List<TxnIndex> Indicies = new List<TxnIndex>();
-        public  List<TxnIndex2> Indicies2 = new List<TxnIndex2>();
+        public  List<TxnImage> Images = new List<TxnImage>();
+        public  List<TxnInfo> ImageInfo = new List<TxnInfo>();
 
-        public readonly Dictionary<TxnIndex2, int> IndexLookup = new Dictionary<TxnIndex2, int>();
+        public readonly Dictionary<TxnInfo, int> IndexLookup = new Dictionary<TxnInfo, int>();
 
         public TxnFile()
         {
@@ -199,46 +199,46 @@ namespace Haven.Parser
                         for (int i = 0; i < Header.TextureCount; i++)
                         {
                             offsets.Add((uint)stream.Position);
-                            Indicies.Add(new TxnIndex(reader));
+                            Images.Add(new TxnImage(reader));
                         }
 
                         stream.Seek(Header.IndexOffset2, SeekOrigin.Begin);
 
                         for (int i = 0; i < Header.TextureCount2; i++)
                         {
-                            var index2 = new TxnIndex2(reader);
-                            var index1 = offsets.FindIndex(offset => offset == index2.Offset);
+                            var index2 = new TxnInfo(reader);
+                            var index1 = offsets.FindIndex(offset => offset == index2.TxnImageOffset);
                             IndexLookup[index2] = index1;
-                            Indicies2.Add(index2);
+                            ImageInfo.Add(index2);
                         }
                     }
                 }
             }
         }
 
-        public int GetIndex(TxnIndex2 index2)
+        public int GetIndex(TxnInfo index2)
         {
             int result;
             IndexLookup.TryGetValue(index2, out result);
             return result;
         }
 
-        public List<TxnIndex2> GetIndex2List(int index1)
+        public List<TxnInfo> GetIndex2List(int index1)
         {
-            List<TxnIndex2> result = new List<TxnIndex2>();
+            List<TxnInfo> result = new List<TxnInfo>();
 
-            if (Indicies.Count <= index1)
+            if (Images.Count <= index1)
             {
                 return result;
             }
 
             int offset = 0x20 + (index1 * 0x10);
 
-            for (int i = 0; i < Indicies2.Count; i++)
+            for (int i = 0; i < ImageInfo.Count; i++)
             {
-                if (offset == Indicies2[i].Offset)
+                if (offset == ImageInfo[i].TxnImageOffset)
                 {
-                    result.Add(Indicies2[i]);
+                    result.Add(ImageInfo[i]);
                 }
             }
 
@@ -253,25 +253,25 @@ namespace Haven.Parser
                 {
                     stream.SetLength(0);
 
-                    Header.TextureCount = (uint)Indicies.Count;
-                    Header.TextureCount2 = (uint)Indicies2.Count;
+                    Header.TextureCount = (uint)Images.Count;
+                    Header.TextureCount2 = (uint)ImageInfo.Count;
                     Header.WriteTo(writer);
 
-                    uint[] offsets = new uint[Indicies.Count];
+                    uint[] offsets = new uint[Images.Count];
 
                     Header.IndexOffset = (uint)stream.Position;
-                    for (int i = 0; i < Indicies.Count; i++)
+                    for (int i = 0; i < Images.Count; i++)
                     {
                         offsets[i] = (uint)stream.Position;
-                        Indicies[i].WriteTo(writer);
+                        Images[i].WriteTo(writer);
                     }
 
                     Header.IndexOffset2 = (uint)stream.Position;
-                    for (int i = 0; i < Indicies2.Count; i++)
+                    for (int i = 0; i < ImageInfo.Count; i++)
                     {
-                        var index1 = GetIndex(Indicies2[i]);
-                        Indicies2[i].Offset = offsets[i];
-                        Indicies2[i].WriteTo(writer);
+                        var index1 = GetIndex(ImageInfo[i]);
+                        ImageInfo[i].TxnImageOffset = offsets[i];
+                        ImageInfo[i].WriteTo(writer);
                     }
 
                     writer.Align(0x80);
@@ -289,7 +289,7 @@ namespace Haven.Parser
                 return;
             }
 
-            var index = Indicies[indexNumber];
+            var index = Images[indexNumber];
             var data = texture.Data;
 
             if (mips != null)
