@@ -39,7 +39,7 @@ namespace Haven.Parser.Geom
                 GeoChunk chunk = new GeoChunk(reader);
                 Chunks.Add(chunk);
 
-                Log.Debug("Loaded chunk {chunkType} of size {size:X} at {offset:X}", chunk.Type, chunk.Size, chunk.DataOffset);
+                Log.Debug("Loaded chunk {chunkType} of size {size:X} at {offset:X}", (GeoChunkType)chunk.Type, chunk.Size, chunk.DataOffset);
 
                 if (i > 0)
                 {
@@ -59,7 +59,16 @@ namespace Haven.Parser.Geom
 
         public void WriteTo(BinaryWriter writer)
         {
+            writer.Write(Version);
+            writer.Write((uint)writer.BaseStream.Length);
+            writer.Write(Chunks.Count);
+            writer.Write(Pad);
+            writer.Write(BaseX);
+            writer.Write(BaseY);
+            writer.Write(BaseZ);
+            writer.Write(BaseW);
 
+            Chunks.ForEach(chunk => chunk.WriteTo(writer));
         }
     }
 }

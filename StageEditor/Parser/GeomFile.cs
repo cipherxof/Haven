@@ -16,11 +16,11 @@ namespace Haven.Parser
 {
     public enum GeoChunkType
     {
-        TYPE_0 = 0,
-        TYPE_1 = 1,
-        TYPE_5 = 5,
-        TYPE_6 = 6,
-        TYPE_7 = 7,
+        GROUPS = 0,
+        REFS = 1,
+        UNKOWN = 5,
+        PROPS = 6,
+        ROUTES = 7,
     }
 
     [StructLayout(LayoutKind.Sequential)]
@@ -128,13 +128,11 @@ namespace Haven.Parser
 
             LoadGroups();
             LoadProps();
-            LoadObjects();
+            LoadReferences();
             LoadChunk5();
             LoadChunk7();
 
             Log.Information("Finished loading geom.");
-
-            //CloseStream();
         }
 
         public void CloseStream()
@@ -272,7 +270,7 @@ namespace Haven.Parser
 
         private void LoadChunk5()
         {
-            GeoChunk? chunk = GetChunkFromType(GeoChunkType.TYPE_5);
+            GeoChunk? chunk = GetChunkFromType(GeoChunkType.UNKOWN);
             GeomChunk5 = new byte[0];
 
             if (chunk == null)
@@ -284,7 +282,7 @@ namespace Haven.Parser
 
         private void LoadChunk7() // training dummy routes
         {
-            GeoChunk? chunk = GetChunkFromType(GeoChunkType.TYPE_7);
+            GeoChunk? chunk = GetChunkFromType(GeoChunkType.ROUTES);
             GeomChunk7 = new byte[0];
 
             if (chunk == null)
@@ -376,7 +374,7 @@ namespace Haven.Parser
 
         private void LoadProps()
         {
-            GeoChunk? chunk = GetChunkFromType(GeoChunkType.TYPE_6);
+            GeoChunk? chunk = GetChunkFromType(GeoChunkType.PROPS);
 
             if (chunk == null)
                 return;
@@ -386,14 +384,16 @@ namespace Haven.Parser
             LoadPropEntry(chunk, chunk.DataOffset, chunk.Size, root);
         }
 
-        private void LoadObjects()
+        private void LoadReferences()
         {
-            GeoChunk? chunk = GetChunkFromType(GeoChunkType.TYPE_1);
+            GeoChunk? chunk = GetChunkFromType(GeoChunkType.REFS);
 
             if (chunk == null)
                 return;
 
             Stream.Seek(chunk.DataOffset, SeekOrigin.Begin);
+
+            Debug.WriteLine("Load chunk offset 1 {0:X}", chunk.DataOffset);
 
             int geoRefSize = 0x70;
 
@@ -665,24 +665,7 @@ namespace Haven.Parser
 
         private void WriteHeader(BinaryWriterEx writer)
         {
-            writer.Write(Header.Version);
-            writer.Write((uint)writer.BaseStream.Length);
-            writer.Write(Header.Chunks.Count);
-            writer.Write(Header.Pad);
-            writer.Write(Header.BaseX);
-            writer.Write(Header.BaseY);
-            writer.Write(Header.BaseZ);
-            writer.Write(Header.BaseW);
-
-            for (int i = 0; i < Header.Chunks.Count; i++)
-            {
-                GeoChunk chunk = Header.Chunks[i];
-
-                writer.Write(chunk.Type);
-                writer.Write(chunk.Pad);
-                writer.Write(chunk.Size);
-                writer.Write(chunk.DataOffset);
-            }
+            Header.WriteTo(writer);
 
             writer.Write(0x08000000);
             writer.Write(0);
@@ -768,7 +751,7 @@ namespace Haven.Parser
             chunk.Size = (int)stream.Position - chunk.DataOffset;
 
             // chunk 1
-            chunk = GetChunkFromType(GeoChunkType.TYPE_1);
+            chunk = GetChunkFromType(GeoChunkType.REFS);
             var oldOffset = chunk.DataOffset;
             chunk.DataOffset = (int)stream.Position;
             int diff = chunk.DataOffset - oldOffset;
@@ -840,13 +823,13 @@ namespace Haven.Parser
 
             // chunk 5
             stream.Seek(0, SeekOrigin.End);
-            chunk = GetChunkFromType(GeoChunkType.TYPE_5);
+            chunk = GetChunkFromType(GeoChunkType.UNKOWN);
             chunk.DataOffset = (int)stream.Position;
             writer.Write(GeomChunk5);
             chunk.Size = (int)stream.Position - chunk.DataOffset;
 
             // chunk 6
-            chunk = GetChunkFromType(GeoChunkType.TYPE_6);
+            chunk = GetChunkFromType(GeoChunkType.PROPS);
             chunk.DataOffset = (int)stream.Position;
 
             if (chunk != null)
@@ -858,7 +841,7 @@ namespace Haven.Parser
             }
 
             // chunk 7
-            chunk = GetChunkFromType(GeoChunkType.TYPE_7);
+            chunk = GetChunkFromType(GeoChunkType.ROUTES);
             chunk.DataOffset = (int)stream.Position;
             chunk.Size = GeomChunk7.Length;
             writer.Write(GeomChunk7);

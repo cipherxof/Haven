@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Buffers.Text;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -20,6 +21,14 @@ namespace Haven.Parser.Geom
             Pad = reader.ReadUInt16();
             Size = reader.ReadInt32();
             DataOffset = reader.ReadInt32();
+        }
+
+        public void WriteTo(BinaryWriter writer)
+        {
+            writer.Write(Type);
+            writer.Write(Pad);
+            writer.Write(Size);
+            writer.Write(DataOffset);
         }
     }
 }
