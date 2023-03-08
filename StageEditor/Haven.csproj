@@ -12,6 +12,7 @@
   <ItemGroup>
     <PackageReference Include="Joveler.Compression.ZLib" Version="4.1.0" />
     <PackageReference Include="OpenTK.GLControl" Version="3.3.3" />
+    <PackageReference Include="Serilog.Sinks.File" Version="5.0.0" />
   </ItemGroup>
 
   <ItemGroup>

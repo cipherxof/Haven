@@ -1,4 +1,5 @@
 ﻿using Haven.Parser.Geom.Prim;
+using Serilog;
 using System;
 using System.Diagnostics;
 
@@ -120,7 +121,7 @@ namespace Haven.Parser.Geom
 
                         if (Ref[i].BlockOffset == 0 && Ref[i].Hash != 0)
                         {
-                            Debug.WriteLine("WARNING: Empty block offset for GEO_REF {0:X} at {1:X} flag={2:X}!", Ref[i].Hash, pos, Flag);
+                            Log.Warning("Empty block offset for GEO_REF {ref:X} at {pos:X} with flag {flag:X}!", Ref[i].Hash, pos, Flag);
                             if (Field003 == 0x5)
                             {
                                 //Field003 = 0x4;
@@ -130,7 +131,7 @@ namespace Haven.Parser.Geom
                     break;
                 case Primitive.GEO_UNKNOWN:
                 default:
-                    Debug.WriteLine("Unknown primitive type {0:X} type={1:X}, offset={2:X}", primType, Type, pos);
+                    Log.Error("Unknown primitive type {type} at offset {offset}", primType, pos);
                     break;
             }
         }

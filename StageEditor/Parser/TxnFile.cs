@@ -185,11 +185,6 @@ namespace Haven.Parser
                 {
                     Header = new TxnHeader(reader);
 
-                    if (Header.TextureCount != Header.TextureCount2)
-                    {
-                        Debug.WriteLine($"TXN \"{Path}\" mismatching texture counts!");
-                    }
-
                     if (Header.NullBytes == 0)
                     {
                         List<uint> offsets = new List<uint>();

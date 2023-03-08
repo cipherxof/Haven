@@ -47,6 +47,8 @@
             this.tbSpawnsFilter = new System.Windows.Forms.TextBox();
             this.treeViewGeom = new System.Windows.Forms.TreeView();
             this.glControl = new OpenTK.GLControl();
+            this.tabPageLog = new System.Windows.Forms.TabPage();
+            this.tbLog = new System.Windows.Forms.TextBox();
             this.toolStrip1 = new System.Windows.Forms.ToolStrip();
             this.btnLoadStage = new System.Windows.Forms.ToolStripDropDownButton();
             this.mGO2StageToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
@@ -73,6 +75,7 @@
             this.tabPageFiles.SuspendLayout();
             this.tabPageGeom.SuspendLayout();
             this.groupBox1.SuspendLayout();
+            this.tabPageLog.SuspendLayout();
             this.toolStrip1.SuspendLayout();
             this.SuspendLayout();
             // 
@@ -83,6 +86,7 @@
             | System.Windows.Forms.AnchorStyles.Right)));
             this.tabControl.Controls.Add(this.tabPageFiles);
             this.tabControl.Controls.Add(this.tabPageGeom);
+            this.tabControl.Controls.Add(this.tabPageLog);
             this.tabControl.Location = new System.Drawing.Point(0, 28);
             this.tabControl.Name = "tabControl";
             this.tabControl.SelectedIndex = 0;
@@ -103,6 +107,7 @@
             // 
             // treeViewFiles
             // 
+            this.treeViewFiles.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle;
             this.treeViewFiles.Dock = System.Windows.Forms.DockStyle.Fill;
             this.treeViewFiles.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
             this.treeViewFiles.Location = new System.Drawing.Point(3, 3);
@@ -294,6 +299,28 @@
             this.glControl.Size = new System.Drawing.Size(644, 468);
             this.glControl.TabIndex = 2;
             this.glControl.VSync = true;
+            // 
+            // tabPageLog
+            // 
+            this.tabPageLog.Controls.Add(this.tbLog);
+            this.tabPageLog.Location = new System.Drawing.Point(4, 24);
+            this.tabPageLog.Name = "tabPageLog";
+            this.tabPageLog.Size = new System.Drawing.Size(876, 482);
+            this.tabPageLog.TabIndex = 2;
+            this.tabPageLog.Text = "Log";
+            this.tabPageLog.UseVisualStyleBackColor = true;
+            // 
+            // tbLog
+            // 
+            this.tbLog.Dock = System.Windows.Forms.DockStyle.Fill;
+            this.tbLog.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            this.tbLog.Location = new System.Drawing.Point(0, 0);
+            this.tbLog.Multiline = true;
+            this.tbLog.Name = "tbLog";
+            this.tbLog.ReadOnly = true;
+            this.tbLog.ScrollBars = System.Windows.Forms.ScrollBars.Both;
+            this.tbLog.Size = new System.Drawing.Size(876, 482);
+            this.tbLog.TabIndex = 0;
             // 
             // toolStrip1
             // 
@@ -506,6 +533,8 @@
             this.tabPageGeom.PerformLayout();
             this.groupBox1.ResumeLayout(false);
             this.groupBox1.PerformLayout();
+            this.tabPageLog.ResumeLayout(false);
+            this.tabPageLog.PerformLayout();
             this.toolStrip1.ResumeLayout(false);
             this.toolStrip1.PerformLayout();
             this.ResumeLayout(false);
@@ -554,5 +583,7 @@
         private ToolStripMenuItem mergeReferencesToolStripMenuItem;
         private ToolStripMenuItem stageToolStripMenuItem;
         private ToolStripMenuItem generateTexturesToolStripMenuItem;
+        private TabPage tabPageLog;
+        private TextBox tbLog;
     }
 }

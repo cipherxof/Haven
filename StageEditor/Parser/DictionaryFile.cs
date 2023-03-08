@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Serilog;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
@@ -28,6 +29,7 @@ namespace Haven.Parser
             }
             catch(Exception e)
             {
+                Log.Error("Failed to parse dictionary file {filename} \"{s}\"", filename, e.Message);
                 return false;
             }
         }
@@ -42,17 +44,5 @@ namespace Haven.Parser
             return hash.ToString("X4");
         }
 
-        private static void FindMissing(string line)
-        {
-            if (line.StartsWith("COL_") || line.StartsWith("PRP_"))
-            {
-                var hash = Utils.HashString(line.Replace("\n", ""));
-                if (!File.ReadAllText("notfound.txt").Contains(line) && !File.ReadAllText("bin/dictionary.txt").Contains(line))
-                {
-                    Debug.WriteLine(line);
-                    File.AppendAllText("notfound.txt", line + Environment.NewLine);
-                }
-            }
-        }
     }
 }

@@ -8,6 +8,7 @@ using Haven.Parser.Geom;
 using Haven.Parser.Geom.Prim;
 using Haven.Render;
 using OpenTK;
+using Serilog;
 
 // GeomFile has gotten out of hand, needs refactoring...
 
@@ -114,6 +115,8 @@ namespace Haven.Parser
 
         public GeomFile(string path, bool? isBigEndian = null)
         {
+            Log.Information("Loading geom \"{path}\" in {endianness} mode", path, isBigEndian == null ? (BinaryReaderEx.DefaultBigEndian ? "BE" : "LE") : (isBigEndian == true? "BE" : "LE"));
+
             Stream = new FileStream(path, FileMode.Open, FileAccess.Read);
             Reader = new BinaryReaderEx(Stream, isBigEndian);
             Header = new GeoDef(Reader);
@@ -127,6 +130,8 @@ namespace Haven.Parser
             LoadObjects();
             LoadChunk5();
             LoadChunk7();
+
+            Log.Information("Finished loading geom.");
 
             //CloseStream();
         }
@@ -165,6 +170,24 @@ namespace Haven.Parser
 
         private void ReadBlockData(GeoBlock block)
         {
+            if (block.VertexOffset > Stream.Length)
+            {
+                Log.Error("Invalid block vertex offset {offset}!", block.VertexOffset);
+                return;
+            }
+
+            if (block.FaceOffset > Stream.Length)
+            {
+                Log.Error("Invalid block face offset {offset}!", block.FaceOffset);
+                return;
+            }
+
+            if (block.FaceOffset > Stream.Length)
+            {
+                Log.Error("Invalid block material offset {offset}!", block.MaterialOffset);
+                return;
+            }
+
             if (block.FaceOffset > 0)
             {
                 Stream.Seek(block.FaceOffset, SeekOrigin.Begin);
@@ -181,12 +204,6 @@ namespace Haven.Parser
 
             if (block.VertexOffset > 0)
             {
-                if (block.VertexOffset > Stream.Length)
-                {
-                    Debug.WriteLine("Invalid VertexOffset! {0:X}", block.VertexOffset);
-                    return;
-                }
-
                 Stream.Seek(block.VertexOffset, SeekOrigin.Begin);
 
                 var vert = new GeoVertexHeader(Reader);
@@ -255,7 +272,7 @@ namespace Haven.Parser
             GeomChunk5 = Reader.ReadBytes(chunk.Size);
         }
 
-        private void LoadChunk7()
+        private void LoadChunk7() // training dummy routes
         {
             GeoChunk? chunk = GetChunkFromType(GeoChunkType.TYPE_7);
             GeomChunk7 = new byte[0];
@@ -773,7 +790,10 @@ namespace Haven.Parser
 
                 foreach (var block in blocks)
                 {
-                    block.MaterialOffset += blockDiff;
+                    if (block.MaterialOffset > 0)
+                    {
+                        block.MaterialOffset += blockDiff;
+                    }
 
                     WriteBlock(block, writer);
 
@@ -781,7 +801,6 @@ namespace Haven.Parser
 
                     if (blockData == null)
                     {
-                        Debug.WriteLine("null block?");
                         continue;
                     }
 

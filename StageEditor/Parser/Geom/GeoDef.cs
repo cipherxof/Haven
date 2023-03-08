@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Serilog;
+using System;
 
 namespace Haven.Parser.Geom
 {
@@ -18,8 +19,10 @@ namespace Haven.Parser.Geom
         {
             Version = reader.ReadUInt32();
 
-           // if (Version != 0x0BF68BFE)
-            //    throw new Exception("Invalid geom version! This can happen if the geom failed to decrypt, please ensure it's in the proper folder hierarchy.");
+            if (Version != 0x0BF68BFE)
+            {
+                Log.Warning("Unrecognized geom version {version:X8}", Version);
+            }
 
             FileSize = reader.ReadUInt32();
             ChunkCount = reader.ReadInt32();
@@ -35,6 +38,8 @@ namespace Haven.Parser.Geom
             {
                 GeoChunk chunk = new GeoChunk(reader);
                 Chunks.Add(chunk);
+
+                Log.Debug("Loaded chunk {chunkType} of size {size:X} at {offset:X}", chunk.Type, chunk.Size, chunk.DataOffset);
 
                 if (i > 0)
                 {

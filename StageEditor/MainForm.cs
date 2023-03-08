@@ -10,6 +10,8 @@ using Haven.Parser.Geom;
 using Joveler.Compression.ZLib;
 using OpenTK.Graphics.OpenGL;
 using System.IO;
+using Serilog.Events;
+using Serilog;
 
 namespace Haven
 {
@@ -44,6 +46,8 @@ namespace Haven
         public TreeNode TreeNodeGeomProps;
         public TreeNode TreeNodeGeomBoundaries;
 
+        public static string LoggerTemplate = "[{Timestamp:HH:mm:ss} {Level:u3} {SourceContext}] {Message:lj}{NewLine}{Exception}";
+        public static CustomLoggerSink LoggerSink = new CustomLoggerSink(null, LoggerTemplate);
 
         public MainForm()
         {
@@ -55,6 +59,14 @@ namespace Haven
             TreeNodeGeomBoundaries = treeViewGeom.Nodes.Add("Boundaries");
 
             Scene = new Scene(glControl);
+
+            Log.Logger = new LoggerConfiguration()
+                .MinimumLevel.Is(LogEventLevel.Verbose)
+                .WriteTo.File("log.txt", outputTemplate: LoggerTemplate)
+                .WriteTo.Sink(LoggerSink)
+                .CreateLogger();
+
+            LoggerSink.NewLogHandler += LoggerSink_NewLogHandler;
         }
 
         private void MainForm_Load(object sender, EventArgs e)
@@ -64,6 +76,8 @@ namespace Haven
             DictionaryFile.Load("bin/dictionary.txt");
             ZLibInit.GlobalInit(Path.GetFullPath("zlibwapi.dll"));
             SetupContextMenus();
+
+            Log.Information("Initialized");
         }
 
         private void SetupContextMenus()
@@ -170,7 +184,7 @@ namespace Haven
                         break;
                 }
             }
-            else if (e.ClickedItem == MenuItemFilesEdit) 
+            else if (e.ClickedItem == MenuItemFilesEdit)
             {
                 switch (stageFile.Type)
                 {
@@ -705,7 +719,7 @@ namespace Haven
         {
             var parent = e.Node.Parent;
 
-            if (parent == null) 
+            if (parent == null)
                 return;
 
             if (parent == TreeNodeGeomMeshes || parent == TreeNodeGeomRefs || parent == TreeNodeGeomProps)
@@ -916,7 +930,7 @@ namespace Haven
 
                 baseGeom.CloseStream();
             }
-            catch(Exception exception)
+            catch (Exception exception)
             {
                 // leaks if failed
                 MessageBox.Show(exception.Message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
@@ -1136,8 +1150,8 @@ namespace Haven
 
         private void generateTexturesToolStripMenuItem_Click(object sender, EventArgs e)
         {
-            //try
-           // {
+            try
+            {
                 if (CurrentStage == null)
                 {
                     MessageBox.Show("You must open a stage first.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
@@ -1155,11 +1169,32 @@ namespace Haven
 
                     Utils.BuildStageTextures(fbd.SelectedPath, "stage\\_dlz", "stage\\_cache.qar\\Qar");
                 }
-            //}
-            //catch (Exception exception)
-           // {
-            //    MessageBox.Show(exception.Message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
-            //}
+            }
+            catch (Exception exception)
+            {
+                MessageBox.Show(exception.Message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        public void AppendLog(string value)
+        {
+            if (InvokeRequired)
+            {
+                this.Invoke(new Action<string>(AppendLog), new object[] { value });
+                return;
+            }
+            tbLog.Text += value;
+            tbLog.SelectionStart = tbLog.TextLength;
+            tbLog.ScrollToCaret();
+        }
+
+        private void LoggerSink_NewLogHandler(object? sender, EventArgs e)
+        {
+            var log = ((LogEventArgs)e).Log;
+            using var writer = new StringWriter();
+            LoggerSink.Formatter.Format(log, writer);
+            var message = writer.ToString();
+            AppendLog(message);
         }
     }
 }
