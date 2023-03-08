@@ -296,7 +296,7 @@
             this.glControl.Location = new System.Drawing.Point(223, 11);
             this.glControl.Margin = new System.Windows.Forms.Padding(4, 3, 4, 3);
             this.glControl.Name = "glControl";
-            this.glControl.Size = new System.Drawing.Size(644, 468);
+            this.glControl.Size = new System.Drawing.Size(649, 468);
             this.glControl.TabIndex = 2;
             this.glControl.VSync = true;
             // 

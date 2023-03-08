@@ -47,6 +47,28 @@ namespace Haven.Forms
                 row.Cells["ColumnHash"].ToolTipText = prim.Name.ToString("X4");
                 row.Cells["ColumnAttributes"].Value = prim.Attribute.ToString("X8");
             }
+
+            if (!File.BlockMaterialData.ContainsKey(Block))
+                return;
+
+            var mats = File.BlockMaterialData[Block];
+
+            if (mats == null)
+                return;
+
+            for (int i = 0; i < mats.Materials.Count; i++)
+            {
+                if (mats.Materials[i] == 0)
+                    break;
+
+                int rowIndex = dataGridMats.Rows.Add();
+                var row = dataGridMats.Rows[rowIndex];
+
+                if (row == null)
+                    continue;
+
+                row.Cells["ColumnMat"].Value = DictionaryFile.GetHashString(mats.Materials[i]);
+            }
         }
 
         private void dataGridDld_CellValidating(object sender, DataGridViewCellValidatingEventArgs e)

@@ -39,8 +39,17 @@
             this.label1 = new System.Windows.Forms.Label();
             this.tbBlockAttribute = new System.Windows.Forms.TextBox();
             this.cbEditRows = new System.Windows.Forms.CheckBox();
+            this.tabControl1 = new System.Windows.Forms.TabControl();
+            this.tabPrims = new System.Windows.Forms.TabPage();
+            this.tabMats = new System.Windows.Forms.TabPage();
+            this.dataGridMats = new System.Windows.Forms.DataGridView();
+            this.ColumnMat = new System.Windows.Forms.DataGridViewTextBoxColumn();
             this.toolStrip1.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.dataGridGeom)).BeginInit();
+            this.tabControl1.SuspendLayout();
+            this.tabPrims.SuspendLayout();
+            this.tabMats.SuspendLayout();
+            ((System.ComponentModel.ISupportInitialize)(this.dataGridMats)).BeginInit();
             this.SuspendLayout();
             // 
             // toolStrip1
@@ -64,9 +73,6 @@
             // 
             // dataGridGeom
             // 
-            this.dataGridGeom.Anchor = ((System.Windows.Forms.AnchorStyles)((((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom) 
-            | System.Windows.Forms.AnchorStyles.Left) 
-            | System.Windows.Forms.AnchorStyles.Right)));
             this.dataGridGeom.AutoSizeColumnsMode = System.Windows.Forms.DataGridViewAutoSizeColumnsMode.Fill;
             this.dataGridGeom.ColumnHeadersHeightSizeMode = System.Windows.Forms.DataGridViewColumnHeadersHeightSizeMode.AutoSize;
             this.dataGridGeom.Columns.AddRange(new System.Windows.Forms.DataGridViewColumn[] {
@@ -74,13 +80,13 @@
             this.ColumnType,
             this.ColumnHash,
             this.ColumnAttributes});
+            this.dataGridGeom.Dock = System.Windows.Forms.DockStyle.Fill;
             this.dataGridGeom.EditMode = System.Windows.Forms.DataGridViewEditMode.EditOnEnter;
-            this.dataGridGeom.Location = new System.Drawing.Point(12, 78);
-            this.dataGridGeom.MinimumSize = new System.Drawing.Size(590, 330);
+            this.dataGridGeom.Location = new System.Drawing.Point(3, 3);
             this.dataGridGeom.Name = "dataGridGeom";
             this.dataGridGeom.RowTemplate.Height = 25;
             this.dataGridGeom.SelectionMode = System.Windows.Forms.DataGridViewSelectionMode.FullRowSelect;
-            this.dataGridGeom.Size = new System.Drawing.Size(660, 331);
+            this.dataGridGeom.Size = new System.Drawing.Size(646, 301);
             this.dataGridGeom.TabIndex = 4;
             this.dataGridGeom.CellDoubleClick += new System.Windows.Forms.DataGridViewCellEventHandler(this.dataGridDld_CellDoubleClick);
             this.dataGridGeom.CellValidating += new System.Windows.Forms.DataGridViewCellValidatingEventHandler(this.dataGridDld_CellValidating);
@@ -139,15 +145,67 @@
             this.cbEditRows.Text = "Edit Selected Rows";
             this.cbEditRows.UseVisualStyleBackColor = true;
             // 
+            // tabControl1
+            // 
+            this.tabControl1.Controls.Add(this.tabPrims);
+            this.tabControl1.Controls.Add(this.tabMats);
+            this.tabControl1.Location = new System.Drawing.Point(12, 74);
+            this.tabControl1.Name = "tabControl1";
+            this.tabControl1.SelectedIndex = 0;
+            this.tabControl1.Size = new System.Drawing.Size(660, 335);
+            this.tabControl1.TabIndex = 10;
+            // 
+            // tabPrims
+            // 
+            this.tabPrims.Controls.Add(this.dataGridGeom);
+            this.tabPrims.Location = new System.Drawing.Point(4, 24);
+            this.tabPrims.Name = "tabPrims";
+            this.tabPrims.Padding = new System.Windows.Forms.Padding(3);
+            this.tabPrims.Size = new System.Drawing.Size(652, 307);
+            this.tabPrims.TabIndex = 0;
+            this.tabPrims.Text = "Primitives";
+            this.tabPrims.UseVisualStyleBackColor = true;
+            // 
+            // tabMats
+            // 
+            this.tabMats.Controls.Add(this.dataGridMats);
+            this.tabMats.Location = new System.Drawing.Point(4, 24);
+            this.tabMats.Name = "tabMats";
+            this.tabMats.Padding = new System.Windows.Forms.Padding(3);
+            this.tabMats.Size = new System.Drawing.Size(652, 307);
+            this.tabMats.TabIndex = 1;
+            this.tabMats.Text = "Materials";
+            this.tabMats.UseVisualStyleBackColor = true;
+            // 
+            // dataGridMats
+            // 
+            this.dataGridMats.AutoSizeColumnsMode = System.Windows.Forms.DataGridViewAutoSizeColumnsMode.Fill;
+            this.dataGridMats.ColumnHeadersHeightSizeMode = System.Windows.Forms.DataGridViewColumnHeadersHeightSizeMode.AutoSize;
+            this.dataGridMats.Columns.AddRange(new System.Windows.Forms.DataGridViewColumn[] {
+            this.ColumnMat});
+            this.dataGridMats.Dock = System.Windows.Forms.DockStyle.Fill;
+            this.dataGridMats.Location = new System.Drawing.Point(3, 3);
+            this.dataGridMats.Name = "dataGridMats";
+            this.dataGridMats.ReadOnly = true;
+            this.dataGridMats.RowTemplate.Height = 25;
+            this.dataGridMats.Size = new System.Drawing.Size(646, 301);
+            this.dataGridMats.TabIndex = 0;
+            // 
+            // ColumnMat
+            // 
+            this.ColumnMat.HeaderText = "Material";
+            this.ColumnMat.Name = "ColumnMat";
+            this.ColumnMat.ReadOnly = true;
+            // 
             // GeomEditor
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.ClientSize = new System.Drawing.Size(684, 421);
+            this.Controls.Add(this.tabControl1);
             this.Controls.Add(this.cbEditRows);
             this.Controls.Add(this.tbBlockAttribute);
             this.Controls.Add(this.label1);
-            this.Controls.Add(this.dataGridGeom);
             this.Controls.Add(this.toolStrip1);
             this.FormBorderStyle = System.Windows.Forms.FormBorderStyle.FixedDialog;
             this.MaximizeBox = false;
@@ -158,6 +216,10 @@
             this.toolStrip1.ResumeLayout(false);
             this.toolStrip1.PerformLayout();
             ((System.ComponentModel.ISupportInitialize)(this.dataGridGeom)).EndInit();
+            this.tabControl1.ResumeLayout(false);
+            this.tabPrims.ResumeLayout(false);
+            this.tabMats.ResumeLayout(false);
+            ((System.ComponentModel.ISupportInitialize)(this.dataGridMats)).EndInit();
             this.ResumeLayout(false);
             this.PerformLayout();
 
@@ -175,5 +237,10 @@
         private Label label1;
         private TextBox tbBlockAttribute;
         private CheckBox cbEditRows;
+        private TabControl tabControl1;
+        private TabPage tabPrims;
+        private TabPage tabMats;
+        private DataGridView dataGridMats;
+        private DataGridViewTextBoxColumn ColumnMat;
     }
 }

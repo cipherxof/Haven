@@ -103,6 +103,7 @@ namespace Haven.Parser
         public readonly Dictionary<GeoBlock, GeoMaterialHeader> GeomRefBlockMaterial = new Dictionary<GeoBlock, GeoMaterialHeader>();
         public readonly Dictionary<GeoBlock, List<Geom.Geom>> BlockFaceData = new Dictionary<GeoBlock, List<Geom.Geom>>();
         public readonly Dictionary<GeoBlock, GeoVertexHeader> BlockVertexData = new Dictionary<GeoBlock, GeoVertexHeader>();
+        public readonly Dictionary<GeoBlock, GeoMaterialHeader> BlockMaterialData = new Dictionary<GeoBlock, GeoMaterialHeader>();
         public readonly Dictionary<GeoPrimRef, List<GeoBlock>> GeomRefBlocks = new Dictionary<GeoPrimRef, List<GeoBlock>>();
         
         private GeomRefRegionLink GeomRefRegionLinks = new GeomRefRegionLink();
@@ -156,6 +157,7 @@ namespace Haven.Parser
             BlockVertexData.Clear();
             GroupMaterialData.Clear();
             GroupRadixData.Clear();
+            BlockMaterialData.Clear();
         }
 
         public GeoChunk? GetChunkFromType(GeoChunkType type)
@@ -209,6 +211,12 @@ namespace Haven.Parser
                 var vert = new GeoVertexHeader(Reader);
                 BlockVertexData[block] = vert;
             }
+
+            if (block.MaterialOffset > 0)
+            {
+                Stream.Seek(block.MaterialOffset, SeekOrigin.Begin);
+                BlockMaterialData[block] = new GeoMaterialHeader(Reader);
+            }
         }
 
         private void LoadGroups()
@@ -255,6 +263,8 @@ namespace Haven.Parser
                     Stream.Seek(group.MaterialOffset, SeekOrigin.Begin);
 
                     GroupMaterialData[group] = new GeoMaterialHeader(Reader);
+
+                    Log.Debug("Found materials in group {groupNum}: {mats}", i, String.Join(", ", GroupMaterialData[group].Materials.Select(p => DictionaryFile.GetHashString(p)).ToArray()));
                 }
 
             }
