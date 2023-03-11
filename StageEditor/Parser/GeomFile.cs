@@ -122,15 +122,13 @@ namespace Haven.Parser
             Reader = new BinaryReaderEx(Stream, isBigEndian);
             Header = new GeoDef(Reader);
 
-            Stream.Seek(0x8, SeekOrigin.Current);
-            UnkHash = Reader.ReadUInt32();
-            Stream.Seek(0x18, SeekOrigin.Current);
+            Stream.Seek(0x70, SeekOrigin.Begin);
 
             LoadGroups();
-            LoadProps();
-            LoadReferences();
-            LoadChunk5();
-            LoadChunk7();
+            //LoadProps();
+            //LoadReferences();
+            //LoadChunk5();
+            //LoadChunk7();
 
             Log.Information("Finished loading geom.");
         }
@@ -226,6 +224,8 @@ namespace Haven.Parser
                 GeomGroups.Add(group);
                 GeomGroupBlocks[group] = new List<GeoBlock>();
 
+                Log.Debug("Loaded group flag={flag:X}, data={offset:X}, blocks={offsets2:X}", group.Flag, group.DataOffset, group.BlockOffset);
+
                 if (group.Flag == 1)
                     break;
             }
@@ -237,32 +237,23 @@ namespace Haven.Parser
                 Stream.Seek(group.DataOffset, SeekOrigin.Begin);
                 GroupRadixData[group] = ReadRadix(group);
 
-                int indexLength = group.BlockOffset - group.DataOffset;
-                indexLength = group.HeadSize - indexLength;
-                indexLength = indexLength / 16;
-                indexLength = indexLength / 2;
-
                 Stream.Seek(group.BlockOffset, SeekOrigin.Begin);
 
-                for (int y = 0; y < indexLength; y++)
+                for (int y = 0; y < 1; y++)
                 {
                     var pos = Stream.Position;
 
                     GeoBlock block = new GeoBlock(Reader);
-                    GeomGroupBlocks[group].Add(block);
-                    GeomBlocks.Add(block);
+                    //GeomGroupBlocks[group].Add(block);
+                    //GeomBlocks.Add(block);
+
+
+                    Log.Debug("Loaded block flag={flag:X}, size={size:X}, offset={off:X}", block.Flag, block.Size, block.FaceOffset);
+
+
                     ReadBlockData(block);
 
-                    Stream.Seek(pos + 0x20, SeekOrigin.Begin);
-                }
-
-                if (group.MaterialOffset > 0)
-                {
-                    Stream.Seek(group.MaterialOffset, SeekOrigin.Begin);
-
-                    GroupMaterialData[group] = new GeoMaterialHeader(Reader);
-
-                    Log.Debug("Found materials in group {groupNum}: {mats}", i, String.Join(", ", GroupMaterialData[group].Materials.Select(p => DictionaryFile.GetHashString(p)).ToArray()));
+                    Stream.Seek(pos + 0x18, SeekOrigin.Begin);
                 }
 
             }

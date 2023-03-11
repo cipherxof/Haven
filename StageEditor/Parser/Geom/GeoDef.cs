@@ -1,5 +1,6 @@
 ﻿using Serilog;
 using System;
+using static System.Windows.Forms.VisualStyles.VisualStyleElement.ProgressBar;
 
 namespace Haven.Parser.Geom
 {
@@ -29,9 +30,8 @@ namespace Haven.Parser.Geom
             Pad = reader.ReadInt32();
             BaseX = reader.ReadSingle();
             BaseY = reader.ReadSingle();
-            BaseZ = reader.ReadSingle();
-            BaseW = reader.ReadSingle();
-
+            //BaseZ = reader.ReadSingle();
+            //BaseW = reader.ReadSingle();
             Chunks = new List<GeoChunk>();
 
             for (int i = 0; i < ChunkCount; i++)

@@ -10,15 +10,13 @@ namespace Haven.Parser.Geom
 {
     public class GeoChunk
     {
-        public ushort Type;
-        public ushort Pad;
+        public int Type;
         public int Size;
         public int DataOffset;
 
         public GeoChunk(BinaryReader reader)
         {
-            Type = reader.ReadUInt16();
-            Pad = reader.ReadUInt16();
+            Type = reader.ReadInt32();
             Size = reader.ReadInt32();
             DataOffset = reader.ReadInt32();
         }
@@ -26,7 +24,6 @@ namespace Haven.Parser.Geom
         public void WriteTo(BinaryWriter writer)
         {
             writer.Write(Type);
-            writer.Write(Pad);
             writer.Write(Size);
             writer.Write(DataOffset);
         }

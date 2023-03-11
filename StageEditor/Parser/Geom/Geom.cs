@@ -54,10 +54,13 @@ namespace Haven.Parser.Geom
             Child = reader.ReadInt32();
             Name = reader.ReadUInt32();
             Field014 = reader.ReadInt32();
-            Attribute = reader.ReadUInt64();
+            //Attribute = reader.ReadUInt64();
             Data = new byte[0];
 
             Primitive primType = GetPrimType();
+
+
+            Log.Debug("Found {length} {primType} at offset {offset:X}", Length, primType, pos);
 
             switch (primType)
             {
@@ -83,6 +86,7 @@ namespace Haven.Parser.Geom
                     for (int i = 0; i < Length; i++)
                     {
                         Poly[i] = new GeoPrimPoly(reader);
+                        //Log.Debug("Poly ", Poly[i].);
                     }
 
                     if (Length % 2 == 1)
