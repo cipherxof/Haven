@@ -23,11 +23,16 @@ namespace Haven.Parser.Geom
             ColorSize = colorSize;
         }
 
-        public GeoMaterialHeader(BinaryReader reader)
+        public GeoMaterialHeader(BinaryReaderEx reader)
         {
             var matStart = reader.BaseStream.Position;
             var data = reader.ReadUInt32();
             var bytes = BitConverter.GetBytes(data);
+
+            if (!reader.BigEndian)
+            {
+                Array.Reverse(bytes);
+            }
 
             MaterialOffset = bytes[3];
             MaterialSize = bytes[2];
