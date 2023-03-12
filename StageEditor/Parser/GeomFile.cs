@@ -56,9 +56,7 @@ namespace Haven.Parser
         public int Size;
         public int Flag;
         public uint Hash;
-        public ushort Field00C;
-        public byte Field010;
-        public byte Field014;
+        public uint Field00C;
         public float X;
         public float Z;
         public float Y;
@@ -305,9 +303,7 @@ namespace Haven.Parser
                 prop.Size = Reader.ReadInt32();
                 prop.Flag = Reader.ReadInt32();
                 prop.Hash = Reader.ReadUInt32();
-                prop.Field00C = Reader.ReadUInt16();
-                prop.Field010 = Reader.ReadByte();
-                prop.Field014 = Reader.ReadByte();
+                prop.Field00C = Reader.ReadUInt32();
                 prop.Data = new byte[0];
 
                 if (Stream.Position >= chunk.DataOffset + chunk.Size)
@@ -471,8 +467,6 @@ namespace Haven.Parser
                 writer.Write(spawn.Flag);
                 writer.Write(spawn.Hash);
                 writer.Write(spawn.Field00C);
-                writer.Write(spawn.Field010);
-                writer.Write(spawn.Field014);
 
                 if (spawn.Flag > 0)
                     continue;
