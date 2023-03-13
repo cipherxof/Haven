@@ -67,6 +67,8 @@ namespace Haven
                 .CreateLogger();
 
             LoggerSink.NewLogHandler += LoggerSink_NewLogHandler;
+
+           
         }
 
         private void MainForm_Load(object sender, EventArgs e)
@@ -78,6 +80,95 @@ namespace Haven
             SetupContextMenus();
 
             Log.Information("Initialized");
+
+
+            tabControl.Enabled = true;
+            tabControl.SelectedIndex = 2;
+            SetEnabled(true);
+
+            var vecs = new List<Vector3d>();
+            var faces = new List<int>();
+
+            using (var stream = new FileStream(@"E:\geom\mgs3d\49cec8\block.bin", FileMode.Open))
+            using (var reader = new BinaryReader(stream))
+            {
+                stream.Seek(0x290, SeekOrigin.Begin);
+
+                while (stream.Position < stream.Length - 0x8)
+                {
+                    var x = reader.ReadUInt16();
+                    var y = reader.ReadUInt16();
+                    var z = reader.ReadUInt16();
+                    var w = reader.ReadUInt16();
+
+                    vecs.Add(new Vector3d(x, y, z));
+                    Log.Debug("{0}, {1}, {2}, {3}", x, y, z, w);
+                }
+
+                Log.Debug("verts: {0}", vecs.Count);
+                //return;
+                stream.Seek(0x20, SeekOrigin.Begin);
+
+                //int fc = 0;
+                while (stream.Position < 0x290)
+                {
+                    var test = reader.ReadBytes(0x10);
+
+                    int fa = test[4] + 1;
+                    int fb = test[5] + 1;
+                    int fc = test[6] + 1;
+                    int fd = test[7] + 1;
+                    int extraBit = test[8] + 1;
+
+                    //fa = fc < 3 ? 0 : fc - 2;
+                    //fb = fc < 2 ? 0 : fc - 1;
+                    Utils.FaceBitCalculation(extraBit, ref fa, ref fb, ref fc, ref fd);
+
+                    faces.Add(fa - 1);
+                    faces.Add(fb - 1);
+                    faces.Add(fc - 1);
+
+                    //faces.Add(fa - 1);
+                    //faces.Add(fc - 1);
+                    //faces.Add(fd - 1);
+
+                    Log.Debug("{0}, {1}, {2}, {3}", fa, fb, fc, fd);
+
+                    /*int fa = reader.ReadByte();
+                    int fb = reader.ReadByte();
+                    int fc = reader.ReadByte();
+                    int fd = reader.ReadByte();
+                    int extraBit = reader.ReadByte();
+                    reader.ReadByte();
+
+                    var unk = reader.ReadUInt16();
+                    var unk2 = reader.ReadUInt32();
+                    var attribute = reader.ReadUInt32();
+
+                    Utils.FaceBitCalculation(extraBit, ref fa, ref fb, ref fc, ref fd);
+
+                    faces.Add(fa - 1);
+                    faces.Add(fb - 1);
+                    faces.Add(fc - 1);
+
+                    faces.Add(fa - 1);
+                    faces.Add(fc - 1);
+                    faces.Add(fd - 1);
+
+                    //if (fc > vecs.Count)
+                    //    Log.Debug("FAIL {0}", fd);
+                    Log.Debug("{0}, {1}, {2}, {3}", fa, fb, fc, fd);*/
+                }
+
+                Log.Debug("faces: {0}", faces.Count / 3);
+
+                var mesh = new Mesh(vecs.ToArray(), faces.ToArray());
+                Scene.Children.Add(mesh);
+                TreeNodeGeomMeshes.Nodes.Add(mesh.ID);
+            }
+
+
+            
         }
 
         private void SetupContextMenus()

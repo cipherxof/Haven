@@ -31,8 +31,12 @@ namespace Haven.Parser.Geom
             Size = reader.ReadUInt16();
             Tail = reader.ReadUInt16();
             Free = reader.ReadUInt16();
-            FaceOffset = reader.ReadUInt16();
-            reader.ReadBytes(0xe); // ??
+            FaceOffset = reader.ReadInt32();
+            reader.ReadInt32();
+            VertexOffset = reader.ReadInt32();
+            VertexOffset = 0;
+            Attribute = (ulong)reader.ReadInt32();
+            //reader.ReadBytes(0xe); // ??
         }
 
         public void WriteTo(BinaryWriter writer)

@@ -237,6 +237,7 @@ namespace Haven.Parser
                 Stream.Seek(group.DataOffset, SeekOrigin.Begin);
                 GroupRadixData[group] = ReadRadix(group);
 
+                //group.BlockOffset = 0x620;
                 Stream.Seek(group.BlockOffset, SeekOrigin.Begin);
 
                 for (int y = 0; y < 1; y++)
@@ -248,7 +249,7 @@ namespace Haven.Parser
                     //GeomBlocks.Add(block);
 
 
-                    Log.Debug("Loaded block flag={flag:X}, size={size:X}, offset={off:X}", block.Flag, block.Size, block.FaceOffset);
+                    Log.Debug("Loaded block flag={flag:X}, size={size:X}, vertex={v:X}, faces={off:X}", block.Flag, block.Size, block.VertexOffset, block.FaceOffset);
 
 
                     ReadBlockData(block);
