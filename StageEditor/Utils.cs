@@ -171,88 +171,91 @@ namespace Haven
             return containers;
         }
 
-        public static void BuildStageTextures(string dirPath, string dldDir, string txnDir)
+        public static void RebuildTXN(string dirPath, DldFile cache, DldFile cacheMips, string txnFile)
         {
-            var cache = new DldFile();
-            var cacheMips = new DldFile();
-            //var cacheDld = new DldFile();
+            DirectoryInfo dirInfo = new DirectoryInfo(dirPath);
+            FileInfo[] files = dirInfo.GetFiles("*.dds");
+            uint objectId;
+            var txnHash = dirInfo.Name;
+            if (!uint.TryParse(txnHash, NumberStyles.HexNumber, CultureInfo.InvariantCulture, out objectId))
+                objectId = HashString(txnHash);
 
-            string[] directories = Directory.GetDirectories(dirPath);
+            var texs = cache.Textures.FindAll(t => t.HashId == objectId);
 
-            foreach (string dir in directories)
+            foreach (var texture in texs)
             {
-                DirectoryInfo dirInfo = new DirectoryInfo(dir);
-                FileInfo[] files = dirInfo.GetFiles("*.dds");
-
-                var txn = new TxnFile();
-                uint objectId;
-
-                if (!uint.TryParse(dirInfo.Name, NumberStyles.HexNumber, CultureInfo.InvariantCulture, out objectId))
-                    objectId = HashString(dirInfo.Name);
-
-                uint entry = 0;
-
-                foreach (FileInfo file in files)
-                {
-                    var dds = new ImageDDS(file.FullName);
-
-                    string name = file.Name.Replace(".dds", "");
-
-                    uint materialId;
-
-                    if (!uint.TryParse(name, NumberStyles.HexNumber, CultureInfo.InvariantCulture, out materialId))
-                        materialId = HashString(name);
-
-                    int fcc = (ImageDDS.eFOURCC)dds.PfFourCC == ImageDDS.eFOURCC.DXT1 ? 0x9 : 0xB;
-                    var index1 = new TxnImage((ushort)dds.Width, (ushort)dds.Height, (ushort)fcc, 0xF1, 0, 0);
-                    var index2 = new TxnInfo(materialId, objectId, (ushort)dds.Width, (ushort)dds.Height, 0, 0, (uint)(txn.Images.Count * 0x10) + 0x20, 1f, 1f, 0, 0);
-                    uint mipMapCount = (uint)Math.Log2(Math.Max(dds.Height, dds.Width));
-
-                    if (dds.MipMapOffset != 0)
-                    {
-                        int textureSize = dds.MipMapOffset - 0x80;
-                        byte[] data = new byte[textureSize];
-                        Array.Copy(dds.Data, 0x80, data, 0, textureSize);
-                        var tex = new DldTexture((uint)DldTextureType.MAIN, objectId, 0, (uint)textureSize, 1, entry, data);
-
-                        int mipsSize = dds.Data.Length - dds.MipMapOffset;
-                        byte[] mipsData = new byte[mipsSize];
-                        Array.Copy(dds.Data, dds.MipMapOffset, mipsData, 0, mipsSize);
-                        var texMips = new DldTexture((uint)DldTextureType.MIPS, objectId, (uint)textureSize, (uint)mipsSize, 0xE, entry, mipsData);
-                        cache.Textures.Add(tex);
-                        cacheMips.Textures.Add(texMips);
-                    }
-                    else
-                    {
-                        int textureSize = dds.Data.Length - 0x80;
-                        byte[] data = new byte[textureSize];
-                        Array.Copy(dds.Data, 0x80, data, 0, textureSize);
-                        var tex = new DldTexture((uint)DldTextureType.MIPS, objectId, 0, (uint)textureSize, 0xF, entry, data);
-
-                        index1.Flag = 0xF0;
-
-                        cacheMips.Textures.Add(tex);
-                    }
-
-                    txn.Images.Add(index1);
-                    txn.ImageInfo.Add(index2);
-
-                    entry++;
-                }
-
-                txn.Header.IndexOffset = 0x20;
-                txn.Header.IndexOffset2 = (uint)(0x20 + (txn.Images.Count * 0x10));
-                txn.Header.TextureCount = (uint)(txn.Images.Count);
-                txn.Header.TextureCount2 = (uint)(txn.ImageInfo.Count);
-                txn.Header.Flags = 0x120;
-
-                string txnName = DictionaryFile.Lookup.ContainsKey(objectId) ? DictionaryFile.GetHashString(objectId) : objectId.ToString("X4").ToLower();
-                txn.Save(txnDir + "\\" + txnName + ".txn");
+                cache.RemoveTexture(texture);
             }
 
-            cache.Save(dldDir + "\\cache_d.dld");
-            cacheMips.Save(dldDir + "\\cache.dld");
-            //cacheDld.Save("cache_nodld.dld");
+            texs = cacheMips.Textures.FindAll(t => t.HashId == objectId);
+
+            foreach (var texture in texs)
+            {
+                cacheMips.RemoveTexture(texture);
+            }
+
+            var txn = new TxnFile();
+            uint entry = 0;
+
+            foreach (FileInfo file in files)
+            {
+                var dds = new ImageDDS(file.FullName);
+
+                string name = file.Name.Replace(".dds", "");
+
+                uint materialId;
+
+                if (!uint.TryParse(name, NumberStyles.HexNumber, CultureInfo.InvariantCulture, out materialId))
+                    materialId = HashString(name);
+
+                int fcc = (ImageDDS.eFOURCC)dds.PfFourCC == ImageDDS.eFOURCC.DXT1 ? 0x9 : 0xB;
+                var index1 = new TxnImage((ushort)dds.Width, (ushort)dds.Height, (ushort)fcc, 0xF1, 0, 0);
+                var index2 = new TxnInfo(materialId, objectId, (ushort)dds.Width, (ushort)dds.Height, 0, 0, (uint)(txn.Images.Count * 0x10) + 0x20, 1f, 1f, 0, 0);
+                uint mipMapCount = (uint)Math.Log2(Math.Max(dds.Height, dds.Width));
+
+                if (dds.MipMapOffset != 0)
+                {
+                    int textureSize = dds.MipMapOffset - 0x80;
+                    byte[] data = new byte[textureSize];
+                    Array.Copy(dds.Data, 0x80, data, 0, textureSize);
+                    var tex = new DldTexture((uint)DldTextureType.MAIN, objectId, 0, (uint)textureSize, 1, entry, data);
+
+                    int mipsSize = dds.Data.Length - dds.MipMapOffset;
+                    byte[] mipsData = new byte[mipsSize];
+                    Array.Copy(dds.Data, dds.MipMapOffset, mipsData, 0, mipsSize);
+                    var texMips = new DldTexture((uint)DldTextureType.MIPS, objectId, (uint)textureSize, (uint)mipsSize, 0xE, entry, mipsData);
+                    cache.Textures.Add(tex);
+                    cacheMips.Textures.Add(texMips);
+                }
+                else
+                {
+                    int textureSize = dds.Data.Length - 0x80;
+                    byte[] data = new byte[textureSize];
+                    Array.Copy(dds.Data, 0x80, data, 0, textureSize);
+                    var tex = new DldTexture((uint)DldTextureType.MIPS, objectId, 0, (uint)textureSize, 0xF, entry, data);
+
+                    index1.Flag = 0xF0;
+
+                    cacheMips.Textures.Add(tex);
+                }
+
+                txn.Images.Add(index1);
+                txn.ImageInfo.Add(index2);
+
+                entry++;
+            }
+
+            txn.Header.IndexOffset = 0x20;
+            txn.Header.IndexOffset2 = (uint)(0x20 + (txn.Images.Count * 0x10));
+            txn.Header.TextureCount = (uint)(txn.Images.Count);
+            txn.Header.TextureCount2 = (uint)(txn.ImageInfo.Count);
+            txn.Header.Flags = 0x120;
+
+            string txnName = DictionaryFile.Lookup.ContainsKey(objectId) ? DictionaryFile.GetHashString(objectId) : objectId.ToString("X4").ToLower();
+            txn.Save(txnFile);
+
+            cache.Save(cache.Filename);
+            cacheMips.Save(cacheMips.Filename);
         }
 
         public static void FaceBitCalculation(int extraBit, ref int fa, ref int fb, ref int fc, ref int fd)

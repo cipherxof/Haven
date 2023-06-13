@@ -34,6 +34,7 @@ namespace Haven
         public ContextMenuStrip ContextMenuFiles = new ContextMenuStrip();
         public ToolStripMenuItem MenuItemFilesOpen = new ToolStripMenuItem();
         public ToolStripMenuItem MenuItemFilesEdit = new ToolStripMenuItem();
+        public ToolStripMenuItem MenuItemFilesRebuild = new ToolStripMenuItem();
 
         public ContextMenuStrip ContextMenuGeomProp = new ContextMenuStrip();
         public ToolStripMenuItem MenuItemGeomPropEdit = new ToolStripMenuItem();
@@ -90,6 +91,9 @@ namespace Haven
 
             MenuItemFilesOpen.Text = "Open in Explorer";
             menuItems.Add(MenuItemFilesOpen);
+
+            MenuItemFilesRebuild.Text = "Repack Textures";
+            menuItems.Add(MenuItemFilesRebuild);
 
             ContextMenuFiles.ItemClicked += ContextMenuFiles_ItemClicked;
             ContextMenuFiles.Items.AddRange(menuItems.ToArray());
@@ -216,6 +220,37 @@ namespace Haven
                     default:
                         MessageBox.Show("Unsupported file type", "Information", MessageBoxButtons.OK, MessageBoxIcon.Information);
                         break;
+                }
+            }
+            else if (e.ClickedItem == MenuItemFilesRebuild)
+            {
+                using (var fbd = new FolderBrowserDialog())
+                {
+                    DldFile? cache = null;
+                    DldFile? cacheMips = null;
+
+                    using (var dldSelector = new DldSelector(CurrentStage))
+                    {
+                        dldSelector.ShowDialog();
+
+                        if (dldSelector.FilenameMain == "" || dldSelector.FilenameMips == "")
+                        {
+                            MessageBox.Show("You must select a DLZ.", "Information", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                            return;
+                        }
+
+                        cache = new DldFile($"stage\\_dlz\\{dldSelector.FilenameMain.Replace(".dlz", ".dld")}");
+                        cacheMips = new DldFile($"stage\\_dlz\\{dldSelector.FilenameMips.Replace(".dlz", ".dld")}");
+                    }
+
+                    DialogResult result = fbd.ShowDialog();
+
+                    if (result != DialogResult.OK || string.IsNullOrWhiteSpace(fbd.SelectedPath))
+                    {
+                        return;
+                    }
+
+                    Utils.RebuildTXN(fbd.SelectedPath, cache, cacheMips, stageFile.GetLocalPath());
                 }
             }
         }
@@ -1048,6 +1083,8 @@ namespace Haven
                     MenuItemFilesEdit.Enabled = canEdit.Contains(Path.GetExtension(filename));
 
                     ContextMenuFiles.Show(treeViewFiles, e.Location);
+
+                    MenuItemFilesRebuild.Visible = filename.Contains(".txn");
                 }
             }
         }
@@ -1144,34 +1181,6 @@ namespace Haven
             catch (Exception exception)
             {
                 // leaks if failed
-                MessageBox.Show(exception.Message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
-            }
-        }
-
-        private void generateTexturesToolStripMenuItem_Click(object sender, EventArgs e)
-        {
-            try
-            {
-                if (CurrentStage == null)
-                {
-                    MessageBox.Show("You must open a stage first.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                    return;
-                }
-
-                using (var fbd = new FolderBrowserDialog())
-                {
-                    DialogResult result = fbd.ShowDialog();
-
-                    if (result != DialogResult.OK || string.IsNullOrWhiteSpace(fbd.SelectedPath))
-                    {
-                        return;
-                    }
-
-                    Utils.BuildStageTextures(fbd.SelectedPath, "stage\\_dlz", "stage\\_cache.qar\\Qar");
-                }
-            }
-            catch (Exception exception)
-            {
                 MessageBox.Show(exception.Message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
