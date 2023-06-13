@@ -68,7 +68,7 @@ namespace Haven
                 data = data.Skip(0x80).ToArray();
             }
 
-            DldTexture texture = new DldTexture((uint)nupType.Value, (uint)nupHash.Value, 0, (uint)data.Length, (uint)nupMips.Value, (uint)nupEntry.Value, data);
+            DldTexture texture = new DldTexture(2, (DldPriority)nupType.Value, (uint)nupHash.Value, 0, (uint)data.Length, (uint)nupMips.Value, (uint)nupEntry.Value, data);
             DldFile.Textures.Add(texture);
             Close();
         }

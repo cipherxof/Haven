@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Serilog.Parsing;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
@@ -7,15 +8,18 @@ using System.Threading.Tasks;
 
 namespace Haven.Parser
 {
-    public enum DldTextureType
+    public enum DldPriority
     {
-        MAIN = 0x02001000,
-        MIPS = 0x02031000,
+        Main = 0,
+        Mipmaps = 3,
     }
 
     public class DldTexture
     {
-        public uint Type;
+        public byte Type;
+        public byte Priority;
+        public byte Alignment;
+        public byte Pad;
         public uint NullBytes;
         public uint HashId;
         public uint ParentDataSize;
@@ -25,9 +29,12 @@ namespace Haven.Parser
         public uint Padding;
         public byte[] Data = new byte[0];
 
-        public DldTexture(uint type, uint hashId, uint parentDataSize, uint dataSize, uint mipmapCount, uint entryNumber, byte[] data)
+        public DldTexture(byte type, DldPriority prio, uint hashId, uint parentDataSize, uint dataSize, uint mipmapCount, uint entryNumber, byte[] data)
         {
             Type = type;
+            Priority = (byte)prio;
+            Alignment = 0x10;
+            Pad = 0;
             NullBytes = 0;
             HashId = hashId;
             ParentDataSize = parentDataSize;
@@ -40,7 +47,10 @@ namespace Haven.Parser
 
         public DldTexture(BinaryReader reader)
         {
-            Type = reader.ReadUInt32();
+            Type = reader.ReadByte();
+            Priority = reader.ReadByte();
+            Alignment = reader.ReadByte();
+            Pad = reader.ReadByte();
             NullBytes = reader.ReadUInt32();
             HashId = reader.ReadUInt32();
             ParentDataSize = reader.ReadUInt32();
@@ -65,6 +75,9 @@ namespace Haven.Parser
         public void WriteTo(BinaryWriter writer)
         {
             writer.Write(Type);
+            writer.Write(Priority);
+            writer.Write(Alignment);
+            writer.Write(Pad);
             writer.Write(NullBytes);
             writer.Write(HashId);
             writer.Write(ParentDataSize);
@@ -128,13 +141,13 @@ namespace Haven.Parser
             }
         }
 
-        public DldTexture? FindTexture(uint objectId, int index, DldTextureType type)
+        public DldTexture? FindTexture(uint objectId, int index, DldPriority prio)
         {
             for (int i = 0; i < Textures.Count; i++)
             {
                 var texture = Textures[i];
 
-                if (texture.HashId == objectId && texture.EntryNumber == index && texture.Type == (int)type)
+                if (texture.HashId == objectId && texture.EntryNumber == index && texture.Priority == (byte)prio)
                 {
                     return texture;
                 }

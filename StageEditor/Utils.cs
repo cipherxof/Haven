@@ -218,12 +218,12 @@ namespace Haven
                     int textureSize = dds.MipMapOffset - 0x80;
                     byte[] data = new byte[textureSize];
                     Array.Copy(dds.Data, 0x80, data, 0, textureSize);
-                    var tex = new DldTexture((uint)DldTextureType.MAIN, objectId, 0, (uint)textureSize, 1, entry, data);
+                    var tex = new DldTexture(2, DldPriority.Main, objectId, 0, (uint)textureSize, 1, entry, data);
 
                     int mipsSize = dds.Data.Length - dds.MipMapOffset;
                     byte[] mipsData = new byte[mipsSize];
                     Array.Copy(dds.Data, dds.MipMapOffset, mipsData, 0, mipsSize);
-                    var texMips = new DldTexture((uint)DldTextureType.MIPS, objectId, (uint)textureSize, (uint)mipsSize, 0xE, entry, mipsData);
+                    var texMips = new DldTexture(2, DldPriority.Mipmaps, objectId, (uint)textureSize, (uint)mipsSize, 0xE, entry, mipsData);
                     cache.Textures.Add(tex);
                     cacheMips.Textures.Add(texMips);
                 }
@@ -232,7 +232,7 @@ namespace Haven
                     int textureSize = dds.Data.Length - 0x80;
                     byte[] data = new byte[textureSize];
                     Array.Copy(dds.Data, 0x80, data, 0, textureSize);
-                    var tex = new DldTexture((uint)DldTextureType.MIPS, objectId, 0, (uint)textureSize, 0xF, entry, data);
+                    var tex = new DldTexture(2, DldPriority.Mipmaps, objectId, 0, (uint)textureSize, 0xF, entry, data);
 
                     index1.Flag = 0xF0;
 

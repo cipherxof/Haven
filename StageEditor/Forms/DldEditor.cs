@@ -49,7 +49,7 @@ namespace Haven
                     continue;
 
                 row.Cells["ColumnIndex"].Value = i.ToString();
-                row.Cells["ColumnType"].Value = texture.Type.ToString("X4");
+                row.Cells["ColumnType"].Value = texture.Priority.ToString("X4");
                 row.Cells["ColumnHash"].Value = DictionaryFile.GetHashString(texture.HashId);
                 row.Cells["ColumnHash"].ToolTipText = texture.HashId.ToString("X4");
                 row.Cells["ColumnSize"].Value = texture.DataSize;

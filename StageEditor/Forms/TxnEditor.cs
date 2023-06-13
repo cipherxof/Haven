@@ -186,11 +186,11 @@ namespace Haven
                 }
 
                 var objectId = index2List[0].TriId;
-                var texture = CurrentDld.FindTexture(objectId, txnIndexUpdated, DldTextureType.MAIN);
+                var texture = CurrentDld.FindTexture(objectId, txnIndexUpdated, DldPriority.Main);
 
                 if (texture == null)
                 {
-                    texture = CurrentDld.FindTexture(objectId, txnIndexUpdated, DldTextureType.MIPS);
+                    texture = CurrentDld.FindTexture(objectId, txnIndexUpdated, DldPriority.Mipmaps);
                     if (texture == null)
                     {
                         MessageBox.Show($"Unable to locate this texture in {comboBoxDlz.Text}.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
@@ -207,7 +207,7 @@ namespace Haven
 
                     if (saveFileDialog1.ShowDialog() == DialogResult.OK)
                     {
-                        Txn.CreateDdsFromIndex(saveFileDialog1.FileName, txnIndex, texture, CurrentDld2?.FindTexture(objectId, txnIndexUpdated, DldTextureType.MIPS));
+                        Txn.CreateDdsFromIndex(saveFileDialog1.FileName, txnIndex, texture, CurrentDld2?.FindTexture(objectId, txnIndexUpdated, DldPriority.Mipmaps));
                     }
                 }
             }
@@ -258,8 +258,8 @@ namespace Haven
                 var objectId = Txn.ImageInfo[txnIndex].TriId;
                 var updatedIndex = GetIndexDldEntry(txnIndex);
 
-                var texture = dld.FindTexture(objectId, updatedIndex, DldTextureType.MAIN);
-                var textureMips = dld.FindTexture(objectId, updatedIndex, DldTextureType.MIPS);
+                var texture = dld.FindTexture(objectId, updatedIndex, DldPriority.Main);
+                var textureMips = dld.FindTexture(objectId, updatedIndex, DldPriority.Mipmaps);
 
                 if (texture != null)
                 {
@@ -304,24 +304,27 @@ namespace Haven
                             var dld = TextureData[i];
 
                             if (texture == null)
-                                texture = dld.FindTexture(objectId, txnIndexUpdated, DldTextureType.MAIN);
+                                texture = dld.FindTexture(objectId, txnIndexUpdated, DldPriority.Main);
 
                             if (textureMips == null)
-                                textureMips = dld.FindTexture(objectId, txnIndexUpdated, DldTextureType.MIPS);
+                                textureMips = dld.FindTexture(objectId, txnIndexUpdated, DldPriority.Mipmaps);
                         }
 
                         string filename = DictionaryFile.GetHashString(Txn.ImageInfo[txnIndex].TexId);
                         string fullDir = $"{dir}\\{System.IO.Path.GetFileNameWithoutExtension(Txn.Path)}";
 
-                        if (!Directory.Exists(fullDir)) 
+                        if (!Directory.Exists(fullDir))
                             Directory.CreateDirectory(fullDir);
+
+                        var txnInfo = Txn.GetIndex2List(txnIndex);
+                        var hasMips = txnInfo[0].Flag != 0xF0;
 
                         if (texture == null && textureMips != null)
                         {
                             Txn.CreateDdsFromIndex($"{fullDir}\\{filename}.dds", txnIndex, textureMips, null);
                             continue;
                         }
-                        
+
                         Txn.CreateDdsFromIndex($"{fullDir}\\{filename}.dds", txnIndex, texture, textureMips);
                     }
                 }
@@ -377,7 +380,7 @@ namespace Haven
 
                 if (!deleted[0])
                 {
-                    var texture = dld.FindTexture(objectId, updatedIndex, DldTextureType.MAIN);
+                    var texture = dld.FindTexture(objectId, updatedIndex, DldPriority.Main);
 
                     if (texture != null)
                     {
@@ -391,7 +394,7 @@ namespace Haven
 
                 if (!deleted[1])
                 {
-                    var textureMips = dld.FindTexture(objectId, updatedIndex, DldTextureType.MIPS);
+                    var textureMips = dld.FindTexture(objectId, updatedIndex, DldPriority.Mipmaps);
 
                     if (textureMips != null)
                     {
