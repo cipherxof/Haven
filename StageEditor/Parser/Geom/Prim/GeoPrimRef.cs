@@ -18,12 +18,12 @@ namespace Haven.Parser.Geom.Prim
         public float PosY;
         public float PosZ;
         public uint RootID;
-        public byte[] Matrix = new byte[0x40];
+        public OpenTK.Matrix4 Matrix;
         public ulong Attribute;
         public int BlockOffset;
         public uint Hash;
 
-        public GeoPrimRef(BinaryReader reader)
+        public GeoPrimRef(BinaryReaderEx reader)
         {
             SizeX = reader.ReadSingle();
             SizeY = reader.ReadSingle();
@@ -34,13 +34,13 @@ namespace Haven.Parser.Geom.Prim
             PosY = reader.ReadSingle();
             PosZ = reader.ReadSingle();
             RootID = reader.ReadUInt32();
-            Matrix = reader.ReadBytes(0x40);
+            Matrix = reader.ReadMatrix4();
             Attribute = reader.ReadUInt64();
             BlockOffset = reader.ReadInt32();
             Hash = reader.ReadUInt32();
         }
 
-        public void WriteTo(BinaryWriter writer)
+        public void WriteTo(BinaryWriterEx writer)
         {
             writer.Write(SizeX);
             writer.Write(SizeY);

@@ -75,6 +75,14 @@ public class BinaryWriterEx : BinaryWriter
         Write(value.W);
     }
 
+    public void Write(Matrix4 value)
+    {
+        Write(value.Row0);
+        Write(value.Row1);
+        Write(value.Row2);
+        Write(value.Row3);
+    }
+
     public void Align(int size)
     {
         int skip = (size - ((int)BaseStream.Position % size));

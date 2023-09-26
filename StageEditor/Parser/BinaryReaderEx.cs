@@ -87,6 +87,16 @@ public class BinaryReaderEx : BinaryReader
         return result;
     }
 
+    public OpenTK.Matrix4 ReadMatrix4()
+    {
+        OpenTK.Matrix4 result = new OpenTK.Matrix4();
+        result.Row0 = ReadVector4();
+        result.Row1 = ReadVector4();
+        result.Row2 = ReadVector4();
+        result.Row3 = ReadVector4();
+        return result;
+    }
+
     public void SeekPadding(int pad)
     {
         int offset = (pad - ((int)BaseStream.Position % pad));

@@ -39,7 +39,7 @@ namespace Haven.Parser.Geom
         public GeoPrimPoly[]? Poly;
         public GeoPrimRef[]? Ref;
 
-        public Geom(BinaryReader reader)
+        public Geom(BinaryReaderEx reader)
         {
             var pos = reader.BaseStream.Position;
 
@@ -153,7 +153,7 @@ namespace Haven.Parser.Geom
             return Primitive.GEO_UNKNOWN;
         }
 
-        public void WriteTo(BinaryWriter writer)
+        public void WriteTo(BinaryWriterEx writer)
         {
             writer.Write(Length);
             writer.Write(Type);
