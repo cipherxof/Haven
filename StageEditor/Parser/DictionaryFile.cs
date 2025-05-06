@@ -11,11 +11,11 @@ namespace Haven.Parser
 {
     public static class DictionaryFile
     {
-        public static readonly Dictionary<uint, string> ManualLookup = new();
+        public static readonly Dictionary<uint, string> Alias = new();
         public static readonly Dictionary<uint, string> Lookup = new();
         public static int dictionaryUsed;
 
-        public static bool Load(string dictionaryFilename, string manualFilename = "bin/manual-strings.txt")
+        public static bool Load(string dictionaryFilename, string aliasFilename = "bin/dictionary-aliases.txt")
         {
             try
             {
@@ -33,17 +33,17 @@ namespace Haven.Parser
                     }
                 }
 
-                if (File.Exists(manualFilename))
+                if (File.Exists(aliasFilename))
                 {
-                    var manualLines = File.ReadAllLines(manualFilename);
-                    foreach (var line in manualLines)
+                    var aliasLines = File.ReadAllLines(aliasFilename);
+                    foreach (var line in aliasLines)
                     {
                         var parts = line.Split(':');
                         if (parts.Length != 2) continue;
 
                         if (uint.TryParse(parts[0], System.Globalization.NumberStyles.HexNumber, null, out uint hash))
                         {
-                            ManualLookup[hash] = parts[1].Trim();
+                            Alias[hash] = parts[1].Trim();
                         }
                     }
                 }
@@ -52,7 +52,7 @@ namespace Haven.Parser
             }
             catch (Exception e)
             {
-                Log.Error("Failed to parse dictionary or manual file: {Message}", e.Message);
+                Log.Error("Failed to parse dictionary or alias file: {Message}", e.Message);
                 return false;
             }
         }
@@ -64,7 +64,7 @@ namespace Haven.Parser
                 dictionaryUsed = 1;
                 return dictionaryValue;
             }
-            if (ManualLookup.TryGetValue(hash, out var manualValue))
+            if (Alias.TryGetValue(hash, out var manualValue))
             {
                 dictionaryUsed = 2;
                 return manualValue;

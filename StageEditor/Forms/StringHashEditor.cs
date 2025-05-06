@@ -33,7 +33,7 @@ namespace Haven
                 string prefix = DictionaryFile.dictionaryUsed switch
                 {
                     1 => "[D] ",
-                    2 => "[M] ",
+                    2 => "[A] ",
                     _ => ""
                 };
                 tbStringHashResult.Text = prefix + result;
