@@ -64,10 +64,10 @@ namespace Haven.Parser
                 dictionaryUsed = 1;
                 return dictionaryValue;
             }
-            if (Alias.TryGetValue(hash, out var manualValue))
+            if (Alias.TryGetValue(hash, out var aliasValue))
             {
                 dictionaryUsed = 2;
-                return manualValue;
+                return aliasValue;
             }
 
             return hash.ToString("X4");
