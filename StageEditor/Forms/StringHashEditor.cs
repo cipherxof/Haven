@@ -25,12 +25,20 @@ namespace Haven
                 MessageBox.Show("Please enter a hash.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 return;
             }
+
             try
             {
                 uint hash = Convert.ToUInt32(tbStringHashLookup.Text.Replace("0x", "").Replace(" ", ""), 16);
-                tbStringHashResult.Text = DictionaryFile.GetHashString(hash);
+                string result = DictionaryFile.GetHashString(hash);
+                string prefix = DictionaryFile.dictionaryUsed switch
+                {
+                    1 => "[D] ",
+                    2 => "[M] ",
+                    _ => ""
+                };
+                tbStringHashResult.Text = prefix + result;
             }
-            catch(Exception exception)
+            catch (Exception exception)
             {
                 MessageBox.Show(exception.Message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
@@ -43,7 +51,6 @@ namespace Haven
                 MessageBox.Show("Please enter a string.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 return;
             }
-
             tbStringHashResult.Text = Utils.HashString(tbStringHash.Text).ToString("X4");
         }
     }
