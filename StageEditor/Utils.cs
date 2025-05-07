@@ -47,16 +47,6 @@ namespace Haven
 
         public static uint HashString(string str)
         {
-
-            foreach (var kvp in Haven.Parser.DictionaryFile.Alias)
-            {
-                if (string.Equals(kvp.Value, str, StringComparison.OrdinalIgnoreCase))
-                {
-                    return kvp.Key;
-                }
-            }
-
-            // fallback hash
             uint id = 0;
             uint mask = 0x00FFFFFF;
 

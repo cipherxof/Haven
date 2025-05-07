@@ -60,11 +60,13 @@ namespace Haven.Parser
         {
             if (Lookup.TryGetValue(hash, out var dictionaryValue))
             {
+
                 return dictionaryValue;
             }
+
             if (Alias.TryGetValue(hash, out var aliasValue))
             {
-                return aliasValue;
+                return $"{aliasValue} (A)";
             }
 
             return hash.ToString("X4");

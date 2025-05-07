@@ -43,7 +43,20 @@ namespace Haven
                 MessageBox.Show("Please enter a string.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 return;
             }
-            tbStringHashResult.Text = Utils.HashString(tbStringHash.Text).ToString("X4");
+
+            uint hash = Utils.HashString(tbStringHash.Text);
+            string result = hash.ToString("X4");
+
+            foreach (var kvp in DictionaryFile.Alias)
+            {
+                if (string.Equals(kvp.Value, tbStringHash.Text, StringComparison.OrdinalIgnoreCase))
+                {
+                    result += $" ({kvp.Key:X4})";
+                    break;
+                }
+            }
+
+            tbStringHashResult.Text = result;
         }
     }
 }
