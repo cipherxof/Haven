@@ -13,9 +13,8 @@ namespace Haven.Parser
     {
         public static readonly Dictionary<uint, string> Alias = new();
         public static readonly Dictionary<uint, string> Lookup = new();
-        public static int dictionaryUsed;
 
-        public static bool Load(string dictionaryFilename, string aliasFilename = "bin/dictionary-aliases.txt")
+        public static bool Load(string dictionaryFilename, string aliasFilename)
         {
             try
             {
@@ -61,12 +60,10 @@ namespace Haven.Parser
         {
             if (Lookup.TryGetValue(hash, out var dictionaryValue))
             {
-                dictionaryUsed = 1;
                 return dictionaryValue;
             }
             if (Alias.TryGetValue(hash, out var aliasValue))
             {
-                dictionaryUsed = 2;
                 return aliasValue;
             }
 

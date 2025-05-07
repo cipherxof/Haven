@@ -25,20 +25,12 @@ namespace Haven
                 MessageBox.Show("Please enter a hash.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 return;
             }
-
             try
             {
                 uint hash = Convert.ToUInt32(tbStringHashLookup.Text.Replace("0x", "").Replace(" ", ""), 16);
-                string result = DictionaryFile.GetHashString(hash);
-                string prefix = DictionaryFile.dictionaryUsed switch
-                {
-                    1 => "[D] ",
-                    2 => "[A] ",
-                    _ => ""
-                };
-                tbStringHashResult.Text = prefix + result;
+                tbStringHashResult.Text = DictionaryFile.GetHashString(hash);
             }
-            catch (Exception exception)
+            catch(Exception exception)
             {
                 MessageBox.Show(exception.Message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
