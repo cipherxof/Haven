@@ -74,7 +74,7 @@ namespace Haven
         {
             tabPageGeom.Show();
             SetEnabled(false);
-            DictionaryFile.Load("bin/dictionary.txt");
+            DictionaryFile.Load("bin/dictionary.txt", "bin/dictionary-aliases.txt");
             ZLibInit.GlobalInit(Path.GetFullPath("zlibwapi.dll"));
             SetupContextMenus();
 
