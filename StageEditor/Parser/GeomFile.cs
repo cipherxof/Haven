@@ -688,6 +688,25 @@ namespace Haven.Parser
             geomFile.BlockVertexData.ToList().ForEach(x => BlockVertexData.Add(x.Key, x.Value));
         }
 
+        public void CopySingleRef(GeomFile geomFile, int hash)
+        {
+            var geoRef = geomFile.GeomRefs.Find(r => r.Hash == hash);
+
+            if (geoRef == null)
+                return;
+
+            var geoRefBlock = geomFile.GeomRefBlocks[geoRef];
+
+            GeomRefs.Add(geoRef);
+            GeomRefBlocks[geoRef] = geoRefBlock;
+            foreach (var block in geoRefBlock)
+            {
+                GeomRefBlockMaterial[block] = geomFile.GeomRefBlockMaterial[block];
+                BlockFaceData[block] = geomFile.BlockFaceData[block];
+                BlockVertexData[block] = geomFile.BlockVertexData[block];
+            }
+        }
+
         public void MergeExistingProps(GeomFile geomFile)
         {
             foreach (var prop in geomFile.GeomProps)

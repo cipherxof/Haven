@@ -1161,6 +1161,7 @@ namespace Haven
             {
                 var baseGeom = new GeomFile(baseFilePath);
                 var mergeGeom = new GeomFile(mergeFilePath);
+                //baseGeom.CopySingleRef(mergeGeom, 0x874c5);
                 baseGeom.MergeReferences(mergeGeom);
                 mergeGeom.CloseStream();
 
