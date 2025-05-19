@@ -1,5 +1,7 @@
-﻿using OpenTK;
+﻿using Haven.Render._3D;
+using OpenTK;
 using OpenTK.Graphics.OpenGL;
+using Serilog;
 
 namespace Haven.Render
 {
@@ -10,94 +12,33 @@ namespace Haven.Render
     /// </summary>
     public class Mesh : Drawable3D
     {
-        /// <summary>
-        /// Internal ID counter for meshes
-        /// </summary>
         private static int idGen = -1;
-
-        /// <summary>
-        /// Used to lookup meshes by their ID
-        /// </summary>
         private static Dictionary<string, Mesh> IDLookup = new Dictionary<string, Mesh>();
-
-        /// <summary>
-        /// 
-        /// </summary>
         public static List<Mesh> MeshList = new List<Mesh>();
 
-        /// <summary>
-        /// Has the mesh been initialized yet.
-        /// </summary>
         private bool Initialized = false;
-
-        /// <summary>
-        /// The vertices of this mesh
-        /// </summary>
         private Vector3d[] vertices;
-
-        /// <summary>
-        /// The normals of this mesh
-        /// </summary>
         private Vector3d[] normals;
-
-        /// <summary>
-        /// Gets the array of vertices of this mesh
-        /// </summary>
-        public Vector3d[] Vertices 
-        {
-            get { return this.vertices; }
-        }
-
-        /// <summary>
-        /// The color array of this mesh
-        /// </summary>
         public uint[] colors;
-
-        /// <summary>
-        /// Gets the array of colors of this mesh
-        /// </summary>
-        public uint[] Colors
-        {
-            get { return this.colors; }
-        }
-
-        /// <summary>
-        /// 
-        /// </summary>
-        public Color ColorStatic;
-
-        /// <summary>
-        /// 
-        /// </summary>
+        public bool UseVertexColor = false;
+        public Color? ColorStatic = null;
         public Color ColorCurrent;
-
-        /// <summary>
-        /// Gets the value indicating whether this mesh has vertex colors
-        /// </summary>
         public bool HasColor { get; private set; }
-
-        /// <summary>
-        /// The triangle indices of this mesh
-        /// </summary>
         private int[] triangleIndices;
 
-        /// <summary>
-        /// Gets the array of triangle indices of this mesh
-        /// </summary>
-        public int[] TriangleIndices 
-        {
-            get { return this.triangleIndices; }
-        }
+        public int VAO;
+        private int VBO_vertices;
+        private int VBO_normals;
+        private int VBO_colors;
+        private int EBO;
+        private int numElements;
 
-        /// <summary>
-        /// The OpenGL handles
-        /// </summary>
-        private Vbo handle;
-
-        /// <summary>
-        /// The internal ID.
-        /// </summary>
         private string id;
+
+        public Vector3d[] Vertices { get { return this.vertices; } }
+        public uint[] Colors { get { return this.colors; } }
+        public int[] TriangleIndices { get { return this.triangleIndices; } }
+        public Vector3d[] Normals => normals;
 
         /// <summary>
         /// An arbitrary ID string associated with this mesh
@@ -149,7 +90,6 @@ namespace Haven.Render
             Vector3d[] result = new Vector3d[this.vertices.Length];
             Matrix4d transform = Transform.Value;
 
-            // Transform all vertices in parallel
             Parallel.For(0, this.vertices.Length, i =>
             {
                 result[i] = Vector3d.Transform(this.vertices[i], transform);
@@ -172,40 +112,52 @@ namespace Haven.Render
             this.triangleIndices = triangleIndices;
             this.Triangles = new TriangleCollection(vertices, triangleIndices);
             this.normals = new Vector3d[vertices.Length];
+            this.numElements = triangleIndices.Length;
 
-            for (int i = 0; i < Triangles.Indices.Length; i += 3) // todo: use precalculated normals
+            for (int i = 0; i < vertices.Length; i++)
+                normals[i] = Vector3d.Zero;
+
+            for (int i = 0; i < triangleIndices.Length; i += 3)
             {
-                var a = Triangles.Indices[i];
-                var b = Triangles.Indices[i + 1];
-                var c = Triangles.Indices[i + 2];
-                Vector3d normal = new Vector3d(0, 0, 0);
+                var a = triangleIndices[i];
+                var b = triangleIndices[i + 1];
+                var c = triangleIndices[i + 2];
 
                 if (a < vertices.Length && b < vertices.Length && c < vertices.Length)
                 {
-                    var e1 = Vertices[b] - Vertices[a];
-                    var e2 = Vertices[c] - Vertices[a];
+                    var e1 = vertices[b] - vertices[a];
+                    var e2 = vertices[c] - vertices[a];
+                    var normal = Vector3d.Cross(e1, e2).Normalized();
 
-                    normal = Vector3d.Cross(e1, e2).Normalized();
-
-                    normals[a] = normal;
-                    normals[b] = normal;
-                    normals[c] = normal;
+                    if (normal.LengthSquared > 1e-10)
+                    {
+                        normal.Normalize();
+                        normals[a] += normal;
+                        normals[b] += normal;
+                        normals[c] += normal;
+                    }
                 }
             }
 
-            if (colors != null) 
+            for (int i = 0; i < normals.Length; i++)
+            {
+                if (normals[i].LengthSquared > 1e-10)
+                    normals[i] = normals[i].Normalized();
+                else
+                    normals[i] = new Vector3d(0, 1, 0);
+            }
+
+            if (colors != null)
             {
                 this.colors = colors;
                 this.HasColor = true;
-                ColorStatic = Color.Gray;
             }
-                
-            else // If no color array is specified, fill it with gray!
+            else
             {
                 this.HasColor = false;
                 this.colors = new uint[vertices.Length];
                 Color color = Color.Gray;
-                uint colorCode = (uint)color.A << 24 | (uint)color.B << 16 | (uint)color.G << 8 | (uint)color.R;                
+                uint colorCode = (uint)color.A << 24 | (uint)color.B << 16 | (uint)color.G << 8 | (uint)color.R;
 
                 for (int i = 0; i < this.colors.Length; i++)
                     this.colors[i] = colorCode;
@@ -214,10 +166,9 @@ namespace Haven.Render
             }
 
             CalculateCenter();
-
             this.Attachments = new Drawable3DCollection(this);
             ComputeAABB();
-            
+
             Mesh.idGen++;
             this.ID = "Mesh-" + idGen.ToString();
         }
@@ -251,38 +202,53 @@ namespace Haven.Render
             if (Initialized)
                 return;
 
-            this.handle = new Vbo();
-            int size;
+            GL.GenVertexArrays(1, out VAO);
+            GL.BindVertexArray(VAO);
 
-            GL.GenBuffers(1, out handle.vertexId);
-            GL.BindBuffer(BufferTarget.ArrayBuffer, handle.vertexId);
-            GL.BufferData(BufferTarget.ArrayBuffer, (IntPtr)(vertices.Length * BlittableValueType.StrideOf(vertices)), vertices, BufferUsageHint.StaticDraw);
-            GL.GetBufferParameter(BufferTarget.ArrayBuffer, BufferParameterName.BufferSize, out size);
-
-            GL.GenBuffers(1, out handle.normalId);
-            GL.BindBuffer(BufferTarget.ArrayBuffer, handle.normalId);
-            GL.BufferData(BufferTarget.ArrayBuffer, (IntPtr)(normals.Length * BlittableValueType.StrideOf(normals)), normals, BufferUsageHint.StaticDraw);
-            GL.GetBufferParameter(BufferTarget.ArrayBuffer, BufferParameterName.BufferSize, out size);
-
-            if (this.colors != null)
+            float[] vertexData = new float[vertices.Length * 3];
+            for (int i = 0; i < vertices.Length; i++)
             {
-                GL.GenBuffers(1, out handle.colorId);
-                GL.BindBuffer(BufferTarget.ArrayBuffer, handle.colorId);
-                GL.BufferData(BufferTarget.ArrayBuffer, (IntPtr)(colors.Length * BlittableValueType.StrideOf(colors)), colors, BufferUsageHint.StaticDraw);
-                GL.GetBufferParameter(BufferTarget.ArrayBuffer, BufferParameterName.BufferSize, out size);
+                vertexData[i * 3] = (float)vertices[i].X;
+                vertexData[i * 3 + 1] = (float)vertices[i].Y;
+                vertexData[i * 3 + 2] = (float)vertices[i].Z;
             }
 
-            GL.GenBuffers(1, out handle.faceId);
-            GL.BindBuffer(BufferTarget.ElementArrayBuffer, handle.faceId);
-            GL.BufferData(BufferTarget.ElementArrayBuffer, (IntPtr)(triangleIndices.Length * sizeof(int)), triangleIndices,
-                          BufferUsageHint.StaticDraw);
-            GL.GetBufferParameter(BufferTarget.ElementArrayBuffer, BufferParameterName.BufferSize, out size);
-            if (triangleIndices.Length * sizeof(int) != size)
-                throw new ApplicationException("Element data not uploaded correctly");
+            float[] normalData = new float[normals.Length * 3];
+            for (int i = 0; i < normals.Length; i++)
+            {
+                normalData[i * 3] = (float)normals[i].X;
+                normalData[i * 3 + 1] = (float)normals[i].Y;
+                normalData[i * 3 + 2] = (float)normals[i].Z;
+            }
+
+            // Vertices
+            GL.GenBuffers(1, out VBO_vertices);
+            GL.BindBuffer(BufferTarget.ArrayBuffer, VBO_vertices);
+            GL.BufferData(BufferTarget.ArrayBuffer, vertexData.Length * sizeof(float), vertexData, BufferUsageHint.StaticDraw);
+            GL.VertexAttribPointer(0, 3, VertexAttribPointerType.Float, false, 3 * sizeof(float), 0);
+            GL.EnableVertexAttribArray(0);
+
+            // Normals
+            GL.GenBuffers(1, out VBO_normals);
+            GL.BindBuffer(BufferTarget.ArrayBuffer, VBO_normals);
+            GL.BufferData(BufferTarget.ArrayBuffer, normalData.Length * sizeof(float), normalData, BufferUsageHint.StaticDraw);
+            GL.VertexAttribPointer(1, 3, VertexAttribPointerType.Float, false, 3 * sizeof(float), 0);
+            GL.EnableVertexAttribArray(1);
+
+            // Colors
+            GL.GenBuffers(1, out VBO_colors);
+            GL.BindBuffer(BufferTarget.ArrayBuffer, VBO_colors);
+            GL.BufferData(BufferTarget.ArrayBuffer, colors.Length * sizeof(uint), colors, BufferUsageHint.StaticDraw);
+            GL.VertexAttribPointer(2, 4, VertexAttribPointerType.UnsignedByte, true, sizeof(uint), 0);
+            GL.EnableVertexAttribArray(2);
+
+            // Element buffer
+            GL.GenBuffers(1, out EBO);
+            GL.BindBuffer(BufferTarget.ElementArrayBuffer, EBO);
+            GL.BufferData(BufferTarget.ElementArrayBuffer, triangleIndices.Length * sizeof(int), triangleIndices, BufferUsageHint.StaticDraw);
 
 
-            handle.numElements = triangleIndices.Length;
-
+            GL.BindVertexArray(0);
             Initialized = true;
         }
 
@@ -297,16 +263,11 @@ namespace Haven.Render
 
         public void UpdateColorBuffer()
         {
-            if (handle.colorId != 0)
-            {
-                GL.DeleteBuffer(handle.colorId);
-            }
+            if (!Initialized)
+                return;
 
-            int size;
-            GL.GenBuffers(1, out handle.colorId);
-            GL.BindBuffer(BufferTarget.ArrayBuffer, handle.colorId);
-            GL.BufferData(BufferTarget.ArrayBuffer, (IntPtr)(colors.Length * BlittableValueType.StrideOf(colors)), colors, BufferUsageHint.StaticDraw);
-            GL.GetBufferParameter(BufferTarget.ArrayBuffer, BufferParameterName.BufferSize, out size);
+            GL.BindBuffer(BufferTarget.ArrayBuffer, VBO_colors);
+            GL.BufferData(BufferTarget.ArrayBuffer, colors.Length * sizeof(uint), colors, BufferUsageHint.StaticDraw);
         }
 
         /// <summary>
@@ -314,19 +275,16 @@ namespace Haven.Render
         /// </summary>
         /// <param name="color"></param>
         /// <param name="updateBuffer"></param>
-        public void SetColor(Color color, bool updateBuffer = true)
+
+        public void SetColor(Color color)
         {
             uint colorCode = (uint)color.A << 24 | (uint)color.B << 16 | (uint)color.G << 8 | (uint)color.R;
 
-            for (int i = 0; i < this.colors.Length; i++)
-                this.colors[i] = colorCode;
+            for (int i = 0; i < colors.Length; i++)
+                colors[i] = colorCode;
 
-            ColorCurrent = color;
-
-            if (updateBuffer)
-            {
-                UpdateColorBuffer();
-            }
+            GL.BindBuffer(BufferTarget.ArrayBuffer, VBO_colors);
+            GL.BufferData(BufferTarget.ArrayBuffer, colors.Length * sizeof(uint), colors, BufferUsageHint.StaticDraw);
         }
 
         /// <summary>
@@ -335,9 +293,10 @@ namespace Haven.Render
         /// <param name="newColors"></param>
         public void SetColorArray(uint[] newColors)
         {
-            for (int i = 0; i < this.colors.Length; i++)
+            for (int i = 0; i < this.colors.Length && i < newColors.Length; i++)
                 this.colors[i] = newColors[i];
         }
+
 
         /// <summary>
         /// Draws the mesh using OpenGL. The method must be called in a drawing context (after setting
@@ -348,42 +307,31 @@ namespace Haven.Render
             if (!Initialized)
                 Init();
 
-            GL.EnableClientState(ArrayCap.ColorArray);
-            GL.EnableClientState(ArrayCap.VertexArray);
-            GL.EnableClientState(ArrayCap.NormalArray);
-
-            // Handle the transforms applied to this object
-            GL.PushMatrix();
-            Matrix4d transform = this.Transform.Value;
-            GL.MultMatrix(ref transform);
-
-            GL.BindBuffer(BufferTarget.ArrayBuffer, handle.vertexId);
-            GL.VertexPointer(3, VertexPointerType.Double, BlittableValueType.StrideOf(vertices), IntPtr.Zero);
-
-            GL.BindBuffer(BufferTarget.ArrayBuffer, handle.normalId);
-            GL.NormalPointer(NormalPointerType.Double, BlittableValueType.StrideOf(normals), IntPtr.Zero);
-
-            if (this.colors != null)
+            // Get the current shader from Scene and set matrices
+            var scene = Scene.CurrentScene;
+            if (scene?.meshShader != null)
             {
-                // Bind the color array
-                GL.BindBuffer(BufferTarget.ArrayBuffer, handle.colorId);
-                GL.ColorPointer(4, ColorPointerType.UnsignedByte, BlittableValueType.StrideOf(colors), IntPtr.Zero);
+                Matrix4 model = Transform.Value.ToMatrix4();
+                scene.meshShader.SetMatrix4("model", model);
+                scene.meshShader.SetInt("useVertexColor", UseVertexColor ? 1 : 0);
+
+                // Calculate normal matrix (transpose of inverse of model matrix)
+                Matrix3 normalMatrix = Matrix3.Transpose(Matrix3.Invert(new Matrix3(model)));
+                scene.meshShader.SetMatrix3("normalMatrix", normalMatrix);
             }
 
-            // Bind the elements array
-            GL.BindBuffer(BufferTarget.ElementArrayBuffer, handle.faceId);
-            GL.DrawElements(PrimitiveType.Triangles, handle.numElements, DrawElementsType.UnsignedInt, IntPtr.Zero);
-
-            GL.PopMatrix();
+            GL.BindVertexArray(VAO);
+            GL.DrawElements(PrimitiveType.Triangles, numElements, DrawElementsType.UnsignedInt, 0);
+            GL.BindVertexArray(0);
 
             foreach (var attachment in this.Attachments)
                 attachment.Draw();
 
-            if (ShowAABB || Gizmos.ShowAABB) 
-                this.AABB.Draw();
+            //if (ShowAABB || Gizmos.ShowAABB)
+            //    this.AABB.Draw();
         }
 
-       public void Delete()
+        public void Delete()
         {
             this.Visible = false;
             this.vertices = new Vector3d[0];
@@ -394,13 +342,6 @@ namespace Haven.Render
             if (this.Triangles != null)
             {
                 this.Triangles.Clear();
-            }
-
-            if (handle.colorId != 0)
-            {
-                GL.DeleteBuffer(handle.colorId);
-                GL.DeleteBuffer(handle.faceId);
-                GL.DeleteBuffer(handle.vertexId);
             }
         }
 
@@ -448,7 +389,6 @@ namespace Haven.Render
                 }
             }
 
-            // If nothing was hit
             if (triHit == null)
                 return null;
 
@@ -651,4 +591,5 @@ namespace Haven.Render
             return this.ID;
         }
     }
+
 }

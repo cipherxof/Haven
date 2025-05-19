@@ -453,6 +453,39 @@ namespace Haven.Render
 
             return new Tuple<Vector3d, Vector3d>(a, b);
         }
+
+        /// <summary>
+        /// Unprojects a screen point to world coordinates at the specified depth
+        /// </summary>
+        /// <param name="screenPoint">Screen coordinates</param>
+        /// <param name="depth">Depth value (0.0 for near plane, 1.0 for far plane)</param>
+        /// <param name="view">View matrix</param>
+        /// <param name="projection">Projection matrix</param>
+        /// <param name="viewport">Viewport [x, y, width, height]</param>
+        /// <returns>World coordinates</returns>
+        public static Vector3d Unproject(Point screenPoint, double depth, Matrix4d view, Matrix4d projection, int[] viewport)
+        {
+            double x = (2.0 * screenPoint.X) / viewport[2] - 1.0;
+            double y = 1.0 - (2.0 * screenPoint.Y) / viewport[3];
+            double z = 2.0 * depth - 1.0;
+
+            Vector4d clipCoords = new Vector4d(x, y, z, 1.0);
+
+            Matrix4d invProjection = projection.Inverted();
+            Matrix4d invView = view.Inverted();
+
+            Vector4d eyeCoords = Vector4d.Transform(clipCoords, invProjection);
+
+            Vector4d worldCoords = Vector4d.Transform(eyeCoords, invView);
+
+            if (Math.Abs(worldCoords.W) > 1e-6)
+            {
+                worldCoords /= worldCoords.W;
+            }
+
+            return new Vector3d(worldCoords.X, worldCoords.Y, worldCoords.Z);
+        }
+
     }
 }
 

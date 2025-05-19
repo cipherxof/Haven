@@ -1,13 +1,6 @@
 ﻿using Haven.Parser.Geom;
 using Haven.Parser;
 using OpenTK;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using OpenTK.Graphics.ES11;
-using Haven.Forms;
 
 namespace Haven.Render
 {
@@ -104,7 +97,6 @@ namespace Haven.Render
 
                 Mesh mesh = new Mesh(verts.ToArray(), faces.ToArray(), colors.ToArray());
                 mesh.ID = id != "" ? id : name;
-                mesh.SetColor(color, false);
                 meshes.Add(mesh);
                 verts = new List<Vector3d>();
                 faces = new List<int>();
