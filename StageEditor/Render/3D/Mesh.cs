@@ -21,6 +21,7 @@ namespace Haven.Render
         private Vector3d[] normals;
         public uint[] colors;
         public bool UseVertexColor = false;
+        public bool DragSelectable = false;
         public Color? ColorStatic = null;
         public Color ColorCurrent;
         public bool HasColor { get; private set; }
@@ -285,6 +286,14 @@ namespace Haven.Render
 
             GL.BindBuffer(BufferTarget.ArrayBuffer, VBO_colors);
             GL.BufferData(BufferTarget.ArrayBuffer, colors.Length * sizeof(uint), colors, BufferUsageHint.StaticDraw);
+        }
+
+        public void RestoreColor()
+        {
+            if (ColorStatic == null)
+                return;
+
+            SetColor((Color)ColorStatic);
         }
 
         /// <summary>

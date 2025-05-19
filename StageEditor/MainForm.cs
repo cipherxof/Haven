@@ -420,6 +420,7 @@ namespace Haven
                 mesh.UseVertexColor = true;
                 mesh.Visible = false;
                 mesh.ID = id;
+                mesh.DragSelectable = true;
                 MeshProps.Add(mesh);
                 Scene.Children.Add(mesh);
                 GeomPropMeshLookup[prop] = mesh;

@@ -28,6 +28,11 @@ namespace Haven.Render
         private int gridVAO, gridVBO;
         private int gridVertexCount;
 
+        private bool isDragging = false;
+        private bool isCtrlDragging = false;
+        private Point dragStart;
+        private Point dragEnd;
+
         public bool GridEnabled { get; set; } = true;
         public int GridRows { get; set; } = 200;
         public int GridCols { get; set; } = 200;
@@ -53,6 +58,9 @@ namespace Haven.Render
             control.MouseMove += glControl_MouseMove;
             control.KeyPress += glControl_KeyPress;
             control.MouseDoubleClick += glControl_MouseDoubleClick;
+            control.MouseDown += glControl_MouseDown;
+            control.KeyDown += glControl_KeyDown;
+            control.KeyUp += glControl_KeyUp;
 
             CurrentScene = this;
         }
@@ -108,6 +116,8 @@ namespace Haven.Render
                 if (drawable is Mesh m && m.Visible)
                     m.Draw();
 
+            DrawSelectionRect();
+
             glControl.SwapBuffers();
         }
 
@@ -144,6 +154,72 @@ namespace Haven.Render
             MeshSelected?.Invoke(mesh);
             Render();
         }
+
+        private Vector3d ProjectToScreen(Vector3d world)
+        {
+            var view = Camera.GetViewMatrix().ToMatrix4();
+            var proj = Camera.GetProjectionMatrix().ToMatrix4();
+
+            var v4 = new Vector4((float)world.X, (float)world.Y, (float)world.Z, 1f);
+            v4 = Vector4.Transform(v4, view);
+            v4 = Vector4.Transform(v4, proj);
+
+            v4 /= v4.W;
+
+            float x = (v4.X * 0.5f + 0.5f) * glControl.Width;
+            float y = (1f - (v4.Y * 0.5f + 0.5f)) * glControl.Height;
+            return new Vector3d(x, y, v4.Z);
+        }
+
+        private void SelectMeshesInRectangle(Point p1, Point p2)
+        {
+            var minX = Math.Min(p1.X, p2.X);
+            var maxX = Math.Max(p1.X, p2.X);
+            var minY = Math.Min(p1.Y, p2.Y);
+            var maxY = Math.Max(p1.Y, p2.Y);
+
+            var hits = new List<Mesh>();
+            foreach (var d in Children)
+            {
+                if (d is Mesh m && m.Visible && m.DragSelectable)
+                {
+                    var world = m.AABB.Vertices
+                               .Select(v => Vector3d.Transform(v, m.Transform.Value));
+
+                    double sxMin = double.MaxValue, sxMax = double.MinValue;
+                    double syMin = double.MaxValue, syMax = double.MinValue;
+
+                    foreach (var w in world)
+                    {
+                        var win = ProjectToScreen(w);
+                        sxMin = Math.Min(sxMin, win.X);
+                        sxMax = Math.Max(sxMax, win.X);
+                        syMin = Math.Min(syMin, win.Y);
+                        syMax = Math.Max(syMax, win.Y);
+                    }
+
+                    if (!(sxMax < minX || sxMin > maxX || syMax < minY || syMin > maxY))
+                        hits.Add(m);
+                }
+            }
+
+            if (SelectedDrawable is Mesh old) old.RestoreColor();
+
+            if (hits.Count > 0)
+            {
+                var nearest = hits.OrderBy(m =>
+                    (m.AABB.Center - Camera.Position).Length
+                ).First();
+                SelectMesh(nearest);
+            }
+            else
+            {
+                SelectedDrawable = null;
+                MeshSelected?.Invoke(null);
+                Render();
+            }
+        }
+
 
         public static Ray ScreenPointToRay(Point screenPoint)
         {
@@ -276,6 +352,58 @@ namespace Haven.Render
             GL.BindVertexArray(0);
         }
 
+        private void DrawSelectionRect()
+        {
+            if (!isDragging) return;
+
+            GL.UseProgram(0);
+
+            GL.MatrixMode(OpenTK.Graphics.OpenGL.MatrixMode.Projection);
+            GL.PushMatrix();
+            GL.LoadIdentity();
+            GL.Ortho(0, glControl.Width, glControl.Height, 0, -1, 1);
+
+            GL.MatrixMode(OpenTK.Graphics.OpenGL.MatrixMode.Modelview);
+            GL.PushMatrix();
+            GL.LoadIdentity();
+
+            GL.Disable(EnableCap.DepthTest);
+            GL.Enable(EnableCap.Blend);
+            GL.BlendFunc(BlendingFactor.SrcAlpha, BlendingFactor.OneMinusSrcAlpha);
+
+            var x1 = dragStart.X;
+            var y1 = dragStart.Y;
+            var x2 = dragEnd.X;
+            var y2 = dragEnd.Y;
+
+            // Semi-transparent green fill
+            GL.Color4(0.2f, 1f, 0.2f, 0.2f);
+            GL.Begin(PrimitiveType.Quads);
+            GL.Vertex2(x1, y1);
+            GL.Vertex2(x2, y1);
+            GL.Vertex2(x2, y2);
+            GL.Vertex2(x1, y2);
+            GL.End();
+
+            // Solid green outline
+            GL.LineWidth(1.5f);
+            GL.Color4(0.2f, 1f, 0.2f, 0.8f);
+            GL.Begin(PrimitiveType.LineLoop);
+            GL.Vertex2(x1, y1);
+            GL.Vertex2(x2, y1);
+            GL.Vertex2(x2, y2);
+            GL.Vertex2(x1, y2);
+            GL.End();
+
+            GL.PopMatrix();
+            GL.MatrixMode(OpenTK.Graphics.OpenGL.MatrixMode.Projection);
+            GL.PopMatrix();
+            GL.MatrixMode(OpenTK.Graphics.OpenGL.MatrixMode.Modelview);
+            GL.Enable(EnableCap.DepthTest);
+
+            meshShader.Use();
+        }
+
 
         private void glControl_Paint(object? sender, PaintEventArgs e)
         {
@@ -296,6 +424,13 @@ namespace Haven.Render
 
         private void glControl_MouseUp(object? sender, MouseEventArgs e)
         {
+            if (isDragging && (e.Button == MouseButtons.Right || (e.Button == MouseButtons.Left && isCtrlDragging)))
+            { 
+                isDragging = false;
+                SelectMeshesInRectangle(dragStart, dragEnd);
+                glControl.Invalidate();
+            }
+
             firstMove = true;
         }
 
@@ -318,28 +453,65 @@ namespace Haven.Render
             Render();
         }
 
-        private void glControl_MouseMove(object? sender, MouseEventArgs mouse)
+        private void glControl_MouseDown(object? sender, MouseEventArgs e)
         {
-            if (mouse.Button != MouseButtons.Left) return;
-
-            const float sensitivity = 0.2f;
-
-            if (firstMove)
+            if (e.Button == MouseButtons.Right || (e.Button == MouseButtons.Left && isCtrlDragging))
             {
-                lastPosition = new Vector2(mouse.X, mouse.Y);
-                firstMove = false;
+                isDragging = true;
+                dragStart = e.Location;
+                dragEnd = e.Location;
+                glControl.Invalidate();
+            }
+        }
+
+        private void glControl_MouseMove(object? sender, MouseEventArgs e)
+        {
+            if (e.Button == MouseButtons.Right || (e.Button == MouseButtons.Left && isCtrlDragging))
+            {
+                dragEnd = e.Location;
+                glControl.Invalidate();
+                return;
+            }
+
+            if (Control.MouseButtons.HasFlag(MouseButtons.Left))
+            {
+                const float sensitivity = 0.2f;
+                if (firstMove)
+                {
+                    lastPosition = new Vector2(e.X, e.Y);
+                    firstMove = false;
+                }
+                else
+                {
+                    var deltaX = e.X - lastPosition.X;
+                    var deltaY = e.Y - lastPosition.Y;
+                    lastPosition = new Vector2(e.X, e.Y);
+
+                    Camera.Yaw += deltaX * sensitivity;
+                    Camera.Pitch -= deltaY * sensitivity;
+                }
+
+                Render();
             }
             else
             {
-                var deltaX = mouse.X - lastPosition.X;
-                var deltaY = mouse.Y - lastPosition.Y;
-                lastPosition = new Vector2(mouse.X, mouse.Y);
-
-                Camera.Yaw += deltaX * sensitivity;
-                Camera.Pitch -= deltaY * sensitivity;
+                firstMove = true;
             }
+        }
 
-            Render();
+        private void glControl_KeyDown(object? sender, KeyEventArgs e)
+        {
+            if (e.Control)
+            {
+                isCtrlDragging = true;
+            }
+        }
+        private void glControl_KeyUp(object? sender, KeyEventArgs e)
+        {
+            if (!e.Control)
+            {
+                isCtrlDragging = false;
+            }
         }
     }
 }
