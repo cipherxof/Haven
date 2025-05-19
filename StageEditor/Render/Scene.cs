@@ -16,6 +16,7 @@ namespace Haven.Render
         public IList<Drawable3D> Children { get; set; }
         public readonly Camera Camera;
         public event Action<Mesh?> MeshSelected;
+        public event Action<List<Mesh>?> DragSelectDone;
 
         private GLControl glControl;
         private bool firstMove = true;
@@ -29,7 +30,7 @@ namespace Haven.Render
         private int gridVertexCount;
 
         private bool isDragging = false;
-        private bool isCtrlDragging = false;
+        private bool isShiftDragging = false;
         private Point dragStart;
         private Point dragEnd;
 
@@ -134,6 +135,8 @@ namespace Haven.Render
 
         public void SelectMesh(Mesh mesh)
         {
+            ResetAllColors();
+
             if (SelectedDrawable != null)
             {
                 var curSelected = SelectedDrawable as Mesh;
@@ -171,8 +174,21 @@ namespace Haven.Render
             return new Vector3d(x, y, v4.Z);
         }
 
+        private void ResetAllColors()
+        {
+            foreach (var d in Children)
+            {
+                if (d is Mesh m && m.Visible && m.ColorStatic != null)
+                {
+                    m.SetColor((Color)m.ColorStatic);
+                }
+            }
+        }
+
         private void SelectMeshesInRectangle(Point p1, Point p2)
         {
+            ResetAllColors();
+
             var minX = Math.Min(p1.X, p2.X);
             var maxX = Math.Max(p1.X, p2.X);
             var minY = Math.Min(p1.Y, p2.Y);
@@ -199,25 +215,14 @@ namespace Haven.Render
                     }
 
                     if (!(sxMax < minX || sxMin > maxX || syMax < minY || syMin > maxY))
+                    {
+                        m.SetColor(Color.DarkRed);
                         hits.Add(m);
+                    }
                 }
             }
 
-            if (SelectedDrawable is Mesh old) old.RestoreColor();
-
-            if (hits.Count > 0)
-            {
-                var nearest = hits.OrderBy(m =>
-                    (m.AABB.Center - Camera.Position).Length
-                ).First();
-                SelectMesh(nearest);
-            }
-            else
-            {
-                SelectedDrawable = null;
-                MeshSelected?.Invoke(null);
-                Render();
-            }
+            DragSelectDone.Invoke(hits);
         }
 
 
@@ -245,6 +250,37 @@ namespace Haven.Render
                 Log.Error(ex, "Failed to create ray from screen point {Point}", screenPoint);
                 return new Ray(Vector3d.Zero, Vector3d.UnitZ);
             }
+        }
+
+        public double GetNearestFloorHeight(Vector3d worldPos, double maxDrop = 10000)
+        {
+            var rayOrigin = new Vector3d(worldPos.X, worldPos.Y + 0.01, worldPos.Z);
+            var down = new Vector3d(0, -1, 0);
+            var ray = new Ray(rayOrigin, rayOrigin + down * maxDrop);
+
+            double bestY = worldPos.Y - maxDrop;
+            double bestDist = double.MaxValue;
+            Mesh? bestMesh = null;
+
+            foreach (var child in Children)
+            {
+                if (child is not Mesh m || !m.Visible || m.DragSelectable)
+                    continue;
+
+                var hit = m.HitTest(ray);
+                if (hit == null)
+                    continue;
+
+                double dist = (hit.HitPoint - rayOrigin).Length;
+                if (dist < bestDist)
+                {
+                    bestDist = dist;
+                    bestY = hit.HitPoint.Y;
+                    bestMesh = m;
+                }
+            }
+
+            return bestY;
         }
 
         protected void Pick(Point mouseLocation)
@@ -424,9 +460,10 @@ namespace Haven.Render
 
         private void glControl_MouseUp(object? sender, MouseEventArgs e)
         {
-            if (isDragging && (e.Button == MouseButtons.Right || (e.Button == MouseButtons.Left && isCtrlDragging)))
+            if (isDragging && (e.Button == MouseButtons.Right || (e.Button == MouseButtons.Left && isShiftDragging)))
             { 
                 isDragging = false;
+                isShiftDragging = false;
                 SelectMeshesInRectangle(dragStart, dragEnd);
                 glControl.Invalidate();
             }
@@ -455,7 +492,7 @@ namespace Haven.Render
 
         private void glControl_MouseDown(object? sender, MouseEventArgs e)
         {
-            if (e.Button == MouseButtons.Right || (e.Button == MouseButtons.Left && isCtrlDragging))
+            if (e.Button == MouseButtons.Right || (e.Button == MouseButtons.Left && isShiftDragging))
             {
                 isDragging = true;
                 dragStart = e.Location;
@@ -466,7 +503,7 @@ namespace Haven.Render
 
         private void glControl_MouseMove(object? sender, MouseEventArgs e)
         {
-            if (e.Button == MouseButtons.Right || (e.Button == MouseButtons.Left && isCtrlDragging))
+            if (e.Button == MouseButtons.Right || (e.Button == MouseButtons.Left && isShiftDragging))
             {
                 dragEnd = e.Location;
                 glControl.Invalidate();
@@ -501,16 +538,16 @@ namespace Haven.Render
 
         private void glControl_KeyDown(object? sender, KeyEventArgs e)
         {
-            if (e.Control)
+            if (e.Shift)
             {
-                isCtrlDragging = true;
+                isShiftDragging = true;
             }
         }
         private void glControl_KeyUp(object? sender, KeyEventArgs e)
         {
-            if (!e.Control)
+            if (!e.Shift)
             {
-                isCtrlDragging = false;
+                isShiftDragging = false;
             }
         }
     }

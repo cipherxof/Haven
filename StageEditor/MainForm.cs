@@ -28,6 +28,7 @@ namespace Haven
         public List<Mesh> MeshBoundaries = new List<Mesh>();
 
         public Dictionary<GeomProp, Mesh> GeomPropMeshLookup = new Dictionary<GeomProp, Mesh>();
+        public Dictionary<Mesh, GeomProp> MeshGeomPropLookup = new Dictionary<Mesh, GeomProp>();
         public Dictionary<TreeNode, StageFile> StageFileLookup = new Dictionary<TreeNode, StageFile>();
         public Dictionary<TreeNode, GeomProp> GeomPropLookup = new Dictionary<TreeNode, GeomProp>();
         public Dictionary<string, TreeNode> TreeNodeLookup = new();
@@ -88,7 +89,34 @@ namespace Haven
                 }
             };
 
+            Scene.DragSelectDone += Scene_DragSelectDone;
+
             Log.Information("Initialized");
+        }
+
+        private void Scene_DragSelectDone(List<Mesh>? obj)
+        {
+            if (obj == null) 
+                return;
+
+            var props = new List<GeomProp>();
+
+            foreach (var mesh in obj)
+            {
+                MeshGeomPropLookup.TryGetValue(mesh, out var prop);
+
+                if (prop != null)
+                {
+                    props.Add(prop);
+                }
+            }
+
+            glControl.Invalidate();
+
+            using (var propEditor = new PropEditorMulti(props, GeomPropMeshLookup))
+            {
+                propEditor.ShowDialog();
+            }
         }
 
         private void SetupContextMenus()
@@ -292,6 +320,7 @@ namespace Haven
             MeshRefs.Clear();
             MeshProps.Clear();
             GeomPropMeshLookup.Clear();
+            MeshGeomPropLookup.Clear();
             CurrentStage = null;
             Geom = null;
             Scene.Children.Clear();
@@ -424,6 +453,7 @@ namespace Haven
                 MeshProps.Add(mesh);
                 Scene.Children.Add(mesh);
                 GeomPropMeshLookup[prop] = mesh;
+                MeshGeomPropLookup[mesh] = prop;
             }
         }
 

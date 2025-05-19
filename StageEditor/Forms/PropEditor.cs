@@ -1,5 +1,6 @@
 ﻿using Haven.Parser;
 using Haven.Render;
+using OpenTK;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
@@ -37,7 +38,7 @@ namespace Haven
             }
 
             InitializeComponent();
-            
+
         }
 
         private void SpawnEditor_Load(object sender, EventArgs e)
@@ -52,7 +53,7 @@ namespace Haven
             {
                 tbExtraData.Text += value.ToString("X2") + " ";
             }
-            
+
         }
 
         private void btnSpawnEditApply_Click(object sender, EventArgs e)
@@ -78,6 +79,13 @@ namespace Haven
             tbSpawnEditX.Text = ((float)Scene.Camera.Position.X).ToString();
             tbSpawnEditZ.Text = ((float)Scene.Camera.Position.Y).ToString();
             tbSpawnEditY.Text = ((float)Scene.Camera.Position.Z).ToString();
+        }
+
+        private void btnSnapGround_Click(object sender, EventArgs e)
+        {
+            var newZ = (float)Scene.CurrentScene.GetNearestFloorHeight(Mesh.Center);
+
+            tbSpawnEditZ.Text = newZ.ToString();
         }
     }
 }

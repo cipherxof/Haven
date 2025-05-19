@@ -28,127 +28,149 @@
         /// </summary>
         private void InitializeComponent()
         {
-            this.tbSpawnEditX = new System.Windows.Forms.TextBox();
-            this.tbSpawnEditZ = new System.Windows.Forms.TextBox();
-            this.tbSpawnEditY = new System.Windows.Forms.TextBox();
-            this.labelSpawnEditX = new System.Windows.Forms.Label();
-            this.labelSpawnEditY = new System.Windows.Forms.Label();
-            this.labelSpawnEditZ = new System.Windows.Forms.Label();
-            this.btnSpawnEditApply = new System.Windows.Forms.Button();
-            this.btnSpawnEditUseCam = new System.Windows.Forms.Button();
-            this.tbExtraData = new System.Windows.Forms.TextBox();
-            this.label1 = new System.Windows.Forms.Label();
-            this.SuspendLayout();
+            tbSpawnEditX = new TextBox();
+            tbSpawnEditZ = new TextBox();
+            tbSpawnEditY = new TextBox();
+            labelSpawnEditX = new Label();
+            labelSpawnEditY = new Label();
+            labelSpawnEditZ = new Label();
+            btnSpawnEditApply = new Button();
+            btnSpawnEditUseCam = new Button();
+            tbExtraData = new TextBox();
+            label1 = new Label();
+            btnSnapGround = new Button();
+            SuspendLayout();
             // 
             // tbSpawnEditX
             // 
-            this.tbSpawnEditX.Location = new System.Drawing.Point(12, 37);
-            this.tbSpawnEditX.Name = "tbSpawnEditX";
-            this.tbSpawnEditX.Size = new System.Drawing.Size(100, 23);
-            this.tbSpawnEditX.TabIndex = 0;
+            tbSpawnEditX.Location = new Point(22, 79);
+            tbSpawnEditX.Margin = new Padding(6);
+            tbSpawnEditX.Name = "tbSpawnEditX";
+            tbSpawnEditX.Size = new Size(182, 39);
+            tbSpawnEditX.TabIndex = 0;
             // 
             // tbSpawnEditZ
             // 
-            this.tbSpawnEditZ.Location = new System.Drawing.Point(118, 37);
-            this.tbSpawnEditZ.Name = "tbSpawnEditZ";
-            this.tbSpawnEditZ.Size = new System.Drawing.Size(100, 23);
-            this.tbSpawnEditZ.TabIndex = 1;
+            tbSpawnEditZ.Location = new Point(219, 79);
+            tbSpawnEditZ.Margin = new Padding(6);
+            tbSpawnEditZ.Name = "tbSpawnEditZ";
+            tbSpawnEditZ.Size = new Size(182, 39);
+            tbSpawnEditZ.TabIndex = 1;
             // 
             // tbSpawnEditY
             // 
-            this.tbSpawnEditY.Location = new System.Drawing.Point(224, 37);
-            this.tbSpawnEditY.Name = "tbSpawnEditY";
-            this.tbSpawnEditY.Size = new System.Drawing.Size(100, 23);
-            this.tbSpawnEditY.TabIndex = 2;
+            tbSpawnEditY.Location = new Point(416, 79);
+            tbSpawnEditY.Margin = new Padding(6);
+            tbSpawnEditY.Name = "tbSpawnEditY";
+            tbSpawnEditY.Size = new Size(182, 39);
+            tbSpawnEditY.TabIndex = 2;
             // 
             // labelSpawnEditX
             // 
-            this.labelSpawnEditX.AutoSize = true;
-            this.labelSpawnEditX.Location = new System.Drawing.Point(12, 19);
-            this.labelSpawnEditX.Name = "labelSpawnEditX";
-            this.labelSpawnEditX.Size = new System.Drawing.Size(14, 15);
-            this.labelSpawnEditX.TabIndex = 3;
-            this.labelSpawnEditX.Text = "X";
+            labelSpawnEditX.AutoSize = true;
+            labelSpawnEditX.Location = new Point(22, 41);
+            labelSpawnEditX.Margin = new Padding(6, 0, 6, 0);
+            labelSpawnEditX.Name = "labelSpawnEditX";
+            labelSpawnEditX.Size = new Size(28, 32);
+            labelSpawnEditX.TabIndex = 3;
+            labelSpawnEditX.Text = "X";
             // 
             // labelSpawnEditY
             // 
-            this.labelSpawnEditY.AutoSize = true;
-            this.labelSpawnEditY.Location = new System.Drawing.Point(118, 19);
-            this.labelSpawnEditY.Name = "labelSpawnEditY";
-            this.labelSpawnEditY.Size = new System.Drawing.Size(14, 15);
-            this.labelSpawnEditY.TabIndex = 4;
-            this.labelSpawnEditY.Text = "Z";
+            labelSpawnEditY.AutoSize = true;
+            labelSpawnEditY.Location = new Point(219, 41);
+            labelSpawnEditY.Margin = new Padding(6, 0, 6, 0);
+            labelSpawnEditY.Name = "labelSpawnEditY";
+            labelSpawnEditY.Size = new Size(28, 32);
+            labelSpawnEditY.TabIndex = 4;
+            labelSpawnEditY.Text = "Z";
             // 
             // labelSpawnEditZ
             // 
-            this.labelSpawnEditZ.AutoSize = true;
-            this.labelSpawnEditZ.Location = new System.Drawing.Point(224, 19);
-            this.labelSpawnEditZ.Name = "labelSpawnEditZ";
-            this.labelSpawnEditZ.Size = new System.Drawing.Size(14, 15);
-            this.labelSpawnEditZ.TabIndex = 5;
-            this.labelSpawnEditZ.Text = "Y";
+            labelSpawnEditZ.AutoSize = true;
+            labelSpawnEditZ.Location = new Point(416, 41);
+            labelSpawnEditZ.Margin = new Padding(6, 0, 6, 0);
+            labelSpawnEditZ.Name = "labelSpawnEditZ";
+            labelSpawnEditZ.Size = new Size(27, 32);
+            labelSpawnEditZ.TabIndex = 5;
+            labelSpawnEditZ.Text = "Y";
             // 
             // btnSpawnEditApply
             // 
-            this.btnSpawnEditApply.Location = new System.Drawing.Point(249, 125);
-            this.btnSpawnEditApply.Name = "btnSpawnEditApply";
-            this.btnSpawnEditApply.Size = new System.Drawing.Size(75, 23);
-            this.btnSpawnEditApply.TabIndex = 6;
-            this.btnSpawnEditApply.Text = "Apply";
-            this.btnSpawnEditApply.UseVisualStyleBackColor = true;
-            this.btnSpawnEditApply.Click += new System.EventHandler(this.btnSpawnEditApply_Click);
+            btnSpawnEditApply.Location = new Point(22, 334);
+            btnSpawnEditApply.Margin = new Padding(6);
+            btnSpawnEditApply.Name = "btnSpawnEditApply";
+            btnSpawnEditApply.Size = new Size(581, 49);
+            btnSpawnEditApply.TabIndex = 6;
+            btnSpawnEditApply.Text = "Apply";
+            btnSpawnEditApply.UseVisualStyleBackColor = true;
+            btnSpawnEditApply.Click += btnSpawnEditApply_Click;
             // 
             // btnSpawnEditUseCam
             // 
-            this.btnSpawnEditUseCam.Location = new System.Drawing.Point(12, 125);
-            this.btnSpawnEditUseCam.Name = "btnSpawnEditUseCam";
-            this.btnSpawnEditUseCam.Size = new System.Drawing.Size(121, 23);
-            this.btnSpawnEditUseCam.TabIndex = 7;
-            this.btnSpawnEditUseCam.Text = "Use Camera View";
-            this.btnSpawnEditUseCam.UseVisualStyleBackColor = true;
-            this.btnSpawnEditUseCam.Click += new System.EventHandler(this.btnSpawnEditUseCam_Click);
+            btnSpawnEditUseCam.Location = new Point(22, 267);
+            btnSpawnEditUseCam.Margin = new Padding(6);
+            btnSpawnEditUseCam.Name = "btnSpawnEditUseCam";
+            btnSpawnEditUseCam.Size = new Size(270, 46);
+            btnSpawnEditUseCam.TabIndex = 7;
+            btnSpawnEditUseCam.Text = "Use Camera View";
+            btnSpawnEditUseCam.UseVisualStyleBackColor = true;
+            btnSpawnEditUseCam.Click += btnSpawnEditUseCam_Click;
             // 
             // tbExtraData
             // 
-            this.tbExtraData.Enabled = false;
-            this.tbExtraData.Location = new System.Drawing.Point(12, 86);
-            this.tbExtraData.Name = "tbExtraData";
-            this.tbExtraData.Size = new System.Drawing.Size(309, 23);
-            this.tbExtraData.TabIndex = 8;
+            tbExtraData.Enabled = false;
+            tbExtraData.Location = new Point(22, 183);
+            tbExtraData.Margin = new Padding(6);
+            tbExtraData.Name = "tbExtraData";
+            tbExtraData.Size = new Size(570, 39);
+            tbExtraData.TabIndex = 8;
             // 
             // label1
             // 
-            this.label1.AutoSize = true;
-            this.label1.Location = new System.Drawing.Point(12, 68);
-            this.label1.Name = "label1";
-            this.label1.Size = new System.Drawing.Size(60, 15);
-            this.label1.TabIndex = 9;
-            this.label1.Text = "Extra Data";
+            label1.AutoSize = true;
+            label1.Location = new Point(22, 145);
+            label1.Margin = new Padding(6, 0, 6, 0);
+            label1.Name = "label1";
+            label1.Size = new Size(121, 32);
+            label1.TabIndex = 9;
+            label1.Text = "Extra Data";
+            // 
+            // btnSnapGround
+            // 
+            btnSnapGround.Location = new Point(322, 267);
+            btnSnapGround.Name = "btnSnapGround";
+            btnSnapGround.Size = new Size(270, 46);
+            btnSnapGround.TabIndex = 10;
+            btnSnapGround.Text = "Snap to Ground";
+            btnSnapGround.UseVisualStyleBackColor = true;
+            btnSnapGround.Click += btnSnapGround_Click;
             // 
             // PropEditor
             // 
-            this.AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
-            this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.ClientSize = new System.Drawing.Size(333, 160);
-            this.Controls.Add(this.label1);
-            this.Controls.Add(this.tbExtraData);
-            this.Controls.Add(this.btnSpawnEditUseCam);
-            this.Controls.Add(this.btnSpawnEditApply);
-            this.Controls.Add(this.labelSpawnEditZ);
-            this.Controls.Add(this.labelSpawnEditY);
-            this.Controls.Add(this.labelSpawnEditX);
-            this.Controls.Add(this.tbSpawnEditY);
-            this.Controls.Add(this.tbSpawnEditZ);
-            this.Controls.Add(this.tbSpawnEditX);
-            this.FormBorderStyle = System.Windows.Forms.FormBorderStyle.FixedSingle;
-            this.MaximizeBox = false;
-            this.Name = "PropEditor";
-            this.StartPosition = System.Windows.Forms.FormStartPosition.CenterParent;
-            this.Text = "SpawnEditor";
-            this.Load += new System.EventHandler(this.SpawnEditor_Load);
-            this.ResumeLayout(false);
-            this.PerformLayout();
-
+            AutoScaleDimensions = new SizeF(13F, 32F);
+            AutoScaleMode = AutoScaleMode.Font;
+            ClientSize = new Size(618, 398);
+            Controls.Add(btnSnapGround);
+            Controls.Add(label1);
+            Controls.Add(tbExtraData);
+            Controls.Add(btnSpawnEditUseCam);
+            Controls.Add(btnSpawnEditApply);
+            Controls.Add(labelSpawnEditZ);
+            Controls.Add(labelSpawnEditY);
+            Controls.Add(labelSpawnEditX);
+            Controls.Add(tbSpawnEditY);
+            Controls.Add(tbSpawnEditZ);
+            Controls.Add(tbSpawnEditX);
+            FormBorderStyle = FormBorderStyle.FixedSingle;
+            Margin = new Padding(6);
+            MaximizeBox = false;
+            Name = "PropEditor";
+            StartPosition = FormStartPosition.CenterParent;
+            Text = "SpawnEditor";
+            Load += SpawnEditor_Load;
+            ResumeLayout(false);
+            PerformLayout();
         }
 
         #endregion
@@ -163,5 +185,6 @@
         private Button btnSpawnEditUseCam;
         private TextBox tbExtraData;
         private Label label1;
+        private Button btnSnapGround;
     }
 }
