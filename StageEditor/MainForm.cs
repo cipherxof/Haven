@@ -1,6 +1,3 @@
-using System;
-using System.ComponentModel;
-using System.Diagnostics;
 using OpenTK;
 using Haven.Parser;
 using Haven.Render;
@@ -9,7 +6,6 @@ using Haven.Forms;
 using Haven.Parser.Geom;
 using Joveler.Compression.ZLib;
 using OpenTK.Graphics.OpenGL;
-using System.IO;
 using Serilog.Events;
 using Serilog;
 
@@ -234,34 +230,29 @@ namespace Haven
             }
             else if (e.ClickedItem == MenuItemFilesRebuild)
             {
-                using (var fbd = new FolderBrowserDialog())
+                var folder = FileSelector.GetFolderPath();
+
+                if (folder == null)
+                    return;
+
+                DldFile? cache = null;
+                DldFile? cacheMips = null;
+
+                using (var dldSelector = new DldSelector(CurrentStage))
                 {
-                    DldFile? cache = null;
-                    DldFile? cacheMips = null;
+                    dldSelector.ShowDialog();
 
-                    using (var dldSelector = new DldSelector(CurrentStage))
+                    if (dldSelector.FilenameMain == "" || dldSelector.FilenameMips == "")
                     {
-                        dldSelector.ShowDialog();
-
-                        if (dldSelector.FilenameMain == "" || dldSelector.FilenameMips == "")
-                        {
-                            MessageBox.Show("You must select a DLZ.", "Information", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                            return;
-                        }
-
-                        cache = new DldFile($"stage\\_dlz\\{dldSelector.FilenameMain.Replace(".dlz", ".dld")}");
-                        cacheMips = new DldFile($"stage\\_dlz\\{dldSelector.FilenameMips.Replace(".dlz", ".dld")}");
-                    }
-
-                    DialogResult result = fbd.ShowDialog();
-
-                    if (result != DialogResult.OK || string.IsNullOrWhiteSpace(fbd.SelectedPath))
-                    {
+                        MessageBox.Show("You must select a DLZ.", "Information", MessageBoxButtons.OK, MessageBoxIcon.Information);
                         return;
                     }
 
-                    Utils.RebuildTXN(fbd.SelectedPath, cache, cacheMips, stageFile.GetLocalPath());
+                    cache = new DldFile($"stage\\_dlz\\{dldSelector.FilenameMain.Replace(".dlz", ".dld")}");
+                    cacheMips = new DldFile($"stage\\_dlz\\{dldSelector.FilenameMips.Replace(".dlz", ".dld")}");
                 }
+
+                Utils.RebuildTXN(folder, cache, cacheMips, stageFile.GetLocalPath());
             }
         }
 
@@ -509,105 +500,99 @@ namespace Haven
 
         private async void PromptStageLoad(Stage.GameType game)
         {
+            var folder = FileSelector.GetFolderPath();
+
+            if (folder == null)
+                return;
+
             SetEnabled(false);
 
-            using (var fbd = new FolderBrowserDialog())
+            Reset();
+            CurrentStage = new Stage(folder, game);
+
+            if (game == Stage.GameType.MGO2)
             {
-                DialogResult result = fbd.ShowDialog();
+                BinaryWriterEx.DefaultBigEndian = true;
+                BinaryReaderEx.DefaultBigEndian = true;
+                labelStatus.Text = "Decrypting...";
+                await CurrentStage.Decrypt();
+            }
+            else
+            {
+                BinaryWriterEx.DefaultBigEndian = game == Stage.GameType.MGS4;
+                BinaryReaderEx.DefaultBigEndian = game == Stage.GameType.MGS4;
+                labelStatus.Text = "Copying...";
+                CurrentStage.Copy("stage");
+            }
 
-                if (result == DialogResult.OK && !string.IsNullOrWhiteSpace(fbd.SelectedPath))
+            labelStatus.Text = "Unpacking...";
+            await CurrentStage.Unpack();
+
+            foreach (var file in CurrentStage.Files)
+            {
+                string ext = Path.GetExtension(file.Name);
+
+                if (ext == ".dec" || ext == ".enc")
+                    continue;
+
+                FileInfo fi = new FileInfo(file.Name);
+                TreeNode? tds = null;
+
+                if (file.Archive != null)
                 {
-                    Reset();
-                    CurrentStage = new Stage(fbd.SelectedPath, game);
+                    var parent = treeViewFiles.Nodes.Find(file.Archive.Name, false);
 
-                    if (game == Stage.GameType.MGO2)
+                    if (parent.Length > 0)
                     {
-                        BinaryWriterEx.DefaultBigEndian = true;
-                        BinaryReaderEx.DefaultBigEndian = true;
-                        labelStatus.Text = "Decrypting...";
-                        await CurrentStage.Decrypt();
+                        tds = parent[0].Nodes.Add(fi.Name);
+                        tds.Name = fi.Name;
+                        StageFileLookup[tds] = file;
                     }
-                    else
-                    {
-                        BinaryWriterEx.DefaultBigEndian = game == Stage.GameType.MGS4;
-                        BinaryReaderEx.DefaultBigEndian = game == Stage.GameType.MGS4;
-                        labelStatus.Text = "Copying...";
-                        CurrentStage.Copy("stage");
-                    }
-
-                    labelStatus.Text = "Unpacking...";
-                    await CurrentStage.Unpack();
-
-                    foreach (var file in CurrentStage.Files)
-                    {
-                        string ext = Path.GetExtension(file.Name);
-
-                        if (ext == ".dec" || ext == ".enc")
-                            continue;
-
-                        FileInfo fi = new FileInfo(file.Name);
-                        TreeNode? tds = null;
-
-                        if (file.Archive != null)
-                        {
-                            var parent = treeViewFiles.Nodes.Find(file.Archive.Name, false);
-
-                            if (parent.Length > 0)
-                            {
-                                tds = parent[0].Nodes.Add(fi.Name);
-                                tds.Name = fi.Name;
-                                StageFileLookup[tds] = file;
-                            }
-                        }
-                        else
-                        {
-                            tds = treeViewFiles.Nodes.Add(fi.Name);
-                            tds.Name = fi.Name;
-                            StageFileLookup[tds] = file;
-                        }
-
-                        if (tds != null)
-                        {
-                            tds.Tag = fi.FullName;
-                            tds.StateImageIndex = 0;
-
-                            if (ext == ".qar" || ext == ".dar")
-                                tds.StateImageIndex = 1;
-                        }
-                    }
-
-                    TreeNodeGeomMeshes = treeViewGeom.Nodes.Add("Meshes");
-                    TreeNodeGeomProps = treeViewGeom.Nodes.Add("Props");
-                    TreeNodeGeomRefs = treeViewGeom.Nodes.Add("References");
-                    TreeNodeGeomBoundaries = treeViewGeom.Nodes.Add("Boundaries");
-
-                    treeViewGeom.CheckBoxes = true;
-                    TreeNodeGeomMeshes.Checked = true;
-
-                    if (CurrentStage.Geom != null)
-                    {
-                        labelStatus.Text = "Loading geom...";
-
-                        await SetupGeom($"stage/{CurrentStage.Geom.Name}.dec");
-
-                        PopulateGeomTreeView("");
-                    }
-
-                    var centerStage = Mesh.FromID("PRP_STAGE_CENTER");
-
-                    if (centerStage != null && Scene != null)
-                    {
-                        Scene.Camera.Position = centerStage.Center;
-                    }
-
-                    SetEnabled(true);
                 }
-                else if (CurrentStage != null)
+                else
                 {
-                    SetEnabled(true);
+                    tds = treeViewFiles.Nodes.Add(fi.Name);
+                    tds.Name = fi.Name;
+                    StageFileLookup[tds] = file;
+                }
+
+                if (tds != null)
+                {
+                    tds.Tag = fi.FullName;
+                    tds.StateImageIndex = 0;
+
+                    if (ext == ".qar" || ext == ".dar")
+                        tds.StateImageIndex = 1;
                 }
             }
+
+            TreeNodeGeomMeshes = treeViewGeom.Nodes.Add("Meshes");
+            TreeNodeGeomProps = treeViewGeom.Nodes.Add("Props");
+            TreeNodeGeomRefs = treeViewGeom.Nodes.Add("References");
+            TreeNodeGeomBoundaries = treeViewGeom.Nodes.Add("Boundaries");
+
+            treeViewGeom.CheckBoxes = true;
+            TreeNodeGeomMeshes.Checked = true;
+
+            if (CurrentStage.Geom != null)
+            {
+                labelStatus.Text = "Loading geom...";
+
+                await SetupGeom($"stage/{CurrentStage.Geom.Name}.dec");
+
+                PopulateGeomTreeView("");
+            }
+
+            var centerStage = Mesh.FromID("PRP_STAGE_CENTER");
+
+            if (centerStage != null && Scene != null)
+            {
+                Scene.Camera.Position = centerStage.Center;
+            }
+
+            SetEnabled(true);
         }
+    
 
         private async void btnSave_Click(object sender, EventArgs e)
         {
@@ -615,46 +600,42 @@ namespace Haven
 
             SetEnabled(false);
 
-            using (var fbd = new FolderBrowserDialog())
+            var folder = FileSelector.GetFolderPath();
+
+            if (folder == null) return;
+
+            CurrentStage.Key = Directory.GetParent(folder)?.Name + "/" + new DirectoryInfo(folder).Name;
+
+            labelStatus.Text = "Packing...";
+            await CurrentStage.Pack();
+
+            if (Geom != null && CurrentStage.Geom != null)
             {
-                DialogResult result = fbd.ShowDialog();
+                labelStatus.Text = "Saving geom...";
+                Geom.Save(CurrentStage.Geom.GetLocalPath());
+            }
 
-                if (result == DialogResult.OK && !string.IsNullOrWhiteSpace(fbd.SelectedPath))
-                {
-                    CurrentStage.Key = Directory.GetParent(fbd.SelectedPath)?.Name + "/" + new DirectoryInfo(fbd.SelectedPath).Name;
+            if (CurrentStage.Game == Stage.GameType.MGO2)
+            {
+                labelStatus.Text = "Encrypting...";
+                await CurrentStage.Encrypt(folder);
+            }
+            else
+            {
+                labelStatus.Text = "Copying...";
+                CurrentStage.CopyOut(folder);
+            }
 
-                    labelStatus.Text = "Packing...";
-                    await CurrentStage.Pack();
+            var files = Directory.GetFiles(folder);
 
-                    if (Geom != null && CurrentStage.Geom != null)
-                    {
-                        labelStatus.Text = "Saving geom...";
-                        Geom.Save(CurrentStage.Geom.GetLocalPath());
-                    }
+            foreach (var file in files)
+            {
+                string newName = file.Replace(".dec", "").Replace(".enc", "");
 
-                    if (CurrentStage.Game == Stage.GameType.MGO2)
-                    {
-                        labelStatus.Text = "Encrypting...";
-                        await CurrentStage.Encrypt(fbd.SelectedPath);
-                    }
-                    else
-                    {
-                        labelStatus.Text = "Copying...";
-                        CurrentStage.CopyOut(fbd.SelectedPath);
-                    }
+                if (newName != file && File.Exists(newName))
+                    File.Delete(newName);
 
-                    var files = Directory.GetFiles(fbd.SelectedPath);
-
-                    foreach (var file in files)
-                    {
-                        string newName = file.Replace(".dec", "").Replace(".enc", "");
-
-                        if (newName != file && File.Exists(newName))
-                            File.Delete(newName);
-
-                        File.Move(file, newName);
-                    }
-                }
+                File.Move(file, newName);
             }
 
             SetEnabled(true);
@@ -815,67 +796,36 @@ namespace Haven
 
         private async void encryptFileToolStripMenuItem_Click(object sender, EventArgs e)
         {
-            using (OpenFileDialog openFileDialog = new OpenFileDialog())
-            {
-                openFileDialog.Filter = "All files (*.*)|*.*";
-                openFileDialog.FilterIndex = 1;
-                openFileDialog.RestoreDirectory = true;
+            var filePath = FileSelector.GetFilePath("All files (*.*)|*.*");
 
-                if (openFileDialog.ShowDialog() == DialogResult.OK)
-                {
-                    var path = openFileDialog.FileName;
-                    await Utils.EncryptFileAsync(path, Utils.GetPathKey(path));
-                }
-            }
+            if (filePath == null)
+                return;
+
+            await Utils.EncryptFileAsync(filePath, Utils.GetPathKey(filePath));
         }
 
         private async void decryptFileToolStripMenuItem_Click(object sender, EventArgs e)
         {
-            using (OpenFileDialog openFileDialog = new OpenFileDialog())
-            {
-                openFileDialog.Filter = "All files (*.*)|*.*";
-                openFileDialog.FilterIndex = 1;
-                openFileDialog.RestoreDirectory = true;
+            var filePath = FileSelector.GetFilePath("All files (*.*)|*.*");
 
-                if (openFileDialog.ShowDialog() == DialogResult.OK)
-                {
-                    var path = openFileDialog.FileName;
-                    await Utils.DecryptFileAsync(path, Utils.GetPathKey(path));
-                }
-            }
+            if (filePath == null)
+                return;
+
+            await Utils.DecryptFileAsync(filePath, Utils.GetPathKey(filePath));
         }
 
         private void mergeToolStripMenuItem_Click(object sender, EventArgs e)
         {
-            var baseFilePath = string.Empty;
-            var mergeFilePath = string.Empty;
+            string filter = "geom files (*.geom)|*.geom|All files (*.*)|*.*";
+            var baseFilePath = FileSelector.GetFilePath(filter);
 
-            using (OpenFileDialog openFileDialog = new OpenFileDialog())
-            {
-                openFileDialog.Filter = "geom files (*.geom)|*.geom|All files (*.*)|*.*";
-                openFileDialog.FilterIndex = 1;
-                openFileDialog.RestoreDirectory = true;
-
-                if (openFileDialog.ShowDialog() == DialogResult.OK)
-                {
-                    baseFilePath = openFileDialog.FileName;
-                }
-            }
-
-            if (baseFilePath == string.Empty)
+            if (baseFilePath == null)
                 return;
 
-            using (OpenFileDialog openFileDialog = new OpenFileDialog())
-            {
-                openFileDialog.Filter = "geom files (*.geom)|*.geom|All files (*.*)|*.*";
-                openFileDialog.FilterIndex = 1;
-                openFileDialog.RestoreDirectory = true;
+            var mergeFilePath = FileSelector.GetFilePath(filter);
 
-                if (openFileDialog.ShowDialog() == DialogResult.OK)
-                {
-                    mergeFilePath = openFileDialog.FileName;
-                }
-            }
+            if (mergeFilePath == null)
+                return;
 
             try
             {
@@ -884,17 +834,12 @@ namespace Haven
                 baseGeom.Merge(mergeGeom);
                 mergeGeom.CloseStream();
 
-                using (SaveFileDialog saveFileDialog = new SaveFileDialog())
-                {
-                    saveFileDialog.Filter = "geom files (*.geom)|*.geom|All files (*.*)|*.*";
-                    saveFileDialog.FilterIndex = 1;
-                    saveFileDialog.RestoreDirectory = true;
+                var savePath = FileSelector.GetFilePath(filter);
 
-                    if (saveFileDialog.ShowDialog() == DialogResult.OK)
-                    {
-                        baseGeom.Save(saveFileDialog.FileName);
-                    }
-                }
+                if (savePath == null)
+                    return;
+
+                baseGeom.Save(savePath);
 
                 baseGeom.CloseStream();
             }
@@ -907,35 +852,16 @@ namespace Haven
 
         private void mergeVLMToolStripMenuItem_Click(object sender, EventArgs e)
         {
-            var baseFilePath = string.Empty;
-            var mergeFilePath = string.Empty;
+            string filter = "vlm files (*.vlm)|*.vlm|All files (*.*)|*.*";
+            var baseFilePath = FileSelector.GetFilePath(filter);
 
-            using (OpenFileDialog openFileDialog = new OpenFileDialog())
-            {
-                openFileDialog.Filter = "vlm files (*.vlm)|*.vlm|All files (*.*)|*.*";
-                openFileDialog.FilterIndex = 1;
-                openFileDialog.RestoreDirectory = true;
-
-                if (openFileDialog.ShowDialog() == DialogResult.OK)
-                {
-                    baseFilePath = openFileDialog.FileName;
-                }
-            }
-
-            if (baseFilePath == string.Empty)
+            if (baseFilePath == null)
                 return;
 
-            using (OpenFileDialog openFileDialog = new OpenFileDialog())
-            {
-                openFileDialog.Filter = "vlm files (*.vlm)|*.vlm|All files (*.*)|*.*";
-                openFileDialog.FilterIndex = 1;
-                openFileDialog.RestoreDirectory = true;
+            var mergeFilePath = FileSelector.GetFilePath(filter);
 
-                if (openFileDialog.ShowDialog() == DialogResult.OK)
-                {
-                    mergeFilePath = openFileDialog.FileName;
-                }
-            }
+            if (mergeFilePath == null)
+                return;
 
             try
             {
@@ -943,17 +869,12 @@ namespace Haven
                 var vlmMerge = new VlmFile(mergeFilePath);
                 vlmBase.Merge(vlmMerge);
 
-                using (SaveFileDialog saveFileDialog = new SaveFileDialog())
-                {
-                    saveFileDialog.Filter = "vlm files (*.vlm)|*.vlm|All files (*.*)|*.*";
-                    saveFileDialog.FilterIndex = 1;
-                    saveFileDialog.RestoreDirectory = true;
+                var savePath = FileSelector.GetFilePath(filter);
 
-                    if (saveFileDialog.ShowDialog() == DialogResult.OK)
-                    {
-                        vlmBase.Save(saveFileDialog.FileName);
-                    }
-                }
+                if (savePath == null)
+                    return;
+
+                vlmBase.Save(savePath);
             }
             catch (Exception exception)
             {
@@ -964,37 +885,20 @@ namespace Haven
 
         private void toolStripMenuItem2_Click(object sender, EventArgs e)
         {
-            var baseFilePath = string.Empty;
+            string filter = "geom files (*.geom)|*.geom|All files (*.*)|*.*";
+            var baseFilePath = FileSelector.GetFilePath(filter);
 
-            using (OpenFileDialog openFileDialog = new OpenFileDialog())
-            {
-                openFileDialog.Filter = "geom files (*.geom)|*.geom|All files (*.*)|*.*";
-                openFileDialog.FilterIndex = 2;
-                openFileDialog.RestoreDirectory = true;
+            if (baseFilePath == null)
+                return;
 
-                if (openFileDialog.ShowDialog() == DialogResult.OK)
-                {
-                    baseFilePath = openFileDialog.FileName;
-                }
-                else
-                {
-                    return;
-                }
-            }
+            var outputPath = FileSelector.GetFilePath(filter);
 
-            using (SaveFileDialog saveFileDialog = new SaveFileDialog())
-            {
-                saveFileDialog.Filter = "geom files (*.geom)|*.geom|All files (*.*)|*.*";
-                saveFileDialog.FilterIndex = 1;
-                saveFileDialog.RestoreDirectory = true;
+            if (outputPath == null)
+                return;
 
-                if (saveFileDialog.ShowDialog() == DialogResult.OK)
-                {
-                    var baseGeom = new GeomFile(baseFilePath, false);
-                    baseGeom.Save(saveFileDialog.FileName, true);
-                    baseGeom.CloseStream();
-                }
-            }
+            var baseGeom = new GeomFile(baseFilePath, false);
+            baseGeom.Save(outputPath, true);
+            baseGeom.CloseStream();
         }
 
         private void stringHashUtilityToolStripMenuItem_Click(object sender, EventArgs e)
@@ -1060,35 +964,17 @@ namespace Haven
 
         private void mergeReferencesToolStripMenuItem_Click(object sender, EventArgs e)
         {
-            var baseFilePath = string.Empty;
-            var mergeFilePath = string.Empty;
+            string filter = "geom files (*.geom)|*.geom|All files (*.*)|*.*";
 
-            using (OpenFileDialog openFileDialog = new OpenFileDialog())
-            {
-                openFileDialog.Filter = "geom files (*.geom)|*.geom|All files (*.*)|*.*";
-                openFileDialog.FilterIndex = 1;
-                openFileDialog.RestoreDirectory = true;
+            var baseFilePath = FileSelector.GetFilePath(filter);
 
-                if (openFileDialog.ShowDialog() == DialogResult.OK)
-                {
-                    baseFilePath = openFileDialog.FileName;
-                }
-            }
-
-            if (baseFilePath == string.Empty)
+            if (baseFilePath == null)
                 return;
 
-            using (OpenFileDialog openFileDialog = new OpenFileDialog())
-            {
-                openFileDialog.Filter = "geom files (*.geom)|*.geom|All files (*.*)|*.*";
-                openFileDialog.FilterIndex = 1;
-                openFileDialog.RestoreDirectory = true;
+            var mergeFilePath = FileSelector.GetFilePath(filter);
 
-                if (openFileDialog.ShowDialog() == DialogResult.OK)
-                {
-                    mergeFilePath = openFileDialog.FileName;
-                }
-            }
+            if (mergeFilePath == null)
+                return;
 
             try
             {
@@ -1098,23 +984,17 @@ namespace Haven
                 baseGeom.MergeReferences(mergeGeom);
                 mergeGeom.CloseStream();
 
-                using (SaveFileDialog saveFileDialog = new SaveFileDialog())
-                {
-                    saveFileDialog.Filter = "geom files (*.geom)|*.geom|All files (*.*)|*.*";
-                    saveFileDialog.FilterIndex = 1;
-                    saveFileDialog.RestoreDirectory = true;
+                var outputPath = FileSelector.GetFilePath(filter);
 
-                    if (saveFileDialog.ShowDialog() == DialogResult.OK)
-                    {
-                        baseGeom.Save(saveFileDialog.FileName);
-                    }
-                }
+                if (outputPath == null)
+                    return;
+
+                baseGeom.Save(outputPath);
 
                 baseGeom.CloseStream();
             }
             catch (Exception exception)
             {
-                // leaks if failed
                 MessageBox.Show(exception.Message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
