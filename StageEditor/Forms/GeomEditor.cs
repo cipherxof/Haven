@@ -1,7 +1,6 @@
 ﻿using Haven.Parser;
 using Haven.Parser.Geom;
 using Haven.Render;
-using System;
 using System.Globalization;
 
 namespace Haven.Forms
@@ -149,39 +148,34 @@ namespace Haven.Forms
 
         }
 
-        private void DisplayPoly(HashSet<int> indicies)
+        private void DisplayPoly(HashSet<int> indices)
         {
             var prims = File.BlockFaceData[Block];
-
             for (int i = 0; i < prims.Count; i++)
             {
                 var face = prims[i];
-
                 if (face.GetPrimType() != Geom.Primitive.GEO_POLY || face.Poly == null)
                     continue;
 
+                byte vis = indices.Contains(i) ? (byte)255 : (byte)0;
+
                 foreach (var poly in face.Poly)
                 {
-                    var fa = poly.Data[0] + 1;
-                    var fb = poly.Data[1] + 1;
-                    var fc = poly.Data[2] + 1;
-                    var fd = poly.Data[3] + 1;
-                    var extraBit = poly.Data[4];
+                    var v = poly.Data;
+                    int fa = v[0] + 1, fb = v[1] + 1, fc = v[2] + 1, fd = v[3] + 1;
+                    Utils.FaceBitCalculation(v[4], ref fa, ref fb, ref fc, ref fd);
 
-                    Utils.FaceBitCalculation(extraBit, ref fa, ref fb, ref fc, ref fd);
+                    uint code = ((uint)Mesh.ColorCurrent.A << 24)
+                              | ((uint)Mesh.ColorCurrent.B << 16)
+                              | ((uint)Mesh.ColorCurrent.G << 8)
+                              | ((uint)vis << 0);
 
-                    var alpha = indicies.Contains(i) ? 255 : 0;
-
-                    Color polyColor = Color.FromArgb(alpha, Mesh.ColorCurrent.R, Mesh.ColorCurrent.G, Mesh.ColorCurrent.B);
-                    var colorCode = (uint)polyColor.A << 24 | (uint)polyColor.B << 16 | (uint)polyColor.G << 8 | (uint)polyColor.R;
-
-                    Mesh.colors[fa - 1] = colorCode;
-                    Mesh.colors[fb - 1] = colorCode;
-                    Mesh.colors[fc - 1] = colorCode;
-
-                    Mesh.colors[fa - 1] = colorCode;
-                    Mesh.colors[fc - 1] = colorCode;
-                    Mesh.colors[fd - 1] = colorCode;
+                    Mesh.colors[fa - 1] = code;
+                    Mesh.colors[fb - 1] = code;
+                    Mesh.colors[fc - 1] = code;
+                    Mesh.colors[fa - 1] = code;
+                    Mesh.colors[fc - 1] = code;
+                    Mesh.colors[fd - 1] = code;
                 }
             }
 

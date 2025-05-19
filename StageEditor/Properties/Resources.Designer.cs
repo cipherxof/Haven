@@ -80,7 +80,7 @@ namespace Haven.Properties {
         ///-400.000000 889.999939 -490.000000
         ///-385.743500 895.775024 0.000000
         ///-395.743500 885.775085 0.000000
-        ///-400.000000 889.999939 - [rest of string was truncated]&quot;;.
+        ///-400. [rest of string was truncated]&quot;;.
         /// </summary>
         internal static string ModelCBOX {
             get {
@@ -135,7 +135,7 @@ namespace Haven.Properties {
         ///-823.201477 427.882294 -53.639400
         ///-838.230530 427.243408 -50.887699
         ///-820.979004 426.858429 -67.292305
-        ///-820.979004 426.858429 [rest of string was truncated]&quot;;.
+        ///-82 [rest of string was truncated]&quot;;.
         /// </summary>
         internal static string ModelDoll {
             get {
@@ -224,6 +224,26 @@ namespace Haven.Properties {
         internal static string ModelTerminal {
             get {
                 return ResourceManager.GetString("ModelTerminal", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized resource of type System.Byte[].
+        /// </summary>
+        internal static byte[] ShaderFragment {
+            get {
+                object obj = ResourceManager.GetObject("ShaderFragment", resourceCulture);
+                return ((byte[])(obj));
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized resource of type System.Byte[].
+        /// </summary>
+        internal static byte[] ShaderVert {
+            get {
+                object obj = ResourceManager.GetObject("ShaderVert", resourceCulture);
+                return ((byte[])(obj));
             }
         }
     }
