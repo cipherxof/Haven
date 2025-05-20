@@ -5,7 +5,10 @@ namespace Haven.Render
     public partial class PropEditorMulti : Form
     {
         private readonly List<GeomProp> _props = new();
+        private readonly List<GeomProp> _propsOriginal = new();
         private readonly Dictionary<GeomProp, Mesh> _geomPropMeshLookup = new();
+
+        public static readonly Dictionary<GeomProp, GeomProp> GeomPropOriginal = new Dictionary<GeomProp, GeomProp>();
 
         public PropEditorMulti(List<GeomProp> props, Dictionary<GeomProp, Mesh> geomPropMeshLookup)
         {
@@ -29,9 +32,18 @@ namespace Haven.Render
                 if (mesh == null)
                     continue;
 
-                var newZ = (float)Scene.CurrentScene.GetNearestFloorHeight(mesh.Center);
+                var newZ = (float)Scene.CurrentScene.GetNearestFloorHeightGPU(mesh.Center);
 
-                mesh.Transform.SetTranslation(0, newZ - prop.Z, 0);
+                if (!GeomPropOriginal.TryGetValue(prop, out var propOriginal))
+                {
+                    propOriginal = new GeomProp();
+                    propOriginal.X = prop.X;
+                    propOriginal.Y = prop.Y;
+                    propOriginal.Z = prop.Z;
+                    GeomPropOriginal[prop] = propOriginal;
+                }
+
+                mesh.Transform.SetTranslation(0, newZ - propOriginal.Z, 0);
 
                 prop.Z = newZ;
             }
@@ -48,11 +60,20 @@ namespace Haven.Render
                 if (mesh == null)
                     continue;
 
-                var x = prop.X + double.Parse(tbSpawnEditX.Text);
-                var y = prop.Y + double.Parse(tbSpawnEditY.Text);
-                var z = prop.Z + double.Parse(tbSpawnEditZ.Text);
+                if (!GeomPropOriginal.TryGetValue(prop, out var propOriginal))
+                {
+                    propOriginal = new GeomProp();
+                    propOriginal.X = prop.X;
+                    propOriginal.Y = prop.Y;
+                    propOriginal.Z = prop.Z;
+                    GeomPropOriginal[prop] = propOriginal;
+                }
 
-                mesh.Transform.SetTranslation(x - prop.X, z - prop.Z, y - prop.Y);
+                var x = propOriginal.X + double.Parse(tbSpawnEditX.Text);
+                var y = propOriginal.Y + double.Parse(tbSpawnEditY.Text);
+                var z = propOriginal.Z + double.Parse(tbSpawnEditZ.Text);
+
+                mesh.Transform.SetTranslation(x - propOriginal.X, z - propOriginal.Z, y - propOriginal.Y);
 
                 if (x == 0 && y == 0 && z == 0)
                     x = 0.001;

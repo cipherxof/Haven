@@ -96,8 +96,25 @@ namespace Haven
 
         private void Scene_DragSelectDone(List<Mesh>? obj)
         {
-            if (obj == null) 
+            if (obj == null || obj.Count == 0) 
                 return;
+
+            if (obj.Count == 1)
+            {
+                MeshGeomPropLookup.TryGetValue(obj[0], out var prop);
+
+                if (prop == null)
+                {
+                    return;
+                }
+
+                using (var propEditor = new PropEditor(Scene, obj[0], prop))
+                {
+                    propEditor.ShowDialog();
+                }
+
+                return;
+            }
 
             var props = new List<GeomProp>();
 
@@ -369,10 +386,6 @@ namespace Haven
                     var high = new Vector4();
 
                     Geom.GetWorldBoundary(ref low, ref high);
-
-                    Log.Debug("{x},{y},{z}", low.X, low.Y, low.Z);
-                    Log.Debug("{x},{y},{z}", high.X, high.Y, high.Z);
-
                     Scene.UpdateGridProperties(low, high);
                 }
 
@@ -464,6 +477,7 @@ namespace Haven
                 return;
             }
 
+            treeViewGeom.Enabled = false;
             treeViewGeom.BeginUpdate();
 
             text = text.ToLower();
@@ -536,6 +550,7 @@ namespace Haven
             }
 
             treeViewGeom.EndUpdate();
+            treeViewGeom.Enabled = true;
         }
 
         private async void PromptStageLoad(Stage.GameType game)
@@ -769,7 +784,8 @@ namespace Haven
                 Parallel.ForEach(list, child => child.Visible = e.Node.Checked);
 
                 for (int i = 0; i < e.Node.Nodes.Count; i++)
-                    e.Node.Nodes[i].Checked = e.Node.Checked;
+                    if (e.Node.Nodes[i].IsVisible)
+                        e.Node.Nodes[i].Checked = e.Node.Checked;
 
                 treeViewGeom.SelectedNode = null;
 

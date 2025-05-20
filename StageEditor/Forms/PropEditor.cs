@@ -83,7 +83,7 @@ namespace Haven
 
         private void btnSnapGround_Click(object sender, EventArgs e)
         {
-            var newZ = (float)Scene.CurrentScene.GetNearestFloorHeight(Mesh.Center);
+            var newZ = (float)Scene.CurrentScene.GetNearestFloorHeightGPU(Mesh.Center);
 
             tbSpawnEditZ.Text = newZ.ToString();
         }

@@ -34,12 +34,26 @@ namespace Haven.Render
         private Point dragStart;
         private Point dragEnd;
 
+        private Mesh? hoveredMesh = null;
+        private ToolTip tooltip;
+        private Point lastMousePos;
+        private int mouseStillTimer = 0;
+        private const int TOOLTIP_DELAY = 16; // ms
+
+        private int floorHeightFBO, floorHeightTexture, floorHeightDepthBuffer;
+        private const int FLOOR_HEIGHT_BUFFER_SIZE = 32;
+        private float[] floorHeightPixels = new float[FLOOR_HEIGHT_BUFFER_SIZE * FLOOR_HEIGHT_BUFFER_SIZE];
+
+        private int occlusionQueryFBO;
+        private int occlusionQueryDepthTexture;
+        private readonly Dictionary<Mesh, uint> occlusionQueries = new Dictionary<Mesh, uint>();
+        private readonly Dictionary<Mesh, bool> occlusionResults = new Dictionary<Mesh, bool>();
+
         public bool GridEnabled { get; set; } = true;
         public int GridRows { get; set; } = 200;
         public int GridCols { get; set; } = 200;
-        public float CellSize { get; set; } = 1024f;
-        public Vector3 GridColor { get; set; } = new Vector3(0.8f, 0.8f, 0.8f);
-
+        public float CellSize { get; set; } = 4096f;
+        public Vector3 GridColor { get; set; } = new Vector3(0.5f, 0.5f, 0.5f);
 
         public Scene(GLControl control)
         {
@@ -62,6 +76,17 @@ namespace Haven.Render
             control.MouseDown += glControl_MouseDown;
             control.KeyDown += glControl_KeyDown;
             control.KeyUp += glControl_KeyUp;
+            control.MouseLeave += glControl_MouseLeave;
+
+            tooltip = new ToolTip();
+            tooltip.ShowAlways = true;
+            tooltip.UseAnimation = false;
+            tooltip.UseFading = false;
+
+            var hoverTimer = new System.Windows.Forms.Timer();
+            hoverTimer.Interval = 16;
+            hoverTimer.Tick += HoverTimer_Tick;
+            hoverTimer.Start();
 
             CurrentScene = this;
         }
@@ -81,44 +106,195 @@ namespace Haven.Render
             GL.BlendFunc(BlendingFactor.SrcAlpha, BlendingFactor.OneMinusSrcAlpha);
 
             var vert = Encoding.UTF8.GetString(Resources.ShaderVert);
-            var frag = Encoding.UTF8.GetString(Resources.ShaderFragment);
+            var frag = Encoding.UTF8.GetString(Resources.ShaderFrag);
 
             meshShader = new Shader(vert, frag);
+
+            InitializeFloorHeightFramebuffer();
+            InitializeOcclusionResources();
+        }
+
+        private void InitializeFloorHeightFramebuffer()
+        {
+            floorHeightFBO = GL.GenFramebuffer();
+            GL.BindFramebuffer(FramebufferTarget.Framebuffer, floorHeightFBO);
+
+            // Create depth texture
+            floorHeightTexture = GL.GenTexture();
+            GL.BindTexture(TextureTarget.Texture2D, floorHeightTexture);
+            GL.TexImage2D(TextureTarget.Texture2D, 0, PixelInternalFormat.DepthComponent32f,
+                         FLOOR_HEIGHT_BUFFER_SIZE, FLOOR_HEIGHT_BUFFER_SIZE, 0,
+                         PixelFormat.DepthComponent, PixelType.Float, IntPtr.Zero);
+            GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMinFilter, (int)TextureMinFilter.Nearest);
+            GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMagFilter, (int)TextureMagFilter.Nearest);
+            GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureWrapS, (int)TextureWrapMode.ClampToEdge);
+            GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureWrapT, (int)TextureWrapMode.ClampToEdge);
+
+            GL.FramebufferTexture2D(FramebufferTarget.Framebuffer, FramebufferAttachment.DepthAttachment,
+                                   TextureTarget.Texture2D, floorHeightTexture, 0);
+
+            GL.DrawBuffer(DrawBufferMode.None);
+            GL.ReadBuffer(ReadBufferMode.None);
+
+            if (GL.CheckFramebufferStatus(FramebufferTarget.Framebuffer) != FramebufferErrorCode.FramebufferComplete)
+            {
+                Log.Error("Floor height framebuffer not complete!");
+            }
+
+            GL.BindFramebuffer(FramebufferTarget.Framebuffer, 0);
+        }
+
+        private void InitializeOcclusionResources()
+        {
+            GL.GenFramebuffers(1, out occlusionQueryFBO);
+            GL.BindFramebuffer(FramebufferTarget.Framebuffer, occlusionQueryFBO);
+
+            GL.GenTextures(1, out occlusionQueryDepthTexture);
+            GL.BindTexture(TextureTarget.Texture2D, occlusionQueryDepthTexture);
+            GL.TexImage2D(TextureTarget.Texture2D, 0, PixelInternalFormat.DepthComponent32,
+                         glControl.Width, glControl.Height, 0,
+                         PixelFormat.DepthComponent, PixelType.Float, IntPtr.Zero);
+            GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMinFilter, (int)TextureMinFilter.Nearest);
+            GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMagFilter, (int)TextureMagFilter.Nearest);
+
+            GL.FramebufferTexture2D(FramebufferTarget.Framebuffer, FramebufferAttachment.DepthAttachment,
+                                  TextureTarget.Texture2D, occlusionQueryDepthTexture, 0);
+
+            GL.DrawBuffer(DrawBufferMode.None);
+            GL.ReadBuffer(ReadBufferMode.None);
+
+            if (GL.CheckFramebufferStatus(FramebufferTarget.Framebuffer) != FramebufferErrorCode.FramebufferComplete)
+            {
+                Log.Error("Failed to create occlusion query framebuffer");
+            }
+
+            GL.BindFramebuffer(FramebufferTarget.Framebuffer, 0);
+        }
+
+        public void ResizeOcclusionResources()
+        {
+            if (occlusionQueryDepthTexture > 0)
+            {
+                GL.BindTexture(TextureTarget.Texture2D, occlusionQueryDepthTexture);
+                GL.TexImage2D(TextureTarget.Texture2D, 0, PixelInternalFormat.DepthComponent32,
+                             glControl.Width, glControl.Height, 0,
+                             PixelFormat.DepthComponent, PixelType.Float, IntPtr.Zero);
+                GL.BindTexture(TextureTarget.Texture2D, 0);
+            }
+        }
+
+        private void CleanupOcclusionResources()
+        {
+            foreach (var query in occlusionQueries.Values)
+            {
+                GL.DeleteQuery(query);
+            }
+            occlusionQueries.Clear();
+
+            if (occlusionQueryDepthTexture > 0)
+            {
+                GL.DeleteTexture(occlusionQueryDepthTexture);
+                occlusionQueryDepthTexture = 0;
+            }
+
+            if (occlusionQueryFBO > 0)
+            {
+                GL.DeleteFramebuffer(occlusionQueryFBO);
+                occlusionQueryFBO = 0;
+            }
+        }
+
+        private void TestMeshVisibility(List<Mesh> meshesToTest)
+        {
+            foreach (var mesh in meshesToTest)
+            {
+                if (!occlusionQueries.ContainsKey(mesh))
+                {
+                    uint queryId;
+                    GL.GenQueries(1, out queryId);
+                    occlusionQueries[mesh] = queryId;
+                }
+            }
+
+            GL.BindFramebuffer(FramebufferTarget.Framebuffer, occlusionQueryFBO);
+            GL.Viewport(0, 0, glControl.Width, glControl.Height);
+            GL.Clear(ClearBufferMask.DepthBufferBit);
+            GL.ColorMask(false, false, false, false);
+            GL.DepthMask(true);
+            GL.Enable(EnableCap.DepthTest);
+
+            meshShader.Use();
+            meshShader.SetMatrix4("view", Camera.GetViewMatrix().ToMatrix4());
+            meshShader.SetMatrix4("projection", Camera.GetProjectionMatrix().ToMatrix4());
+            foreach (var child in Children)
+            {
+                if (child is Mesh m && m.Visible && !meshesToTest.Contains(m))
+                {
+                    m.Draw();
+                }
+            }
+
+            GL.DepthFunc(DepthFunction.Lequal);
+            GL.DepthMask(false);
+
+            foreach (var mesh in meshesToTest)
+            {
+                if (mesh.Visible && mesh.DragSelectable)
+                {
+                    GL.BeginQuery(QueryTarget.SamplesPassed, occlusionQueries[mesh]);
+                    mesh.Draw();
+                    GL.EndQuery(QueryTarget.SamplesPassed);
+                }
+            }
+
+            GL.ColorMask(true, true, true, true);
+            GL.DepthMask(true);
+            GL.DepthFunc(DepthFunction.Less);
+            GL.BindFramebuffer(FramebufferTarget.Framebuffer, 0);
+
+            occlusionResults.Clear();
+            foreach (var mesh in meshesToTest)
+            {
+                if (mesh.Visible && mesh.DragSelectable)
+                {
+                    int pixelsVisible = 0;
+                    GL.GetQueryObject(occlusionQueries[mesh], GetQueryObjectParam.QueryResult, out pixelsVisible);
+                    occlusionResults[mesh] = pixelsVisible > 0;
+                }
+                else
+                {
+                    occlusionResults[mesh] = false;
+                }
+            }
         }
 
         public void Render()
         {
             if (!initialized) Initialize();
             glControl.MakeCurrent();
-            GL.Clear(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit);
+            GL.Clear(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit | ClearBufferMask.StencilBufferBit); // Clear stencil buffer too
             meshShader.Use();
-
             meshShader.SetMatrix4("view", Camera.GetViewMatrix().ToMatrix4());
             meshShader.SetMatrix4("projection", Camera.GetProjectionMatrix().ToMatrix4());
             meshShader.SetVector3("viewPos", Camera.Position.ToVector3());
             meshShader.SetVector3("lightDir", Camera.Front.ToVector3());
-
             if (GridEnabled)
             {
                 meshShader.SetFloat("ambientStrength", 1.0f);
                 meshShader.SetVector3("lightColor", GridColor);
                 meshShader.SetVector3("baseColor", GridColor);
-
                 GL.BindVertexArray(gridVAO);
                 GL.DrawArrays(PrimitiveType.Lines, 0, gridVertexCount);
                 GL.BindVertexArray(0);
             }
-
             meshShader.SetFloat("ambientStrength", 0.1f);
             meshShader.SetVector3("lightColor", new Vector3(0.8f, 0.8f, 0.8f));
-            meshShader.SetVector3("baseColor", new Vector3(0.6f, 0.7f, 0.85f));
+            meshShader.SetVector3("baseColor", new Vector3(0.6f, 0.7f, 0.85f));;
 
             foreach (var drawable in Children)
                 if (drawable is Mesh m && m.Visible)
                     m.Draw();
-
             DrawSelectionRect();
-
             glControl.SwapBuffers();
         }
 
@@ -194,12 +370,12 @@ namespace Haven.Render
             var minY = Math.Min(p1.Y, p2.Y);
             var maxY = Math.Max(p1.Y, p2.Y);
 
-            var hits = new List<Mesh>();
+            var potentialHits = new List<Mesh>();
             foreach (var d in Children)
             {
                 if (d is Mesh m && m.Visible && m.DragSelectable)
                 {
-                    var world = m.AABB.Vertices
+                    var world = m.Vertices
                                .Select(v => Vector3d.Transform(v, m.Transform.Value));
 
                     double sxMin = double.MaxValue, sxMax = double.MinValue;
@@ -216,15 +392,25 @@ namespace Haven.Render
 
                     if (!(sxMax < minX || sxMin > maxX || syMax < minY || syMin > maxY))
                     {
-                        m.SetColor(Color.DarkRed);
-                        hits.Add(m);
+                        potentialHits.Add(m);
                     }
+                }
+            }
+
+            TestMeshVisibility(potentialHits);
+
+            var hits = new List<Mesh>();
+            foreach (var mesh in potentialHits)
+            {
+                if (occlusionResults.TryGetValue(mesh, out bool isVisible) && isVisible)
+                {
+                    mesh.SetColor(Color.DarkRed);
+                    hits.Add(mesh);
                 }
             }
 
             DragSelectDone.Invoke(hits);
         }
-
 
         public static Ray ScreenPointToRay(Point screenPoint)
         {
@@ -283,6 +469,130 @@ namespace Haven.Render
             return bestY;
         }
 
+        public double GetNearestFloorHeightGPU(Vector3d worldPos, double maxDrop = 10000, double searchRadius = 100.0)
+        {
+            if (!initialized) return worldPos.Z;
+
+            var originalViewport = new int[4];
+            GL.GetInteger(GetPName.Viewport, originalViewport);
+
+            var topDownPos = new Vector3d(worldPos.X, worldPos.Y + 1.0, worldPos.Z);
+            var topDownTarget = new Vector3d(worldPos.X, worldPos.Y - maxDrop, worldPos.Z);
+            var topDownUp = new Vector3d(0, 0, 1);
+
+            var topDownView = Matrix4d.LookAt(topDownPos, topDownTarget, topDownUp);
+            var topDownProjection = Matrix4d.CreateOrthographic(
+                searchRadius * 2, searchRadius * 2, 1.0, maxDrop + 2.0);
+
+            GL.BindFramebuffer(FramebufferTarget.Framebuffer, floorHeightFBO);
+            GL.Viewport(0, 0, FLOOR_HEIGHT_BUFFER_SIZE, FLOOR_HEIGHT_BUFFER_SIZE);
+            GL.Clear(ClearBufferMask.DepthBufferBit);
+
+            meshShader.Use();
+            meshShader.SetMatrix4("view", topDownView.ToMatrix4());
+            meshShader.SetMatrix4("projection", topDownProjection.ToMatrix4());
+
+            // Render only floor meshes (non-DragSelectable)
+            foreach (var child in Children)
+            {
+                if (child is Mesh m && m.Visible && !m.DragSelectable)
+                {
+                    m.Draw();
+                }
+            }
+
+            GL.ReadPixels(0, 0, FLOOR_HEIGHT_BUFFER_SIZE, FLOOR_HEIGHT_BUFFER_SIZE,
+                         PixelFormat.DepthComponent, PixelType.Float, floorHeightPixels);
+
+            float closestDepth = 1.0f;
+            int centerX = FLOOR_HEIGHT_BUFFER_SIZE / 2;
+            int centerY = FLOOR_HEIGHT_BUFFER_SIZE / 2;
+            int searchSize = 3;
+
+            for (int y = Math.Max(0, centerY - searchSize); y <= Math.Min(FLOOR_HEIGHT_BUFFER_SIZE - 1, centerY + searchSize); y++)
+            {
+                for (int x = Math.Max(0, centerX - searchSize); x <= Math.Min(FLOOR_HEIGHT_BUFFER_SIZE - 1, centerX + searchSize); x++)
+                {
+                    float depth = floorHeightPixels[y * FLOOR_HEIGHT_BUFFER_SIZE + x];
+                    if (depth < closestDepth && depth > 0.0f)
+                    {
+                        closestDepth = depth;
+                    }
+                }
+            }
+
+            GL.BindFramebuffer(FramebufferTarget.Framebuffer, 0);
+            GL.Viewport(originalViewport[0], originalViewport[1], originalViewport[2], originalViewport[3]);
+
+            if (closestDepth < 1.0f)
+            {
+                double nearPlane = 1.0;
+                double farPlane = maxDrop + 2.0;
+                double linearDepth = nearPlane + closestDepth * (farPlane - nearPlane);
+                return worldPos.Y + 1.0 - linearDepth;
+            }
+
+            return worldPos.Z;
+        }
+
+        private void UpdateHoveredMesh(Point mousePos)
+        {
+            Mesh? newHovered = null;
+            double minDepth = double.MaxValue;
+
+            if (!isDragging)
+            {
+                Ray worldRay = ScreenPointToRay(mousePos);
+
+                foreach (var drawable in Children)
+                {
+                    if (drawable is Mesh m && m.Visible && m.DragSelectable)
+                    {
+                        var hitResult = m.HitTest(worldRay);
+                        if (hitResult == null) continue;
+
+                        double dist = (hitResult.HitPoint - Camera.Position).Length;
+
+                        if (dist < minDepth)
+                        {
+                            minDepth = dist;
+                            newHovered = m;
+                        }
+                    }
+                }
+            }
+
+            if (hoveredMesh != newHovered)
+            {
+                if (hoveredMesh != null)
+                    hoveredMesh.RestoreColor();
+
+                hoveredMesh = newHovered;
+                mouseStillTimer = 0;
+
+                if (hoveredMesh == null)
+                {
+                    tooltip.Hide(glControl);
+                }
+                else
+                {
+                    //hoveredMesh.SetColor(Color.Yellow);
+                }
+
+                glControl.Invalidate();
+            }
+        }
+
+        private void ShowTooltipForMesh(Mesh mesh, Point mousePos)
+        {
+            if (mesh == null) return;
+
+            string tooltipText = mesh.ID;
+
+            var screenPos = glControl.PointToScreen(new Point(mousePos.X + 10, mousePos.Y - 20));
+            tooltip.Show(tooltipText, glControl, mousePos.X + 10, mousePos.Y - 20);
+        }
+
         protected void Pick(Point mouseLocation)
         {
             try
@@ -322,7 +632,7 @@ namespace Haven.Render
         }
 
         private void DestroyGridMesh()
-        { 
+        {
             if (gridVBO != 0)
             {
                 GL.DeleteBuffer(gridVBO);
@@ -412,15 +722,6 @@ namespace Haven.Render
             var x2 = dragEnd.X;
             var y2 = dragEnd.Y;
 
-            // Semi-transparent green fill
-            GL.Color4(0.2f, 1f, 0.2f, 0.2f);
-            GL.Begin(PrimitiveType.Quads);
-            GL.Vertex2(x1, y1);
-            GL.Vertex2(x2, y1);
-            GL.Vertex2(x2, y2);
-            GL.Vertex2(x1, y2);
-            GL.End();
-
             // Solid green outline
             GL.LineWidth(1.5f);
             GL.Color4(0.2f, 1f, 0.2f, 0.8f);
@@ -440,6 +741,18 @@ namespace Haven.Render
             meshShader.Use();
         }
 
+        private void HoverTimer_Tick(object? sender, EventArgs e)
+        {
+            if (hoveredMesh != null && mouseStillTimer > TOOLTIP_DELAY)
+            {
+                ShowTooltipForMesh(hoveredMesh, lastMousePos);
+                mouseStillTimer = int.MaxValue; // Prevent repeated calls
+            }
+            else if (hoveredMesh != null)
+            {
+                mouseStillTimer += 1;
+            }
+        }
 
         private void glControl_Paint(object? sender, PaintEventArgs e)
         {
@@ -450,6 +763,8 @@ namespace Haven.Render
         {
             GL.Viewport(0, 0, glControl.ClientRectangle.Width, glControl.ClientRectangle.Height);
             Camera.AspectRatio = glControl.Width / (float)glControl.Height;
+
+            ResizeOcclusionResources();
         }
 
         private void glControl_MouseDoubleClick(object? sender, MouseEventArgs e)
@@ -461,7 +776,7 @@ namespace Haven.Render
         private void glControl_MouseUp(object? sender, MouseEventArgs e)
         {
             if (isDragging && (e.Button == MouseButtons.Right || (e.Button == MouseButtons.Left && isShiftDragging)))
-            { 
+            {
                 isDragging = false;
                 isShiftDragging = false;
                 SelectMeshesInRectangle(dragStart, dragEnd);
@@ -485,7 +800,7 @@ namespace Haven.Render
 
         private void glControl_MouseScroll(object? sender, MouseEventArgs e)
         {
-            const float cameraSpeed = 2f;
+            const float cameraSpeed = 20f;
             Camera.Position -= Camera.Front * cameraSpeed * (e.Delta * -1);
             Render();
         }
@@ -503,6 +818,9 @@ namespace Haven.Render
 
         private void glControl_MouseMove(object? sender, MouseEventArgs e)
         {
+            lastMousePos = e.Location;
+            mouseStillTimer = 0; // Reset hover timer
+
             if (e.Button == MouseButtons.Right || (e.Button == MouseButtons.Left && isShiftDragging))
             {
                 dragEnd = e.Location;
@@ -533,6 +851,18 @@ namespace Haven.Render
             else
             {
                 firstMove = true;
+                UpdateHoveredMesh(e.Location);
+            }
+        }
+
+        private void glControl_MouseLeave(object? sender, EventArgs e)
+        {
+            if (hoveredMesh != null)
+            {
+                hoveredMesh.RestoreColor();
+                hoveredMesh = null;
+                tooltip.Hide(glControl);
+                glControl.Invalidate();
             }
         }
 
@@ -543,12 +873,44 @@ namespace Haven.Render
                 isShiftDragging = true;
             }
         }
+
         private void glControl_KeyUp(object? sender, KeyEventArgs e)
         {
             if (!e.Shift)
             {
                 isShiftDragging = false;
             }
+        }
+
+        ~Scene()
+        {
+            Dispose();
+        }
+
+        public void Dispose()
+        {
+            if (initialized)
+            {
+                DestroyGridMesh();
+
+                if (floorHeightFBO != 0)
+                {
+                    GL.DeleteFramebuffer(floorHeightFBO);
+                    floorHeightFBO = 0;
+                }
+
+                if (floorHeightTexture != 0)
+                {
+                    GL.DeleteTexture(floorHeightTexture);
+                    floorHeightTexture = 0;
+                }
+
+                //meshShader?.Dispose();
+
+                CleanupOcclusionResources();
+            }
+
+            tooltip?.Dispose();
         }
     }
 }
