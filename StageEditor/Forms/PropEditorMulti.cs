@@ -20,7 +20,10 @@ namespace Haven.Render
 
         private void PropEditorMulti_Load(object sender, EventArgs e)
         {
-            lbPropSelectCount.Text = $"Selected Props: {_props.Count}";
+            gbProps.Text = $"Selected Props: {_props.Count}";
+
+            _props.Sort((a, b) => string.Compare(DictionaryFile.GetHashString(a.Hash), DictionaryFile.GetHashString(b.Hash), StringComparison.Ordinal));
+            _props.ForEach(p => tbProps.Text += DictionaryFile.GetHashString(p.Hash) + Environment.NewLine);
         }
 
         private void btnSnapMulti_Click(object sender, EventArgs e)
@@ -69,9 +72,9 @@ namespace Haven.Render
                     GeomPropOriginal[prop] = propOriginal;
                 }
 
-                var x = propOriginal.X + double.Parse(tbSpawnEditX.Text);
-                var y = propOriginal.Y + double.Parse(tbSpawnEditY.Text);
-                var z = propOriginal.Z + double.Parse(tbSpawnEditZ.Text);
+                var x = prop.X + double.Parse(tbSpawnEditX.Text);
+                var y = prop.Y + double.Parse(tbSpawnEditY.Text);
+                var z = prop.Z + double.Parse(tbSpawnEditZ.Text);
 
                 mesh.Transform.SetTranslation(x - propOriginal.X, z - propOriginal.Z, y - propOriginal.Y);
 

@@ -240,26 +240,6 @@ namespace Haven.Properties {
         /// <summary>
         ///   Looks up a localized resource of type System.Byte[].
         /// </summary>
-        internal static byte[] ShaderHighlightFrag {
-            get {
-                object obj = ResourceManager.GetObject("ShaderHighlightFrag", resourceCulture);
-                return ((byte[])(obj));
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized resource of type System.Byte[].
-        /// </summary>
-        internal static byte[] ShaderHighlightVert {
-            get {
-                object obj = ResourceManager.GetObject("ShaderHighlightVert", resourceCulture);
-                return ((byte[])(obj));
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized resource of type System.Byte[].
-        /// </summary>
         internal static byte[] ShaderVert {
             get {
                 object obj = ResourceManager.GetObject("ShaderVert", resourceCulture);
