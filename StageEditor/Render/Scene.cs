@@ -52,7 +52,7 @@ namespace Haven.Render
         public bool GridEnabled { get; set; } = true;
         public int GridRows { get; set; } = 200;
         public int GridCols { get; set; } = 200;
-        public float CellSize { get; set; } = 4096f;
+        public float CellSize { get; set; } = 4000f;
         public Vector3 GridColor { get; set; } = new Vector3(0.5f, 0.5f, 0.5f);
 
         public Scene(GLControl control)
