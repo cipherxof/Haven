@@ -393,7 +393,7 @@
             labelVersion.Name = "labelVersion";
             labelVersion.Size = new Size(75, 32);
             labelVersion.TabIndex = 4;
-            labelVersion.Text = "v0.1.0";
+            labelVersion.Text = "v0.1.1";
             // 
             // MainForm
             // 
