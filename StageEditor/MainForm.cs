@@ -1,15 +1,10 @@
-﻿using System;
-using System.ComponentModel;
-using System.Diagnostics;
-using OpenTK;
+﻿using OpenTK;
 using Haven.Parser;
 using Haven.Render;
 using Haven.Properties;
 using Haven.Forms;
 using Haven.Parser.Geom;
-using Joveler.Compression.ZLib;
 using OpenTK.Graphics.OpenGL;
-using System.IO;
 using Serilog.Events;
 using Serilog;
 
@@ -79,7 +74,6 @@ namespace Haven
             tabPageGeom.Show();
             SetEnabled(false);
             DictionaryFile.Load("bin/dictionary.txt", "bin/dictionary-aliases.txt");
-            ZLibInit.GlobalInit(Path.GetFullPath("zlibwapi.dll"));
             SetupContextMenus();
 
             Scene.MeshSelected += mesh =>

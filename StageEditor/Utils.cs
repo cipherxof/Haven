@@ -1,19 +1,10 @@
 ﻿using Haven.Parser;
 using Haven.TextureLoaders;
-using Joveler.Compression;
-using Joveler.Compression.ZLib;
-using OpenTK.Input;
-using System;
-using System.Collections.Generic;
+using ICSharpCode.SharpZipLib.Zip.Compression.Streams;
+using ICSharpCode.SharpZipLib.Zip.Compression;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.Globalization;
-using System.Linq;
-using System.Reflection.Metadata;
-using System.Text;
-using System.Threading.Tasks;
-using System.Windows.Forms;
-using System.Xml.Linq;
 
 namespace Haven
 {
@@ -107,43 +98,25 @@ namespace Haven
         }
 
 
-        public static byte[] DeflateBuffer2(byte[] uncompressedBytes, ZLibCompLevel level)
+        public static byte[] DeflateBuffer2(byte[] data, int level)
         {
-            ZLibCompressOptions compOpts = new ZLibCompressOptions()
-            {
-                Level = level,
-                WindowBits = ZLibWindowBits.Bits15,
-                LeaveOpen = false,
-                MemLevel = ZLibMemLevel.Level9
-            };
+            var deflater = new Deflater(level, noZlibHeaderOrFooter: true);
+            using var ms = new MemoryStream();
+            using (var ds = new DeflaterOutputStream(ms, deflater))
+                ds.Write(data, 0, data.Length);
 
-            using (MemoryStream fsOrigin = new MemoryStream(uncompressedBytes))
-            using (MemoryStream fsComp = new MemoryStream())
-            {
-                using (DeflateStream zs = new DeflateStream(fsComp, compOpts))
-                {
-                    fsOrigin.CopyTo(zs);
-                }
-                return fsComp.ToArray();
-            }
+            return ms.ToArray();
         }
 
-        public static byte[] InflateBuffer2(byte[] compressedBytes, int decompressedSize)
+        public static byte[] InflateBuffer2(byte[] compressed, int expectedSize)
         {
-            ZLibDecompressOptions decompOpts = new ZLibDecompressOptions()
-            {
-                WindowBits = ZLibWindowBits.Bits15,
-                LeaveOpen = false,
-            };
-
-            using (MemoryStream fsComp = new MemoryStream(compressedBytes))
-            using (MemoryStream fsDecomp = new MemoryStream())
-            using (DeflateStream zs = new DeflateStream(fsComp, decompOpts))
-            {
-                zs.CopyTo(fsDecomp);
-
-                return fsDecomp.ToArray();
-            }
+            using var msOut = new MemoryStream();
+            using var ds = new InflaterInputStream(
+                new MemoryStream(compressed),
+                new Inflater(noHeader: true)
+            );
+            ds.CopyTo(msOut);
+            return msOut.ToArray();
         }
 
         public static List<DataContainer> Compress(string path)
@@ -158,12 +131,12 @@ namespace Haven
 
                     while (stream.Length - stream.Position > 0x4000)
                     {
-                        data = DeflateBuffer2(reader.ReadBytes(0x4000), ZLibCompLevel.Default);
+                        data = DeflateBuffer2(reader.ReadBytes(0x4000), 6);
                         containers.Add(new DataContainer(data.Length, 0x4000, data));
                     }
 
                     int left = (int)(stream.Length - stream.Position);
-                    data = DeflateBuffer2(reader.ReadBytes(left), ZLibCompLevel.Default);
+                    data = DeflateBuffer2(reader.ReadBytes(left), 6);
                     containers.Add(new DataContainer(data.Length, left, data));
                 }
             }
