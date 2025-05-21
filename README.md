@@ -19,5 +19,4 @@ A utility that allows you to edit stages for all games running on the MGS4 engin
 - VLM merger
 - String hashing utility
 
-![image](https://github.com/user-attachments/assets/08b25fb4-5f23-4fd2-82c7-5f3d84dcfa94)
-
+![image](https://github.com/user-attachments/assets/ee2992dd-bb2f-43b8-941e-0f0e35da91ef)
