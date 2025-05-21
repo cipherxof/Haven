@@ -334,6 +334,12 @@ namespace Haven.Render
             Render();
         }
 
+        public void ClearSelection()
+        {
+            ResetAllColors();
+            SelectedDrawable = null;
+        }
+
         private Vector3d ProjectToScreen(Vector3d world)
         {
             var view = Camera.GetViewMatrix().ToMatrix4();

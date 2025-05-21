@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.ComponentModel;
 using System.Diagnostics;
 using OpenTK;
@@ -52,6 +52,8 @@ namespace Haven
         public static string LoggerTemplate = "[{Timestamp:HH:mm:ss} {Level:u3} {SourceContext}] {Message:lj}{NewLine}{Exception}";
         public static CustomLoggerSink LoggerSink = new CustomLoggerSink(null, LoggerTemplate);
 
+        private bool _suspendAfterCheck = false;
+
         public MainForm()
         {
             InitializeComponent();
@@ -96,7 +98,7 @@ namespace Haven
 
         private void Scene_DragSelectDone(List<Mesh>? obj)
         {
-            if (obj == null || obj.Count == 0) 
+            if (obj == null || obj.Count == 0)
                 return;
 
             if (obj.Count == 1)
@@ -133,6 +135,7 @@ namespace Haven
             using (var propEditor = new PropEditorMulti(props, GeomPropMeshLookup))
             {
                 propEditor.ShowDialog();
+                Scene.ClearSelection();
             }
         }
 
@@ -472,85 +475,69 @@ namespace Haven
 
         private void PopulateGeomTreeView(string text)
         {
-            if (Geom == null)
-            {
-                return;
-            }
+            if (Geom == null) return;
 
+            _suspendAfterCheck = true;
             treeViewGeom.Enabled = false;
             treeViewGeom.BeginUpdate();
 
             text = text.ToLower();
-
             GeomPropLookup.Clear();
+            TreeNodeLookup.Clear();
 
-            MeshGroups = MeshGroups.OrderBy(x => x.ID).ToList();
+            // 1) MeshGroups
             TreeNodeGeomMeshes.Nodes.Clear();
-            foreach (var mesh in MeshGroups)
+            foreach (var mesh in MeshGroups.OrderBy(m => m.ID))
             {
-                if (!mesh.ID.ToLower().Contains(text))
-                    continue;
-
-                var node = TreeNodeGeomMeshes.Nodes.Add(mesh.ID);
-                node.Name = mesh.ID;
-                node.Checked = true;
-                node.Tag = mesh;
-                TreeNodeLookup[mesh.ID] = node;
+                if (!mesh.ID.ToLower().Contains(text)) continue;
+                var tn = TreeNodeGeomMeshes.Nodes.Add(mesh.ID);
+                tn.Checked = true;
+                tn.Tag = mesh;
+                TreeNodeLookup[mesh.ID] = tn;
             }
 
-            MeshRefs = MeshRefs.OrderBy(x => x.ID).ToList();
+            // 2) MeshRefs
             TreeNodeGeomRefs.Nodes.Clear();
-            foreach (var mesh in MeshRefs)
+            foreach (var mesh in MeshRefs.OrderBy(m => m.ID))
             {
-                if (!mesh.ID.ToLower().Contains(text))
-                    continue;
-
-                var node = TreeNodeGeomRefs.Nodes.Add(mesh.ID);
-                node.Name = mesh.ID;
-                node.Checked = false;
-                node.Tag = mesh;
-                TreeNodeLookup[mesh.ID] = node;
+                if (!mesh.ID.ToLower().Contains(text)) continue;
+                var tn = TreeNodeGeomRefs.Nodes.Add(mesh.ID);
+                tn.Checked = false;
+                tn.Tag = mesh;
+                TreeNodeLookup[mesh.ID] = tn;
             }
 
-            MeshBoundaries = MeshBoundaries.OrderBy(x => x.ID).ToList();
+            // 3) MeshBoundaries
             TreeNodeGeomBoundaries.Nodes.Clear();
-            foreach (var mesh in MeshBoundaries)
+            foreach (var mesh in MeshBoundaries.OrderBy(m => m.ID))
             {
-                if (!mesh.ID.ToLower().Contains(text))
-                    continue;
-
-                var node = TreeNodeGeomBoundaries.Nodes.Add(mesh.ID);
-                node.Name = mesh.ID;
-                node.Checked = false;
-                node.Tag = mesh;
-                TreeNodeLookup[mesh.ID] = node;
+                if (!mesh.ID.ToLower().Contains(text)) continue;
+                var tn = TreeNodeGeomBoundaries.Nodes.Add(mesh.ID);
+                tn.Checked = false;
+                tn.Tag = mesh;
+                TreeNodeLookup[mesh.ID] = tn;
             }
 
-            var propsList = Geom.GeomProps.OrderBy(x => DictionaryFile.GetHashString(x.Hash)).ToList();
+            // 4) GeomProps
             TreeNodeGeomProps.Nodes.Clear();
-            foreach (var prop in propsList)
+            foreach (var prop in Geom.GeomProps
+                                     .OrderBy(p => DictionaryFile.GetHashString(p.Hash)))
             {
-                Mesh? mesh;
-
-                GeomPropMeshLookup.TryGetValue(prop, out mesh);
-
-                if (mesh == null)
+                if (!GeomPropMeshLookup.TryGetValue(prop, out var mesh) ||
+                    mesh == null ||
+                    !mesh.ID.ToLower().Contains(text))
                     continue;
 
-                if (!mesh.ID.ToLower().Contains(text))
-                    continue;
-
-                var node = TreeNodeGeomProps.Nodes.Add(mesh.ID);
-                node.Name = mesh.ID;
-                node.Checked = false;
-                node.Tag = mesh;
-                TreeNodeLookup[mesh.ID] = node;
-
-                GeomPropLookup[node] = prop;
+                var tn = TreeNodeGeomProps.Nodes.Add(mesh.ID);
+                tn.Checked = false;
+                tn.Tag = mesh;
+                TreeNodeLookup[mesh.ID] = tn;
+                GeomPropLookup[tn] = prop;
             }
 
             treeViewGeom.EndUpdate();
             treeViewGeom.Enabled = true;
+            _suspendAfterCheck = false;
         }
 
         private async void PromptStageLoad(Stage.GameType game)
@@ -757,51 +744,48 @@ namespace Haven
             }
         }
 
-        private void treeViewGeom_AfterCheck(object sender, TreeViewEventArgs e)
+        private void treeViewGeom_BeforeCheck(object sender, TreeViewCancelEventArgs e)
         {
-            if (e.Action == TreeViewAction.Unknown || e.Node == null)
+            if (_suspendAfterCheck) return;
+
+            if (e.Node == TreeNodeGeomMeshes ||
+                e.Node == TreeNodeGeomRefs ||
+                e.Node == TreeNodeGeomProps ||
+                e.Node == TreeNodeGeomBoundaries)
             {
-                return;
-            }
+                e.Cancel = true;
+                bool newState = !e.Node.Checked;
 
-            string id = e.Node.Text;
+                _suspendAfterCheck = true;
 
-            if (e.Node == TreeNodeGeomMeshes || e.Node == TreeNodeGeomRefs || e.Node == TreeNodeGeomProps || e.Node == TreeNodeGeomBoundaries)
-            {
-                List<Mesh>? list;
 
-                if (e.Node == TreeNodeGeomMeshes)
-                    list = MeshGroups;
-                else if (e.Node == TreeNodeGeomRefs)
-                    list = MeshRefs;
-                else if (e.Node == TreeNodeGeomBoundaries)
-                    list = MeshBoundaries;
-                else if (e.Node == TreeNodeGeomProps)
-                    list = MeshProps;
-                else
-                    return;
+                e.Node.Checked = newState;
 
-                Parallel.ForEach(list, child => child.Visible = e.Node.Checked);
+                foreach (TreeNode child in e.Node.Nodes)
+                {
+                    child.Checked = newState;
+                    if (child.Tag is Mesh m)
+                        m.Visible = newState;
+                }
 
-                for (int i = 0; i < e.Node.Nodes.Count; i++)
-                    if (e.Node.Nodes[i].IsVisible)
-                        e.Node.Nodes[i].Checked = e.Node.Checked;
+                _suspendAfterCheck = false;
 
                 treeViewGeom.SelectedNode = null;
-
                 Scene.Render();
-
-                return;
             }
+        }
 
-            var mesh = Mesh.FromID(id);
 
-            if (mesh == null)
+        private void treeViewGeom_AfterCheck(object sender, TreeViewEventArgs e)
+        {
+            if (_suspendAfterCheck || e.Action == TreeViewAction.Unknown || e.Node == null)
                 return;
 
-            mesh.Visible = e.Node.Checked;
-
-            Scene.Render();
+            if (e.Node.Tag is Mesh mesh)
+            {
+                mesh.Visible = e.Node.Checked;
+                Scene.Render();
+            }
         }
 
         private void tbSpawnsFilter_KeyDown(object sender, KeyEventArgs e)
@@ -1195,5 +1179,6 @@ namespace Haven
                 Scene.CurrentScene.Render();
             }
         }
+
     }
 }

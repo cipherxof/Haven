@@ -191,6 +191,7 @@
             treeViewGeom.Name = "treeViewGeom";
             treeViewGeom.Size = new Size(383, 825);
             treeViewGeom.TabIndex = 6;
+            treeViewGeom.BeforeCheck += treeViewGeom_BeforeCheck;
             treeViewGeom.AfterCheck += treeViewGeom_AfterCheck;
             treeViewGeom.AfterSelect += treeViewGeom_AfterSelect;
             treeViewGeom.NodeMouseDoubleClick += treeViewGeom_NodeMouseDoubleClick;

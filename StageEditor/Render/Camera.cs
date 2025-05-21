@@ -77,7 +77,7 @@ namespace Haven.Render
 
         public Matrix4d GetProjectionMatrix()
         {
-            return Matrix4d.CreatePerspectiveFieldOfView(_fov, AspectRatio, 500f, 200000f);
+            return Matrix4d.CreatePerspectiveFieldOfView(_fov, AspectRatio, 500f, 500000f);
         }
 
         private void UpdateVectors()
