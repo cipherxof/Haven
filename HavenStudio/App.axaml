@@ -1,0 +1,90 @@
+<Application xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:hex="clr-namespace:AvaloniaHex.Editing;assembly=AvaloniaHex"
+             xmlns:avaloniaEdit="clr-namespace:AvaloniaEdit;assembly=AvaloniaEdit"
+             x:Class="HavenStudio.App"
+             RequestedThemeVariant="Default">
+             <!-- "Default" ThemeVariant follows system theme variant. "Dark" or "Light" are other available options. -->
+
+    <Application.Resources>
+        <Color x:Key="AppBg1">#1E1E1E</Color>
+        <Color x:Key="AppBg2">#1B1B1B</Color>
+        <Color x:Key="PanelBg">#252526</Color>
+        <Color x:Key="PanelBorder">#2D2D30</Color>
+        <Color x:Key="Accent">#3E3E42</Color>
+        <Color x:Key="AccentSoft">#2A2A2A</Color>
+        <Color x:Key="Text">#D4D4D4</Color>
+        <Color x:Key="TextMuted">#9DA0A6</Color>
+
+        <LinearGradientBrush x:Key="AppBackgroundBrush" StartPoint="0,0" EndPoint="0,1">
+            <GradientStop Color="{DynamicResource AppBg1}" Offset="0"/>
+            <GradientStop Color="{DynamicResource AppBg2}" Offset="1"/>
+        </LinearGradientBrush>
+        <SolidColorBrush x:Key="AppTextBrush" Color="{DynamicResource Text}"/>
+        <SolidColorBrush x:Key="MutedTextBrush" Color="{DynamicResource TextMuted}"/>
+        <SolidColorBrush x:Key="PanelBackgroundBrush" Color="{DynamicResource PanelBg}"/>
+        <SolidColorBrush x:Key="PanelBorderBrush" Color="{DynamicResource PanelBorder}"/>
+        <SolidColorBrush x:Key="AccentBrush" Color="{DynamicResource Accent}"/>
+        <SolidColorBrush x:Key="AccentSoftBrush" Color="{DynamicResource AccentSoft}"/>
+    </Application.Resources>
+
+    <Application.Styles>
+        <FluentTheme />
+        <StyleInclude Source="avares://AvaloniaHex/Themes/Simple/AvaloniaHex.axaml"/>
+        <StyleInclude Source="avares://AvaloniaEdit/Themes/Fluent/AvaloniaEdit.xaml"/>
+        <Style Selector="TextBox">
+            <Setter Property="Background" Value="{DynamicResource PanelBackgroundBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource PanelBorderBrush}"/>
+            <Setter Property="Foreground" Value="{DynamicResource AppTextBrush}"/>
+        </Style>
+        <Style Selector="TextBox:pointerover">
+            <Setter Property="Background" Value="{DynamicResource PanelBackgroundBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource PanelBorderBrush}"/>
+        </Style>
+        <Style Selector="TextBox:focus">
+            <Setter Property="Background" Value="{DynamicResource PanelBackgroundBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource PanelBorderBrush}"/>
+        </Style>
+        <Style Selector="Window">
+            <Setter Property="Background" Value="{DynamicResource AppBackgroundBrush}"/>
+            <Setter Property="Foreground" Value="{DynamicResource AppTextBrush}"/>
+            <Setter Property="FontFamily" Value="Fira Sans"/>
+        </Style>
+        <Style Selector="Button">
+            <Setter Property="Background" Value="{DynamicResource AccentSoftBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource PanelBorderBrush}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Padding" Value="12,6"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Foreground" Value="{DynamicResource AppTextBrush}"/>
+        </Style>
+        <Style Selector="Button:pointerover">
+            <Setter Property="Background" Value="{DynamicResource AccentBrush}"/>
+        </Style>
+        <Style Selector="ListBox">
+            <Setter Property="Background" Value="{DynamicResource PanelBackgroundBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource PanelBorderBrush}"/>
+            <Setter Property="Foreground" Value="{DynamicResource AppTextBrush}"/>
+        </Style>
+        <Style Selector="ListBoxItem:pointerover">
+            <Setter Property="Background" Value="{DynamicResource AccentSoftBrush}"/>
+        </Style>
+        <Style Selector="ListBoxItem:selected">
+            <Setter Property="Background" Value="{DynamicResource AccentBrush}"/>
+        </Style>
+        <Style Selector="ComboBox">
+            <Setter Property="Background" Value="{DynamicResource PanelBackgroundBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource PanelBorderBrush}"/>
+            <Setter Property="Foreground" Value="{DynamicResource AppTextBrush}"/>
+        </Style>
+        <Style Selector="avaloniaEdit|TextEditor">
+            <Setter Property="Background" Value="{DynamicResource PanelBackgroundBrush}"/>
+            <Setter Property="Foreground" Value="{DynamicResource AppTextBrush}"/>
+        </Style>
+        <Style Selector="hex|SelectionLayer">
+            <Setter Property="PrimarySelectionBackground" Value="#4D5B9BD5"/>
+            <Setter Property="SecondarySelectionBackground" Value="#335B9BD5"/>
+        </Style>
+    </Application.Styles>
+</Application>

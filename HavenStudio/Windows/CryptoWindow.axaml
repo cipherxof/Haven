@@ -1,0 +1,43 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:HavenStudio"
+        mc:Ignorable="d" d:DesignWidth="440" d:DesignHeight="220"
+        x:Class="HavenStudio.Windows.CryptoWindow"
+        x:DataType="local:CryptoWindowViewModel"
+        Width="440"
+        Height="220"
+        MinWidth="420"
+        MinHeight="200"
+        Title="Encrypt / Decrypt"
+        WindowStartupLocation="CenterOwner"
+        Background="{DynamicResource PanelBackgroundBrush}"
+        Foreground="{DynamicResource AppTextBrush}">
+    <Border Padding="16"
+            Background="{DynamicResource PanelBackgroundBrush}"
+            BorderBrush="{DynamicResource PanelBorderBrush}"
+            BorderThickness="1">
+        <Grid RowDefinitions="Auto,Auto,*,Auto" ColumnDefinitions="Auto,*">
+            <TextBlock Grid.Row="0" Grid.Column="0" Text="{Binding PathTypeLabel}" Margin="0,0,8,8"/>
+            <TextBlock Grid.Row="0" Grid.Column="1" Text="{Binding FileName}" Margin="0,0,0,8"/>
+
+            <TextBlock Grid.Row="1" Grid.Column="0" Text="Key:" Margin="0,0,8,8"/>
+            <TextBox Grid.Row="1" Grid.Column="1"
+                     Text="{Binding KeyText}"
+                     Margin="0,0,0,8"/>
+
+            <TextBlock Grid.Row="2" Grid.ColumnSpan="2"
+                       Foreground="{DynamicResource MutedTextBrush}"
+                       Text="{Binding StatusText}"/>
+
+            <StackPanel Grid.Row="3" Grid.ColumnSpan="2"
+                        Orientation="Horizontal"
+                        HorizontalAlignment="Right"
+                        Spacing="8">
+                <Button Content="Decrypt" Click="OnDecrypt"/>
+                <Button Content="Encrypt" Click="OnEncrypt"/>
+            </StackPanel>
+        </Grid>
+    </Border>
+</Window>

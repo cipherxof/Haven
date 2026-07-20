@@ -1,0 +1,54 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d" d:DesignWidth="720" d:DesignHeight="480"
+        x:Class="HavenStudio.Windows.TextEditorWindow"
+        Width="720"
+        Height="480"
+        MinWidth="480"
+        MinHeight="320"
+        Title="Text Editor"
+        WindowStartupLocation="CenterOwner"
+        Background="{DynamicResource PanelBackgroundBrush}"
+        Foreground="{DynamicResource AppTextBrush}">
+    <Grid RowDefinitions="Auto,*">
+        <Border Background="{DynamicResource AccentSoftBrush}"
+                BorderBrush="{DynamicResource PanelBorderBrush}"
+                BorderThickness="0,0,0,1"
+                Padding="12,8">
+            <DockPanel>
+                <TextBlock DockPanel.Dock="Left"
+                           Text="Text Editor"
+                           FontWeight="SemiBold"/>
+                <Button DockPanel.Dock="Right"
+                        Content="Save"
+                        Click="OnSave"/>
+            </DockPanel>
+        </Border>
+
+        <TextBox Grid.Row="1"
+                 x:Name="EditorTextBox"
+                 AcceptsReturn="True"
+                 TextWrapping="NoWrap"
+                 FontFamily="DejaVu Sans Mono, Consolas, monospace"
+                 FontSize="14"
+                 Background="{DynamicResource PanelBackgroundBrush}"
+                 BorderThickness="0">
+            <TextBox.Styles>
+                <Style Selector="TextBox">
+                    <Setter Property="Background" Value="{DynamicResource PanelBackgroundBrush}"/>
+                    <Setter Property="BorderBrush" Value="{DynamicResource PanelBorderBrush}"/>
+                </Style>
+                <Style Selector="TextBox:pointerover">
+                    <Setter Property="Background" Value="{DynamicResource PanelBackgroundBrush}"/>
+                    <Setter Property="BorderBrush" Value="{DynamicResource PanelBorderBrush}"/>
+                </Style>
+                <Style Selector="TextBox:focus">
+                    <Setter Property="Background" Value="{DynamicResource PanelBackgroundBrush}"/>
+                    <Setter Property="BorderBrush" Value="{DynamicResource PanelBorderBrush}"/>
+                </Style>
+            </TextBox.Styles>
+        </TextBox>
+    </Grid>
+</Window>

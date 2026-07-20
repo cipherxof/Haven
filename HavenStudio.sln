@@ -1,0 +1,28 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "HavenStudio", "HavenStudio\HavenStudio.csproj", "{A27EC792-4DD2-40C3-958D-6B81F9326B2F}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Avalonia3DControl", "Avalonia3DControl\Avalonia3DControl.csproj", "{4B022280-912A-483D-82A4-4432F264260B}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "HavenStudio.Tests", "HavenStudio.Tests\HavenStudio.Tests.csproj", "{D8B99BD7-349F-4F02-B898-FD1AE8640284}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{A27EC792-4DD2-40C3-958D-6B81F9326B2F}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{A27EC792-4DD2-40C3-958D-6B81F9326B2F}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{A27EC792-4DD2-40C3-958D-6B81F9326B2F}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{A27EC792-4DD2-40C3-958D-6B81F9326B2F}.Release|Any CPU.Build.0 = Release|Any CPU
+		{4B022280-912A-483D-82A4-4432F264260B}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{4B022280-912A-483D-82A4-4432F264260B}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{4B022280-912A-483D-82A4-4432F264260B}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{4B022280-912A-483D-82A4-4432F264260B}.Release|Any CPU.Build.0 = Release|Any CPU
+		{D8B99BD7-349F-4F02-B898-FD1AE8640284}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{D8B99BD7-349F-4F02-B898-FD1AE8640284}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{D8B99BD7-349F-4F02-B898-FD1AE8640284}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{D8B99BD7-349F-4F02-B898-FD1AE8640284}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+EndGlobal

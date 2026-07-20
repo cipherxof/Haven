@@ -1,0 +1,94 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="HavenStudio.Windows.TxnEditorWindow"
+        x:CompileBindings="False"
+        Title="TXN Editor"
+        Width="1080"
+        Height="680"
+        MinWidth="920"
+        MinHeight="520"
+        Background="{DynamicResource AppBackgroundBrush}"
+        Foreground="{DynamicResource AppTextBrush}"
+        WindowStartupLocation="CenterOwner">
+    <Grid RowDefinitions="Auto,Auto,Auto,*,Auto" Margin="12">
+        <TextBlock Grid.Row="0"
+                   Name="TxnPathTextBlock"
+                   FontWeight="SemiBold"
+                   Text="TXN"/>
+
+        <StackPanel Grid.Row="1"
+                    Orientation="Horizontal"
+                    Spacing="8"
+                    Margin="0,8,0,8">
+            <Button Content="Add..." Click="OnAdd"/>
+            <Button Content="Refresh" Click="OnRefresh"/>
+            <Button Content="Save" Click="OnSave"/>
+        </StackPanel>
+
+        <Grid Grid.Row="2" ColumnDefinitions="Auto,220,Auto,180,Auto,120,*" Margin="0,0,0,8">
+            <TextBlock Grid.Column="0"
+                       VerticalAlignment="Center"
+                       Margin="0,0,8,0"
+                       Text="Filter"/>
+            <TextBox Grid.Column="1"
+                     Name="FilterTextBox"
+                     Watermark="name/hash/container..."
+                     TextChanged="OnFilterChanged"/>
+            <TextBlock Grid.Column="2"
+                       VerticalAlignment="Center"
+                       Margin="12,0,8,0"
+                       Text="Sort"/>
+            <ComboBox Grid.Column="3"
+                      Name="SortComboBox"
+                      SelectionChanged="OnSortChanged"/>
+            <TextBlock Grid.Column="4"
+                       VerticalAlignment="Center"
+                       Margin="12,0,8,0"
+                       Text="Order"/>
+            <ComboBox Grid.Column="5"
+                      Name="SortDirectionComboBox"
+                      SelectionChanged="OnSortChanged"/>
+        </Grid>
+
+        <Border Grid.Row="3"
+                Background="{DynamicResource PanelBackgroundBrush}"
+                BorderBrush="{DynamicResource PanelBorderBrush}"
+                BorderThickness="1"
+                Padding="6">
+            <ListBox Name="TextureList"
+                     SelectionMode="Single"
+                     DoubleTapped="OnTextureListDoubleTapped">
+                <ListBox.ContextMenu>
+                    <ContextMenu>
+                        <MenuItem Header="Preview" Click="OnPreview"/>
+                        <MenuItem Header="Replace..." Click="OnReplace"/>
+                        <MenuItem Header="Delete" Click="OnDelete"/>
+                    </ContextMenu>
+                </ListBox.ContextMenu>
+                <ListBox.ItemTemplate>
+                    <DataTemplate>
+                        <Grid ColumnDefinitions="70,220,190,90,80,150,150" Margin="0,3">
+                            <TextBlock Grid.Column="0" Text="{Binding IndexText}"/>
+                            <TextBlock Grid.Column="1" Text="{Binding Name}"/>
+                            <TextBlock Grid.Column="2" Text="{Binding HashText}"/>
+                            <TextBlock Grid.Column="3" Text="{Binding Resolution}"/>
+                            <TextBlock Grid.Column="4" Text="{Binding Format}"/>
+                            <TextBlock Grid.Column="5" Text="{Binding MainContainer}"/>
+                            <TextBlock Grid.Column="6" Text="{Binding MipContainer}"/>
+                        </Grid>
+                    </DataTemplate>
+                </ListBox.ItemTemplate>
+            </ListBox>
+        </Border>
+
+        <Grid Grid.Row="4"
+              ColumnDefinitions="*,Auto"
+              Margin="0,8,0,0">
+            <TextBlock Grid.Column="0"
+                       Name="StatusTextBlock"
+                       Text="Ready"/>
+            <TextBlock Grid.Column="1"
+                       Text="Columns: Index | Name | Tex/Tri Hash | Size | Format | Main | Mip"/>
+        </Grid>
+    </Grid>
+</Window>

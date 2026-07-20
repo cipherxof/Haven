@@ -1,0 +1,12 @@
+[*.cs]
+
+# Keep HavenStudio's safety-related diagnostics visible without imposing
+# repository-wide formatting changes on the external 3D control.
+dotnet_diagnostic.CS0618.severity = warning
+dotnet_diagnostic.CS8600.severity = warning
+dotnet_diagnostic.CS8601.severity = warning
+dotnet_diagnostic.CS8602.severity = warning
+dotnet_diagnostic.CS8603.severity = warning
+dotnet_diagnostic.CS8604.severity = warning
+dotnet_diagnostic.CS8618.severity = warning
+dotnet_diagnostic.CA2014.severity = warning

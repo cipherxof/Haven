@@ -1,0 +1,71 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:local="clr-namespace:HavenStudio"
+        x:Class="HavenStudio.Views.MinimapView"
+        x:DataType="local:MinimapViewModel"
+        IsVisible="{Binding IsVisible}">
+    <Border Background="{DynamicResource PanelBackgroundBrush}"
+            BorderBrush="{DynamicResource PanelBorderBrush}"
+            BorderThickness="0,1,1,0">
+        <DockPanel>
+            <Border DockPanel.Dock="Top"
+                    Background="{DynamicResource AccentSoftBrush}"
+                    BorderBrush="{DynamicResource PanelBorderBrush}"
+                    BorderThickness="0,0,0,1"
+                    Padding="8,6">
+                <TextBlock Text="Minimap"
+                           FontSize="12"
+                           FontWeight="SemiBold"
+                           Foreground="{DynamicResource MutedTextBrush}"/>
+            </Border>
+
+            <Grid DockPanel.Dock="Bottom"
+                  ColumnDefinitions="Auto,*,Auto"
+                  Margin="8,6"
+                  IsVisible="{Binding HasLevels}">
+                <Button Grid.Column="0"
+                        Content="◀"
+                        Padding="8,2"
+                        FontWeight="Normal"
+                        IsVisible="{Binding CanNavigate}"
+                        Click="OnPrevious"/>
+                <StackPanel Grid.Column="1"
+                            VerticalAlignment="Center"
+                            HorizontalAlignment="Center">
+                    <TextBlock Text="{Binding CurrentLabel}"
+                               HorizontalAlignment="Center"
+                               TextTrimming="CharacterEllipsis"
+                               Foreground="{DynamicResource AppTextBrush}"/>
+                    <TextBlock Text="{Binding CounterText}"
+                               HorizontalAlignment="Center"
+                               FontSize="11"
+                               IsVisible="{Binding CanNavigate}"
+                               Foreground="{DynamicResource MutedTextBrush}"/>
+                </StackPanel>
+                <Button Grid.Column="2"
+                        Content="▶"
+                        Padding="8,2"
+                        FontWeight="Normal"
+                        IsVisible="{Binding CanNavigate}"
+                        Click="OnNext"/>
+            </Grid>
+
+            <Border Height="200"
+                    Margin="8"
+                    Background="#12151A"
+                    BorderBrush="{DynamicResource PanelBorderBrush}"
+                    BorderThickness="1">
+                <Panel>
+                    <Image Source="{Binding CurrentImage}"
+                           Stretch="Uniform"
+                           Margin="4"/>
+                    <TextBlock Text="{Binding StatusText}"
+                               IsVisible="{Binding IsLoading}"
+                               HorizontalAlignment="Center"
+                               VerticalAlignment="Center"
+                               Foreground="{DynamicResource MutedTextBrush}"/>
+                </Panel>
+            </Border>
+        </DockPanel>
+    </Border>
+</UserControl>

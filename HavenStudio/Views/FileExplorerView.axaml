@@ -1,0 +1,105 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:local="clr-namespace:HavenStudio"
+        x:Class="HavenStudio.Views.FileExplorerView"
+        x:DataType="local:MainWindowViewModel">
+        <Border Grid.Row="1" Grid.Column="0"
+                Background="{DynamicResource PanelBackgroundBrush}"
+                BorderBrush="{DynamicResource PanelBorderBrush}"
+                BorderThickness="0,0,1,0">
+            <DockPanel>
+                <Border DockPanel.Dock="Top"
+                        Background="{DynamicResource AccentSoftBrush}"
+                        BorderBrush="{DynamicResource PanelBorderBrush}"
+                        BorderThickness="0,0,0,1"
+                        Padding="8,6">
+                    <TextBlock Text="File Explorer"
+                               FontSize="12"
+                               FontWeight="SemiBold"
+                               Foreground="{DynamicResource MutedTextBrush}"/>
+                </Border>
+                <ScrollViewer Margin="0"
+                              HorizontalScrollBarVisibility="Visible"
+                              VerticalScrollBarVisibility="Visible">
+                    <TreeView ItemsSource="{Binding RootItems}"
+                              DoubleTapped="OnFileTreeDoubleTapped">
+                        <TreeView.ItemTemplate>
+                            <TreeDataTemplate DataType="local:FileNode"
+                                              ItemsSource="{Binding Children}">
+                                <StackPanel Orientation="Horizontal" Spacing="6">
+                                    <StackPanel.ContextMenu>
+                                        <ContextMenu x:Name="FileTreeContextMenu"
+                                                     DataContext="{Binding}"
+                                                     Opened="OnContextMenuOpened"
+                                                     Closed="OnContextMenuClosed"
+                                                     IsVisible="{Binding HasContextMenu}"
+                                                     IsEnabled="{Binding HasContextMenu}">
+                                            <MenuItem Header="Dump Files"
+                                                      IsVisible="{Binding IsArchive}"
+                                                      Click="OnDumpArchiveFiles"/>
+                                            <MenuItem Header="Restore from Folder"
+                                                      IsVisible="{Binding IsArchive}"
+                                                      Click="OnRestoreArchiveFromFolder"/>
+                                            <MenuItem Header="Replace File..."
+                                                      IsVisible="{Binding IsArchiveEntry}"
+                                                      Click="OnReplaceArchiveFile"/>
+                                            <MenuItem Header="Dump Textures"
+                                                      IsVisible="{Binding IsTxn}"
+                                                      Click="OnDumpTxnTextures"/>
+                                            <MenuItem Header="Restore from Folder"
+                                                      IsVisible="{Binding IsTxn}"
+                                                      Click="OnRestoreTxnFromFolder"/>
+                                            <MenuItem Header="Open TXN Editor"
+                                                      IsVisible="{Binding IsTxn}"
+                                                      Click="OnOpenTxnEditor"/>
+                                            <MenuItem Header="Dump DLZ to DLD"
+                                                      IsVisible="{Binding IsDlz}"
+                                                      Click="OnDumpDlzToDld"/>
+                                            <MenuItem Header="Dump to JSON"
+                                                      IsVisible="{Binding IsGcx}"
+                                                      Click="OnDumpGcxToJson"/>
+                                            <MenuItem Header="Restore from JSON"
+                                                      IsVisible="{Binding IsGcx}"
+                                                      Click="OnRestoreGcxFromJson"/>
+                                            <MenuItem Header="Dump Map to JSON"
+                                                      IsVisible="{Binding IsGcx}"
+                                                      Click="OnDumpMapToJson"/>
+                                            <MenuItem Header="Restore Map from JSON"
+                                                      IsVisible="{Binding IsGcx}"
+                                                      Click="OnRestoreMapFromJson"/>
+                                            <MenuItem Header="Export Collision to glTF"
+                                                      IsVisible="{Binding IsGeom}"
+                                                      Click="OnExportGeomToGltf"/>
+                                            <MenuItem Header="Import Positions from glTF..."
+                                                      IsVisible="{Binding IsGeom}"
+                                                      Click="OnImportGeomGltfPositions"/>
+                                            <MenuItem Header="Import Edited Mesh from glTF..."
+                                                      IsVisible="{Binding IsGeom}"
+                                                      Click="OnImportGeomGltfTopology"/>
+                                            <MenuItem Header="Transport Effects from GEOM..."
+                                                      IsVisible="{Binding IsGeom}"
+                                                      Click="OnTransportGeomEffects"/>
+                                            <MenuItem Header="Create New GEOM from glTF..."
+                                                      IsVisible="{Binding CanCreateGeom}"
+                                                      Click="OnCreateGeomFromGltf"/>
+                                        </ContextMenu>
+                                    </StackPanel.ContextMenu>
+                                    <Path Width="{Binding IconWidth}"
+                                          Height="14"
+                                          Data="{Binding IconData}"
+                                          Fill="{Binding IconFill}"
+                                          Stroke="{Binding IconBrush}"
+                                          StrokeThickness="{Binding IconStrokeThickness}"
+                                          StrokeLineCap="Round"
+                                          Stretch="Uniform"
+                                          VerticalAlignment="Center"/>
+                                    <TextBlock Text="{Binding Name}"/>
+                                </StackPanel>
+                            </TreeDataTemplate>
+                        </TreeView.ItemTemplate>
+                    </TreeView>
+
+                </ScrollViewer>
+            </DockPanel>
+        </Border>
+</UserControl>

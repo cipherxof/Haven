@@ -1,0 +1,43 @@
+<?xml version="1.0"?>
+<SyntaxDefinition name="TCL" xmlns="http://icsharpcode.net/sharpdevelop/syntaxdefinition/2008">
+  <Color name="Comment" foreground="#FF6A9955" />
+  <Color name="Keyword" foreground="#FF569CD6" />
+  <Color name="String" foreground="#FFD69D85" />
+  <Color name="Number" foreground="#FFB5CEA8" />
+  <Color name="Variable" foreground="#FF9CDCFE" />
+  <Color name="ProcRef" foreground="#FF4FC1FF" />
+
+  <RuleSet ignoreCase="false">
+    <Span color="Comment" begin="//" end="\n" />
+    <Span color="Comment" begin="#" end="\n" />
+    <Span color="String" begin="&quot;" end="&quot;" />
+
+    <Rule color="ProcRef">
+      @proc\d+
+    </Rule>
+    <Rule color="Variable">
+      \$[A-Za-z_][\w:]*
+    </Rule>
+    <Rule color="Number">
+      \b-?\d+\b
+    </Rule>
+    <Rule color="Number">
+      \[[0-9a-fA-F]+\]
+    </Rule>
+    <Rule color="Number">
+      \[\d+\]
+    </Rule>
+
+    <Keywords color="Keyword">
+      <Word>proc</Word>
+      <Word>command</Word>
+      <Word>chara</Word>
+      <Word>trap</Word>
+      <Word>switch</Word>
+      <Word>if</Word>
+      <Word>return</Word>
+      <Word>load</Word>
+      <Word>print</Word>
+    </Keywords>
+  </RuleSet>
+</SyntaxDefinition>

@@ -1,0 +1,18 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:ogl="clr-namespace:Avalonia3DControl;assembly=Avalonia3DControl"
+        mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="600"
+        x:Class="HavenStudio.Windows.ModelViewerWindow"
+        Width="800"
+        Height="600"
+        MinWidth="400"
+        MinHeight="300"
+        Title="Model Viewer"
+        WindowStartupLocation="CenterScreen"
+        Background="#1E1E1E">
+    <Grid>
+        <ogl:OpenGL3DControl x:Name="ViewportControl"/>
+    </Grid>
+</Window>

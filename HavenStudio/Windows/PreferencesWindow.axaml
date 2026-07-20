@@ -1,0 +1,38 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:HavenStudio"
+        mc:Ignorable="d" d:DesignWidth="360" d:DesignHeight="220"
+        x:Class="HavenStudio.Windows.PreferencesWindow"
+        x:DataType="local:SettingsStore"
+        Width="360"
+        Height="280"
+        MinWidth="320"
+        MinHeight="260"
+        Title="Preferences"
+        WindowStartupLocation="CenterOwner"
+        Background="{DynamicResource PanelBackgroundBrush}"
+        Foreground="{DynamicResource AppTextBrush}">
+    <Border Padding="16"
+            Background="{DynamicResource PanelBackgroundBrush}"
+            BorderBrush="{DynamicResource PanelBorderBrush}"
+            BorderThickness="1">
+        <StackPanel Spacing="12">
+            <TextBlock FontSize="16" FontWeight="SemiBold" Text="Scene"/>
+            <CheckBox Content="Load scene from GCX"
+                      IsChecked="{Binding LoadSceneFromGcx}"/>
+
+            <TextBlock FontSize="16" FontWeight="SemiBold" Text="Collision" Margin="0,12,0,0"/>
+            <CheckBox Content="Auto-load geom when opening stage"
+                      IsChecked="{Binding AutoLoadGeomWhenOpeningStage}"/>
+
+            <TextBlock FontSize="16" FontWeight="SemiBold" Text="Game" Margin="0,12,0,0"/>
+            <ComboBox SelectedIndex="{Binding SelectedGame}">
+                <ComboBoxItem Content="Metal Gear Solid 4"/>
+                <ComboBoxItem Content="Metal Gear Arcade"/>
+                <ComboBoxItem Content="Metal Gear Solid 3 (GCX Only)"/>
+            </ComboBox>
+        </StackPanel>
+    </Border>
+</Window>

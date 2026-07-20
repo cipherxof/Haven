@@ -1,0 +1,87 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:local="clr-namespace:HavenStudio"
+        xmlns:services="clr-namespace:HavenStudio.Services"
+        x:Class="HavenStudio.Windows.MinimapWindow"
+        x:DataType="local:MinimapWindowViewModel"
+        Title="{Binding Title}"
+        Width="940"
+        Height="660"
+        WindowStartupLocation="CenterOwner"
+        Background="{DynamicResource AppBackgroundBrush}"
+        Foreground="{DynamicResource AppTextBrush}"
+        FontFamily="Fira Sans">
+    <Grid ColumnDefinitions="290,*">
+        <Border Grid.Column="0"
+                Background="{DynamicResource PanelBackgroundBrush}"
+                BorderBrush="{DynamicResource PanelBorderBrush}"
+                BorderThickness="0,0,1,0">
+            <DockPanel>
+                <Border DockPanel.Dock="Top"
+                        Background="{DynamicResource AccentSoftBrush}"
+                        BorderBrush="{DynamicResource PanelBorderBrush}"
+                        BorderThickness="0,0,0,1"
+                        Padding="10,8">
+                    <StackPanel Spacing="3">
+                        <TextBlock Text="Spawn Groups"
+                                   FontSize="12"
+                                   FontWeight="SemiBold"
+                                   Foreground="{DynamicResource MutedTextBrush}"/>
+                        <TextBlock Text="{Binding SelectionText}"
+                                   FontSize="11"
+                                   TextWrapping="Wrap"
+                                   Foreground="{DynamicResource AppTextBrush}"/>
+                    </StackPanel>
+                </Border>
+                <ScrollViewer>
+                    <TreeView ItemsSource="{Binding Groups}"
+                              SelectedItem="{Binding SelectedGroup, Mode=TwoWay}">
+                        <TreeView.ItemTemplate>
+                            <TreeDataTemplate DataType="services:SpawnGroup"
+                                              ItemsSource="{Binding Children}">
+                                <TextBlock Text="{Binding Display}"/>
+                            </TreeDataTemplate>
+                        </TreeView.ItemTemplate>
+                    </TreeView>
+                </ScrollViewer>
+            </DockPanel>
+        </Border>
+
+        <Border Grid.Column="1" Padding="16">
+            <Viewbox Stretch="Uniform"
+                     HorizontalAlignment="Center"
+                     VerticalAlignment="Center">
+                <Border Background="#12151A"
+                        BorderBrush="{DynamicResource PanelBorderBrush}"
+                        BorderThickness="1">
+                    <Panel Width="{Binding MapWidth}" Height="{Binding MapHeight}">
+                        <Image Source="{Binding MapImage}" Stretch="Fill"/>
+                        <ItemsControl ItemsSource="{Binding Markers}">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <Canvas/>
+                                </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                            <ItemsControl.Styles>
+                                <Style Selector="ItemsControl > ContentPresenter">
+                                    <Setter Property="Canvas.Left" Value="{ReflectionBinding Left}"/>
+                                    <Setter Property="Canvas.Top" Value="{ReflectionBinding Top}"/>
+                                </Style>
+                            </ItemsControl.Styles>
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate DataType="local:MinimapSpawnDot">
+                                    <Ellipse Width="{Binding Diameter}"
+                                             Height="{Binding Diameter}"
+                                             Fill="#FF5A4B"
+                                             Stroke="#66000000"
+                                             StrokeThickness="0.4"
+                                             ToolTip.Tip="{Binding Label}"/>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </Panel>
+                </Border>
+            </Viewbox>
+        </Border>
+    </Grid>
+</Window>

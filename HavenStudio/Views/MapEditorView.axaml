@@ -1,0 +1,467 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:local="clr-namespace:HavenStudio"
+        xmlns:editors="clr-namespace:HavenStudio.Editors"
+        x:Class="HavenStudio.Views.MapEditorView"
+        x:DataType="local:MainWindowViewModel">
+    <Border Background="{DynamicResource PanelBackgroundBrush}"
+            BorderBrush="{DynamicResource PanelBorderBrush}"
+            BorderThickness="1"
+            Padding="10"
+            IsVisible="{Binding IsMapSelected}">
+        <Grid RowDefinitions="Auto,*" RowSpacing="8">
+            <Border Grid.Row="0"
+                    Background="{DynamicResource AccentSoftBrush}"
+                    BorderBrush="{DynamicResource PanelBorderBrush}"
+                    BorderThickness="0,0,0,1"
+                    Padding="10,8"
+                    Margin="-10,-10,-10,0">
+                <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="16">
+                    <StackPanel Spacing="2">
+                        <TextBlock FontSize="14" FontWeight="SemiBold" Text="Map Editor"/>
+                        <TextBlock Foreground="{DynamicResource MutedTextBrush}"
+                                   Text="{Binding CollisionEditor.GeomFileName}"/>
+                    </StackPanel>
+                    <StackPanel Grid.Column="1"
+                                Orientation="Horizontal"
+                                HorizontalAlignment="Center"
+                                VerticalAlignment="Center"
+                                Spacing="12">
+                        <CheckBox Content="Models" IsChecked="{Binding MapEditor.VisualModelsVisible}"/>
+                        <CheckBox Content="Placements" IsChecked="{Binding MapEditor.PlacementsVisible}"/>
+                        <CheckBox Content="Collision" IsChecked="{Binding MapEditor.CollisionVisible}"/>
+                        <CheckBox Content="Effects" IsChecked="{Binding MapEditor.EffectsVisible}"/>
+                        <CheckBox Content="Lights" IsChecked="{Binding MapEditor.LightsVisible}"/>
+                        <CheckBox Content="Game lighting"
+                                  IsChecked="{Binding MapEditor.GameLightingEnabled}"
+                                  IsEnabled="{Binding MapEditor.HasLights}"
+                                  ToolTip.Tip="Preview LT lighting on stage geometry and placed models. Disable to restore original vertex colors."/>
+                        <CheckBox Content="Grid" IsChecked="{Binding MapEditor.GridVisible}"/>
+                        <ComboBox Width="170"
+                                  ToolTip.Tip="Show collision primitives containing the selected attribute flag."
+                                  ItemsSource="{Binding CollisionEditor.CollisionFlagFilters}"
+                                  SelectedItem="{Binding CollisionEditor.SelectedCollisionFlagFilter}">
+                            <ComboBox.ItemTemplate>
+                                <DataTemplate x:DataType="editors:CollisionFlagFilterOption">
+                                    <TextBlock Text="{Binding DisplayName}" TextTrimming="CharacterEllipsis"/>
+                                </DataTemplate>
+                            </ComboBox.ItemTemplate>
+                        </ComboBox>
+                    </StackPanel>
+                    <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8">
+                        <Button Content="Undo"
+                                IsEnabled="{Binding MapEditor.CanUndo}"
+                                ToolTip.Tip="{Binding MapEditor.UndoToolTip}"
+                                Click="OnUndo"/>
+                        <Button Content="Redo"
+                                IsEnabled="{Binding MapEditor.CanRedo}"
+                                ToolTip.Tip="{Binding MapEditor.RedoToolTip}"
+                                Click="OnRedo"/>
+                        <CheckBox Content="Wireframe"
+                                  IsChecked="{Binding CollisionEditor.WireframeMode}"
+                                  IsEnabled="{Binding MapEditor.CollisionVisible}"
+                                  VerticalAlignment="Center"/>
+                        <Button Content="Add Object"
+                                IsEnabled="{Binding GcxEditor.HasDocument}"
+                                ToolTip.Tip="{Binding MapEditor.SpawnPositionText}"
+                                Click="OnAddObject"/>
+                        <Button Content="Add Effect"
+                                IsEnabled="{Binding CollisionEditor.CanAddEffect}"
+                                ToolTip.Tip="Add a root effect marker at the camera position."
+                                Click="OnAddEffect"/>
+                        <Button Content="Save Map"
+                                Classes="primary"
+                                Click="OnSaveCollision"/>
+                    </StackPanel>
+                </Grid>
+            </Border>
+
+            <Grid Grid.Row="1" ColumnDefinitions="280,8,*,8,Auto">
+                <Border Grid.Column="0"
+                        Background="{DynamicResource AccentSoftBrush}"
+                        BorderBrush="{DynamicResource PanelBorderBrush}"
+                        BorderThickness="1"
+                        Padding="6">
+                    <Grid RowDefinitions="Auto,Auto,Auto,Auto,*" RowSpacing="6">
+                        <TextBlock FontWeight="SemiBold" Text="Map Outline"/>
+                        <WrapPanel Grid.Row="1" Orientation="Horizontal">
+                            <Button Content="Show All" Click="OnShowAll"/>
+                            <Button Content="Hide All" Margin="4,0,0,0" Click="OnHideAll"/>
+                            <Button Content="Add Light Group"
+                                    Margin="4,0,0,0"
+                                    IsEnabled="{Binding MapEditor.CanAddLightGroup}"
+                                    Click="OnAddLightGroup"/>
+                        </WrapPanel>
+                        <StackPanel Grid.Row="2" Spacing="2">
+                            <TextBlock Foreground="{DynamicResource MutedTextBrush}"
+                                       TextTrimming="CharacterEllipsis"
+                                       Text="{Binding CollisionEditor.BlockSummary}"/>
+                            <TextBlock Foreground="{DynamicResource MutedTextBrush}"
+                                       TextTrimming="CharacterEllipsis"
+                                       Text="{Binding MapEditor.LightSummary}"/>
+                        </StackPanel>
+                        <StackPanel Grid.Row="3" Spacing="3">
+                            <TextBlock Foreground="{DynamicResource MutedTextBrush}"
+                                       TextWrapping="Wrap"
+                                       IsVisible="{Binding MapEditor.HasAddObjectStatus}"
+                                       Text="{Binding MapEditor.AddObjectStatus}"/>
+                            <TextBlock Foreground="{DynamicResource MutedTextBrush}"
+                                       TextWrapping="Wrap"
+                                       IsVisible="{Binding MapEditor.HasManipulationStatus}"
+                                       Text="{Binding MapEditor.ManipulationStatus}"/>
+                        </StackPanel>
+                        <TreeView Grid.Row="4"
+                                  Name="MapOutlineTreeView"
+                                  ItemsSource="{Binding MapEditor.Outline}"
+                                  SelectedItem="{Binding MapEditor.SelectedOutlineItem}"
+                                  DoubleTapped="OnOutlineDoubleTapped">
+                            <TreeView.Styles>
+                                <Style Selector="TreeViewItem" x:CompileBindings="False">
+                                    <Setter Property="IsExpanded" Value="{Binding IsExpanded, Mode=TwoWay}"/>
+                                </Style>
+                            </TreeView.Styles>
+                            <TreeView.DataTemplates>
+                                <TreeDataTemplate DataType="editors:MapOutlineGroup"
+                                                  ItemsSource="{Binding Children}">
+                                    <TextBlock FontWeight="SemiBold" Text="{Binding DisplayName}"/>
+                                </TreeDataTemplate>
+                                <DataTemplate DataType="editors:PlacementEntity">
+                                    <TextBlock Text="{Binding DisplayName}"/>
+                                </DataTemplate>
+                                <TreeDataTemplate DataType="editors:CollisionBlockViewModel"
+                                                  ItemsSource="{Binding VisiblePrims}">
+                                    <StackPanel Orientation="Horizontal" Spacing="6">
+                                        <CheckBox IsChecked="{Binding IsVisible}"/>
+                                        <TextBlock Text="{Binding DisplayName}"/>
+                                    </StackPanel>
+                                </TreeDataTemplate>
+                                <TreeDataTemplate DataType="editors:CollisionPrimViewModel"
+                                                  ItemsSource="{Binding Children}">
+                                    <StackPanel Orientation="Horizontal" Spacing="6">
+                                        <CheckBox IsChecked="{Binding IsVisible}"/>
+                                        <TextBlock Text="{Binding DisplayName}"/>
+                                    </StackPanel>
+                                </TreeDataTemplate>
+                                <DataTemplate DataType="editors:CollisionGeoPrimViewModel">
+                                    <StackPanel Orientation="Horizontal" Spacing="6">
+                                        <CheckBox IsChecked="{Binding IsVisible}"/>
+                                        <TextBlock Text="{Binding DisplayName}"/>
+                                    </StackPanel>
+                                </DataTemplate>
+                                <TreeDataTemplate DataType="editors:CollisionEffectViewModel"
+                                                  ItemsSource="{Binding VisibleChildren}">
+                                    <StackPanel Orientation="Horizontal" Spacing="6">
+                                        <CheckBox IsChecked="{Binding IsVisible}"/>
+                                        <TextBlock Text="{Binding DisplayName}"/>
+                                    </StackPanel>
+                                </TreeDataTemplate>
+                                <TreeDataTemplate DataType="editors:LightFileOutline"
+                                                  ItemsSource="{Binding Children}">
+                                    <TextBlock FontWeight="SemiBold" Text="{Binding DisplayName}"/>
+                                </TreeDataTemplate>
+                                <TreeDataTemplate DataType="editors:LightGroupOutline"
+                                                  ItemsSource="{Binding Children}">
+                                    <TextBlock Text="{Binding DisplayName}"/>
+                                </TreeDataTemplate>
+                                <DataTemplate DataType="editors:LightEntity">
+                                    <TextBlock Text="{Binding DisplayName}"/>
+                                </DataTemplate>
+                            </TreeView.DataTemplates>
+                        </TreeView>
+                    </Grid>
+                </Border>
+
+                <Border Grid.Column="2"
+                        Background="{DynamicResource PanelBackgroundBrush}"
+                        BorderBrush="{DynamicResource PanelBorderBrush}"
+                        BorderThickness="1"
+                        ToolTip.Tip="Click to select. Drag to move; hold Shift to adjust height only, or hold X, Y, or Z to constrain an axis.">
+                    <ContentControl Content="{Binding ViewportControl}"/>
+                </Border>
+
+                <Border Grid.Column="4"
+                        Width="320"
+                        Background="{DynamicResource AccentSoftBrush}"
+                        BorderBrush="{DynamicResource PanelBorderBrush}"
+                        BorderThickness="1"
+                        Padding="10"
+                        IsVisible="{Binding MapEditor.InspectorExpanded}">
+                    <Grid RowDefinitions="Auto,*" RowSpacing="8">
+                        <Grid ColumnDefinitions="*,Auto">
+                            <TextBlock FontWeight="SemiBold"
+                                       VerticalAlignment="Center"
+                                       Text="Inspector"/>
+                            <Button Grid.Column="1"
+                                    Width="28"
+                                    Padding="4,0"
+                                    Content="›"
+                                    ToolTip.Tip="Collapse Inspector"
+                                    Click="OnToggleInspector"/>
+                        </Grid>
+                        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+                            <ContentControl Content="{Binding MapEditor.SelectedEntity}">
+                                <ContentControl.DataTemplates>
+                                    <DataTemplate DataType="editors:PlacementEntity">
+                                        <StackPanel Spacing="8">
+                                            <TextBlock FontSize="14" FontWeight="SemiBold" Text="{Binding DisplayName}"/>
+                                            <Button Content="Duplicate Placement"
+                                                    HorizontalAlignment="Stretch"
+                                                    IsEnabled="{Binding CanDuplicate}"
+                                                    ToolTip.Tip="{Binding DuplicateToolTip}"
+                                                    Click="OnDuplicatePlacement"/>
+                                            <Grid ColumnDefinitions="Auto,*"
+                                                  RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto"
+                                                  RowSpacing="5" ColumnSpacing="10">
+                                                <TextBlock Grid.Row="0" Text="Model hash"/>
+                                                <ComboBox Grid.Row="0" Grid.Column="1"
+                                                          MinWidth="150"
+                                                          IsEnabled="{Binding CanEditModelHash}"
+                                                          ItemsSource="{Binding ProjectModels}"
+                                                          SelectedItem="{Binding SelectedProjectModel, Mode=TwoWay}">
+                                                    <ComboBox.ItemTemplate>
+                                                        <DataTemplate>
+                                                            <TextBlock Text="{Binding DisplayName}" TextTrimming="CharacterEllipsis"/>
+                                                        </DataTemplate>
+                                                    </ComboBox.ItemTemplate>
+                                                </ComboBox>
+                                                <TextBlock Grid.Row="1" Text="Position X"/>
+                                                <TextBox Grid.Row="1" Grid.Column="1"
+                                                         IsEnabled="{Binding CanEditPosition}"
+                                                         Text="{Binding PositionX, UpdateSourceTrigger=LostFocus}"/>
+                                                <TextBlock Grid.Row="2" Text="Position Y"/>
+                                                <TextBox Grid.Row="2" Grid.Column="1"
+                                                         IsEnabled="{Binding CanEditPosition}"
+                                                         Text="{Binding PositionY, UpdateSourceTrigger=LostFocus}"/>
+                                                <TextBlock Grid.Row="3" Text="Position Z"/>
+                                                <TextBox Grid.Row="3" Grid.Column="1"
+                                                         IsEnabled="{Binding CanEditPosition}"
+                                                         Text="{Binding PositionZ, UpdateSourceTrigger=LostFocus}"/>
+                                                <TextBlock Grid.Row="4" Text="Rotation"/>
+                                                <TextBlock Grid.Row="4" Grid.Column="1" Text="{Binding RotationText}" TextWrapping="Wrap"/>
+                                                <TextBlock Grid.Row="5" Text="Effect"/>
+                                                <TextBlock Grid.Row="5" Grid.Column="1" Text="{Binding EffectText}"/>
+                                                <TextBlock Grid.Row="6" Text="Collision mesh" VerticalAlignment="Center"/>
+                                                <ComboBox Grid.Row="6" Grid.Column="1"
+                                                          MinWidth="150"
+                                                          IsEnabled="{Binding CanEditCollisionReference}"
+                                                          ItemsSource="{Binding GeoReferences}"
+                                                          SelectedItem="{Binding SelectedGeoReference, Mode=TwoWay}">
+                                                    <ComboBox.ItemTemplate>
+                                                        <DataTemplate>
+                                                            <TextBlock Text="{Binding DisplayName}" TextTrimming="CharacterEllipsis"/>
+                                                        </DataTemplate>
+                                                    </ComboBox.ItemTemplate>
+                                                </ComboBox>
+                                            </Grid>
+                                            <TextBlock Foreground="{DynamicResource MutedTextBrush}"
+                                                       TextWrapping="Wrap"
+                                                       IsVisible="{Binding HasModelEditMessage}"
+                                                       Text="{Binding ModelEditMessage}"/>
+                                            <TextBlock Foreground="{DynamicResource MutedTextBrush}"
+                                                       TextWrapping="Wrap"
+                                                       IsVisible="{Binding HasPositionEditMessage}"
+                                                       Text="{Binding PositionEditMessage}"/>
+                                            <TextBlock Foreground="{DynamicResource MutedTextBrush}"
+                                                       TextWrapping="Wrap"
+                                                       IsVisible="{Binding HasCollisionReferenceEditMessage}"
+                                                       Text="{Binding CollisionReferenceEditMessage}"/>
+                                        </StackPanel>
+                                    </DataTemplate>
+
+                                    <DataTemplate DataType="editors:LightEntity">
+                                        <StackPanel Spacing="8">
+                                            <TextBlock FontSize="14" FontWeight="SemiBold" Text="{Binding DisplayName}"/>
+                                            <StackPanel Orientation="Horizontal" Spacing="4" IsVisible="{Binding CanEditStructure}">
+                                                <Button Content="Add Light" Click="OnAddLight"/>
+                                                <Button Content="Delete Light" Click="OnDeleteLight"/>
+                                                <Button Content="Delete Group" Click="OnDeleteLightGroup"/>
+                                            </StackPanel>
+                                            <Border Padding="6"
+                                                    Background="{DynamicResource AccentSoftBrush}"
+                                                    IsVisible="{Binding IsOutsideGroupBounds}">
+                                                <StackPanel Spacing="4">
+                                                    <TextBlock Text="Outside group bounds; the game will cull this light."
+                                                               TextWrapping="Wrap"/>
+                                                    <Button Content="Grow group bounds to fit"
+                                                            Click="OnGrowLightBounds"/>
+                                                </StackPanel>
+                                            </Border>
+                                            <Grid ColumnDefinitions="Auto,*,*,*" ColumnSpacing="5"
+                                                  IsVisible="{Binding CanEditPosition}">
+                                                <TextBlock Text="Position" VerticalAlignment="Center"/>
+                                                <TextBox Grid.Column="1" Text="{Binding PositionX, UpdateSourceTrigger=LostFocus}"/>
+                                                <TextBox Grid.Column="2" Text="{Binding PositionY, UpdateSourceTrigger=LostFocus}"/>
+                                                <TextBox Grid.Column="3" Text="{Binding PositionZ, UpdateSourceTrigger=LostFocus}"/>
+                                            </Grid>
+                                            <Grid ColumnDefinitions="Auto,*,*,*" ColumnSpacing="5"
+                                                  IsVisible="{Binding CanEditDirection}">
+                                                <TextBlock Text="Direction" VerticalAlignment="Center"/>
+                                                <TextBox Grid.Column="1" Text="{Binding DirectionX, UpdateSourceTrigger=LostFocus}"/>
+                                                <TextBox Grid.Column="2" Text="{Binding DirectionY, UpdateSourceTrigger=LostFocus}"/>
+                                                <TextBox Grid.Column="3" Text="{Binding DirectionZ, UpdateSourceTrigger=LostFocus}"/>
+                                            </Grid>
+                                            <Grid ColumnDefinitions="Auto,*,*,*,*" ColumnSpacing="5"
+                                                  IsVisible="{Binding CanEditColor}">
+                                                <TextBlock Text="RGBA" VerticalAlignment="Center"/>
+                                                <TextBox Grid.Column="1" Text="{Binding ColorR, UpdateSourceTrigger=LostFocus}"/>
+                                                <TextBox Grid.Column="2" Text="{Binding ColorG, UpdateSourceTrigger=LostFocus}"/>
+                                                <TextBox Grid.Column="3" Text="{Binding ColorB, UpdateSourceTrigger=LostFocus}"/>
+                                                <TextBox Grid.Column="4" Text="{Binding ColorA, UpdateSourceTrigger=LostFocus}"/>
+                                            </Grid>
+                                            <Grid ColumnDefinitions="Auto,*,*,*,*" ColumnSpacing="5"
+                                                  IsVisible="{Binding CanEditAmbient}">
+                                                <TextBlock Text="Ambient" VerticalAlignment="Center"/>
+                                                <TextBox Grid.Column="1" Text="{Binding AmbientR, UpdateSourceTrigger=LostFocus}"/>
+                                                <TextBox Grid.Column="2" Text="{Binding AmbientG, UpdateSourceTrigger=LostFocus}"/>
+                                                <TextBox Grid.Column="3" Text="{Binding AmbientB, UpdateSourceTrigger=LostFocus}"/>
+                                                <TextBox Grid.Column="4" Text="{Binding AmbientA, UpdateSourceTrigger=LostFocus}"/>
+                                            </Grid>
+                                            <Grid ColumnDefinitions="Auto,*" ColumnSpacing="10" IsVisible="{Binding HasRange}">
+                                                <TextBlock Text="Range"/>
+                                                <TextBox Grid.Column="1" Text="{Binding RangeValue, UpdateSourceTrigger=LostFocus}"/>
+                                            </Grid>
+                                            <Grid ColumnDefinitions="Auto,*" ColumnSpacing="10" IsVisible="{Binding HasExtendedRange}">
+                                                <TextBlock Text="Extended range"/>
+                                                <TextBox Grid.Column="1" Text="{Binding ExtendedRangeValue, UpdateSourceTrigger=LostFocus}"/>
+                                            </Grid>
+                                            <Grid ColumnDefinitions="Auto,*" ColumnSpacing="10" IsVisible="{Binding HasUmbra}">
+                                                <TextBlock Text="Umbra"/>
+                                                <TextBox Grid.Column="1" Text="{Binding UmbraValue, UpdateSourceTrigger=LostFocus}"/>
+                                            </Grid>
+                                            <Grid ColumnDefinitions="Auto,*" ColumnSpacing="10" IsVisible="{Binding HasPenumbra}">
+                                                <TextBlock Text="Penumbra"/>
+                                                <TextBox Grid.Column="1" Text="{Binding PenumbraValue, UpdateSourceTrigger=LostFocus}"/>
+                                            </Grid>
+                                            <Grid ColumnDefinitions="Auto,*" ColumnSpacing="10" IsVisible="{Binding HasForce}">
+                                                <TextBlock Text="Force"/>
+                                                <TextBox Grid.Column="1" Text="{Binding ForceValue, UpdateSourceTrigger=LostFocus}"/>
+                                            </Grid>
+                                            <Grid ColumnDefinitions="Auto,*"
+                                                  RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto"
+                                                  RowSpacing="5" ColumnSpacing="10">
+                                                <TextBlock Grid.Row="0" Text="File"/>
+                                                <TextBlock Grid.Row="0" Grid.Column="1" Text="{Binding FileName}"/>
+                                                <TextBlock Grid.Row="1" Text="Kind"/>
+                                                <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding Kind}"/>
+                                                <TextBlock Grid.Row="2" Text="Position"/>
+                                                <TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding PositionText}" TextWrapping="Wrap"/>
+                                                <TextBlock Grid.Row="3" Text="Direction"/>
+                                                <TextBlock Grid.Row="3" Grid.Column="1" Text="{Binding DirectionText}" TextWrapping="Wrap"/>
+                                                <TextBlock Grid.Row="4" Text="Color"/>
+                                                <TextBlock Grid.Row="4" Grid.Column="1" Text="{Binding ColorText}"/>
+                                                <TextBlock Grid.Row="5" Text="Ambient"/>
+                                                <TextBlock Grid.Row="5" Grid.Column="1" Text="{Binding AmbientText}"/>
+                                                <TextBlock Grid.Row="6" Text="Parameters"/>
+                                                <TextBlock Grid.Row="6" Grid.Column="1" Text="{Binding ParametersText}" TextWrapping="Wrap"/>
+                                                <TextBlock Grid.Row="7" Text="Flags/pads"/>
+                                                <TextBlock Grid.Row="7" Grid.Column="1" Text="{Binding FlagsText}" TextWrapping="Wrap"/>
+                                                <TextBlock Grid.Row="8" Text="Group bounds"/>
+                                                <TextBlock Grid.Row="8" Grid.Column="1" Text="{Binding BoundsText}" TextWrapping="Wrap"/>
+                                                <TextBlock Grid.Row="9" Text="Unknown bytes"/>
+                                                <TextBlock Grid.Row="9" Grid.Column="1" Text="{Binding UnknownDataText}" TextWrapping="Wrap"/>
+                                            </Grid>
+                                        </StackPanel>
+                                    </DataTemplate>
+
+                                    <DataTemplate DataType="editors:BlockEntity">
+                                        <StackPanel Spacing="8">
+                                            <TextBlock FontSize="14" FontWeight="SemiBold" Text="{Binding DisplayName}"/>
+                                            <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto,Auto,Auto" RowSpacing="5" ColumnSpacing="10">
+                                                <TextBlock Grid.Row="0" Text="Flag"/>
+                                                <TextBox Grid.Row="0" Grid.Column="1" Text="{Binding Block.FlagText, UpdateSourceTrigger=LostFocus}"/>
+                                                <TextBlock Grid.Row="1" Text="Attribute"/>
+                                                <TextBox Grid.Row="1" Grid.Column="1" Text="{Binding Block.AttributeText, UpdateSourceTrigger=LostFocus}"/>
+                                                <TextBlock Grid.Row="2" Text="Vertex offset"/>
+                                                <TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding Block.VertexOffset}"/>
+                                                <TextBlock Grid.Row="3" Text="Face offset"/>
+                                                <TextBlock Grid.Row="3" Grid.Column="1" Text="{Binding Block.FaceOffset}"/>
+                                            </Grid>
+                                        </StackPanel>
+                                    </DataTemplate>
+
+                                    <DataTemplate DataType="editors:PrimEntity">
+                                        <StackPanel Spacing="8">
+                                            <TextBlock FontSize="14" FontWeight="SemiBold" Text="{Binding DisplayName}"/>
+                                            <Grid ColumnDefinitions="Auto,*"
+                                                  RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto"
+                                                  RowSpacing="5" ColumnSpacing="10">
+                                                <TextBlock Grid.Row="0" Text="Type"/>
+                                                <TextBox Grid.Row="0" Grid.Column="1" Text="{Binding Prim.TypeText, UpdateSourceTrigger=LostFocus}"/>
+                                                <TextBlock Grid.Row="1" Text="Field002"/>
+                                                <TextBox Grid.Row="1" Grid.Column="1" Text="{Binding Prim.Field002Text, UpdateSourceTrigger=LostFocus}"/>
+                                                <TextBlock Grid.Row="2" Text="Field003"/>
+                                                <TextBox Grid.Row="2" Grid.Column="1" Text="{Binding Prim.Field003Text, UpdateSourceTrigger=LostFocus}"/>
+                                                <TextBlock Grid.Row="3" Text="Next"/>
+                                                <TextBox Grid.Row="3" Grid.Column="1" Text="{Binding Prim.NextText, UpdateSourceTrigger=LostFocus}"/>
+                                                <TextBlock Grid.Row="4" Text="Prev"/>
+                                                <TextBox Grid.Row="4" Grid.Column="1" Text="{Binding Prim.PrevText, UpdateSourceTrigger=LostFocus}"/>
+                                                <TextBlock Grid.Row="5" Text="Child"/>
+                                                <TextBox Grid.Row="5" Grid.Column="1" Text="{Binding Prim.ChildText, UpdateSourceTrigger=LostFocus}"/>
+                                                <TextBlock Grid.Row="6" Text="Name"/>
+                                                <TextBox Grid.Row="6" Grid.Column="1" Text="{Binding Prim.NameText, UpdateSourceTrigger=LostFocus}"/>
+                                                <TextBlock Grid.Row="7" Text="Field014"/>
+                                                <TextBox Grid.Row="7" Grid.Column="1" Text="{Binding Prim.Field014Text, UpdateSourceTrigger=LostFocus}"/>
+                                                <TextBlock Grid.Row="8" Text="Attribute"/>
+                                                <TextBox Grid.Row="8" Grid.Column="1" Text="{Binding Prim.AttributeText, UpdateSourceTrigger=LostFocus}"/>
+                                                <TextBlock Grid.Row="9" Text="Data"/>
+                                                <TextBox Grid.Row="9" Grid.Column="1" Text="{Binding Prim.DataText, UpdateSourceTrigger=LostFocus}"/>
+                                            </Grid>
+                                            <StackPanel Spacing="4" IsVisible="{Binding HasGeoPrim}">
+                                                <TextBlock FontWeight="SemiBold" Text="Polygon"/>
+                                                <Grid ColumnDefinitions="Auto,*" ColumnSpacing="10">
+                                                    <TextBlock Text="Attribute"/>
+                                                    <TextBox Grid.Column="1" Text="{Binding GeoPrim.AttributeText, UpdateSourceTrigger=LostFocus}"/>
+                                                </Grid>
+                                            </StackPanel>
+                                        </StackPanel>
+                                    </DataTemplate>
+
+                                    <DataTemplate DataType="editors:EffectEntity">
+                                        <StackPanel Spacing="8">
+                                            <TextBlock FontSize="14" FontWeight="SemiBold" Text="{Binding DisplayName}"/>
+                                            <Button Content="Snap To Camera" Click="OnSnapEffectToCamera"/>
+                                            <Button Content="Delete Effect"
+                                                    ToolTip.Tip="Delete this effect and all of its child effects."
+                                                    Click="OnDeleteEffect"/>
+                                            <Grid ColumnDefinitions="Auto,*"
+                                                  RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto"
+                                                  RowSpacing="5" ColumnSpacing="10">
+                                                <TextBlock Grid.Row="0" Text="Name"/>
+                                                <TextBox Grid.Row="0" Grid.Column="1" Text="{Binding Effect.NameText, UpdateSourceTrigger=LostFocus}"/>
+                                                <TextBlock Grid.Row="1" Text="Index"/>
+                                                <TextBox Grid.Row="1" Grid.Column="1" Text="{Binding Effect.IndexText, UpdateSourceTrigger=LostFocus}"/>
+                                                <TextBlock Grid.Row="2" Text="X"/>
+                                                <TextBox Grid.Row="2" Grid.Column="1" Text="{Binding Effect.X, UpdateSourceTrigger=PropertyChanged}"/>
+                                                <TextBlock Grid.Row="3" Text="Y"/>
+                                                <TextBox Grid.Row="3" Grid.Column="1" Text="{Binding Effect.Y, UpdateSourceTrigger=PropertyChanged}"/>
+                                                <TextBlock Grid.Row="4" Text="Z"/>
+                                                <TextBox Grid.Row="4" Grid.Column="1" Text="{Binding Effect.Z, UpdateSourceTrigger=PropertyChanged}"/>
+                                                <TextBlock Grid.Row="5" Text="W"/>
+                                                <TextBox Grid.Row="5" Grid.Column="1" Text="{Binding Effect.W, UpdateSourceTrigger=PropertyChanged}"/>
+                                                <TextBlock Grid.Row="6" Text="Rotation X"/>
+                                                <TextBox Grid.Row="6" Grid.Column="1" Text="{Binding Effect.RotationX, UpdateSourceTrigger=PropertyChanged}"/>
+                                                <TextBlock Grid.Row="7" Text="Rotation Y"/>
+                                                <TextBox Grid.Row="7" Grid.Column="1" Text="{Binding Effect.RotationY, UpdateSourceTrigger=PropertyChanged}"/>
+                                                <TextBlock Grid.Row="8" Text="Rotation Z"/>
+                                                <TextBox Grid.Row="8" Grid.Column="1" Text="{Binding Effect.RotationZ, UpdateSourceTrigger=PropertyChanged}"/>
+                                            </Grid>
+                                        </StackPanel>
+                                    </DataTemplate>
+                                </ContentControl.DataTemplates>
+                            </ContentControl>
+                        </ScrollViewer>
+                    </Grid>
+                </Border>
+                <Button Grid.Column="4"
+                        Width="28"
+                        Padding="4,0"
+                        HorizontalAlignment="Right"
+                        VerticalAlignment="Top"
+                        Content="‹"
+                        ToolTip.Tip="Expand Inspector"
+                        IsVisible="{Binding MapEditor.InspectorCollapsed}"
+                        Click="OnToggleInspector"/>
+            </Grid>
+        </Grid>
+    </Border>
+</UserControl>

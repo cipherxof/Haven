@@ -1,0 +1,222 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:HavenStudio"
+        xmlns:ogl="clr-namespace:Avalonia3DControl;assembly=Avalonia3DControl"
+        xmlns:avaloniaHex="clr-namespace:AvaloniaHex;assembly=AvaloniaHex"
+        xmlns:rendering="clr-namespace:AvaloniaHex.Rendering;assembly=AvaloniaHex"
+        xmlns:avaloniaEdit="clr-namespace:AvaloniaEdit;assembly=AvaloniaEdit"
+        xmlns:editors="clr-namespace:HavenStudio.Editors"
+        xmlns:views="clr-namespace:HavenStudio.Views"
+        mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
+        x:Class="HavenStudio.Windows.MainWindow"
+        x:DataType="local:MainWindowViewModel"
+        Title="HavenStudio"
+        Icon="avares://HavenStudio/Assets/icon.png"
+        KeyDown="OnWindowKeyDown"
+        KeyUp="OnWindowKeyUp"
+        PositionChanged="OnWindowPositionChanged"
+        WindowStartupLocation="CenterScreen"
+        Background="{DynamicResource AppBackgroundBrush}"
+        FontFamily="Fira Sans"
+        Foreground="{DynamicResource AppTextBrush}">
+    <Window.Resources>
+        <Color x:Key="AppBg1">#1E1E1E</Color>
+        <Color x:Key="AppBg2">#1B1B1B</Color>
+        <Color x:Key="PanelBg">#252526</Color>
+        <Color x:Key="PanelBorder">#2D2D30</Color>
+        <Color x:Key="Accent">#3E3E42</Color>
+        <Color x:Key="AccentSoft">#2A2A2A</Color>
+        <Color x:Key="Text">#D4D4D4</Color>
+        <Color x:Key="TextMuted">#9DA0A6</Color>
+
+        <LinearGradientBrush x:Key="AppBackgroundBrush" StartPoint="0,0" EndPoint="0,1">
+            <GradientStop Color="{DynamicResource AppBg1}" Offset="0"/>
+            <GradientStop Color="{DynamicResource AppBg2}" Offset="1"/>
+        </LinearGradientBrush>
+        <SolidColorBrush x:Key="AppTextBrush" Color="{DynamicResource Text}"/>
+        <SolidColorBrush x:Key="MutedTextBrush" Color="{DynamicResource TextMuted}"/>
+        <SolidColorBrush x:Key="PanelBackgroundBrush" Color="{DynamicResource PanelBg}"/>
+        <SolidColorBrush x:Key="PanelBorderBrush" Color="{DynamicResource PanelBorder}"/>
+        <SolidColorBrush x:Key="AccentBrush" Color="{DynamicResource Accent}"/>
+        <SolidColorBrush x:Key="AccentSoftBrush" Color="{DynamicResource AccentSoft}"/>
+        <Geometry x:Key="FileIconGeometry">M3,2 H9 L13,6 V18 H3 Z M9,2 V6 H13</Geometry>
+        <Geometry x:Key="FolderIconGeometry">M2,6 H7 L9,8 H18 V18 H2 Z</Geometry>
+    </Window.Resources>
+
+    <Window.Styles>
+        <Style Selector="Menu">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Foreground" Value="{DynamicResource AppTextBrush}"/>
+            <Setter Property="FontSize" Value="13"/>
+        </Style>
+
+        <Style Selector="MenuItem">
+            <Setter Property="Padding" Value="12,7"/>
+            <Setter Property="FontSize" Value="13"/>
+        </Style>
+
+        <Style Selector="MenuItem:pointerover">
+            <Setter Property="Background" Value="{DynamicResource AccentSoftBrush}"/>
+        </Style>
+
+        <Style Selector="MenuItem:pressed">
+            <Setter Property="Background" Value="{DynamicResource AccentBrush}"/>
+        </Style>
+
+        <Style Selector="ContextMenu">
+            <Setter Property="Background" Value="{DynamicResource PanelBackgroundBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource PanelBorderBrush}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Padding" Value="4"/>
+        </Style>
+
+        <Style Selector="Button">
+            <Setter Property="Background" Value="{DynamicResource AccentSoftBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource PanelBorderBrush}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Padding" Value="12,6"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+        </Style>
+
+        <Style Selector="Button:pointerover">
+            <Setter Property="Background" Value="{DynamicResource AccentBrush}"/>
+        </Style>
+
+        <Style Selector="Button:pressed">
+            <Setter Property="Background" Value="{DynamicResource AccentBrush}"/>
+        </Style>
+
+        <Style Selector="Button.primary">
+            <Setter Property="Background" Value="{DynamicResource AccentBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource PanelBorderBrush}"/>
+            <Setter Property="Foreground" Value="{DynamicResource AppTextBrush}"/>
+        </Style>
+
+        <Style Selector="Button.primary:pointerover">
+            <Setter Property="Background" Value="{DynamicResource AccentBrush}"/>
+        </Style>
+
+        <Style Selector="TabControl">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Padding" Value="0"/>
+        </Style>
+
+        <Style Selector="TabItem">
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Padding" Value="14,8"/>
+            <Setter Property="Margin" Value="0,0,6,0"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource PanelBorderBrush}"/>
+            <Setter Property="BorderThickness" Value="0,0,0,1"/>
+            <Setter Property="Foreground" Value="{DynamicResource MutedTextBrush}"/>
+        </Style>
+
+        <Style Selector="TabItem:pointerover">
+            <Setter Property="Background" Value="{DynamicResource AccentSoftBrush}"/>
+        </Style>
+
+        <Style Selector="TabItem:selected">
+            <Setter Property="Foreground" Value="{DynamicResource AppTextBrush}"/>
+            <Setter Property="Background" Value="{DynamicResource PanelBackgroundBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}"/>
+            <Setter Property="BorderThickness" Value="0,0,0,2"/>
+        </Style>
+
+        <Style Selector="TreeViewItem">
+            <Setter Property="FontSize" Value="14"/>
+            <Setter Property="Margin" Value="0"/>
+            <Setter Property="Padding" Value="6,4"/>
+        </Style>
+
+        <Style Selector="TreeViewItem:pointerover">
+            <Setter Property="Background" Value="{DynamicResource AccentSoftBrush}"/>
+        </Style>
+
+        <Style Selector="TreeViewItem:selected">
+            <Setter Property="Background" Value="{DynamicResource AccentBrush}"/>
+        </Style>
+
+        <Style Selector="TreeView">
+            <Setter Property="FontSize" Value="14"/>
+        </Style>
+
+    </Window.Styles>
+
+    <Grid RowDefinitions="48,*,32">
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="260" MinWidth="200"/>
+            <ColumnDefinition Width="4"/>
+            <ColumnDefinition Width="*"/>
+        </Grid.ColumnDefinitions>
+        <Border Grid.Row="0" Grid.ColumnSpan="3"
+                Background="{DynamicResource PanelBackgroundBrush}"
+                BorderBrush="{DynamicResource PanelBorderBrush}"
+                BorderThickness="0,0,0,1">
+            <Grid ColumnDefinitions="Auto,Auto,*,Auto" Margin="12,0">
+                <Image Grid.Column="0"
+                       Width="18"
+                       Height="18"
+                       Margin="0,0,10,0"
+                       Source="avares://HavenStudio/Assets/icon.png"
+                       VerticalAlignment="Center"/>
+                <Menu Grid.Column="1" VerticalAlignment="Center">
+                    <MenuItem Header="File">
+                        <MenuItem Header="Open File" Click="OnOpenFile"/>
+                        <MenuItem Header="Open Folder" Click="OnOpenFolder"/>
+                        <MenuItem Header="Preferences" Click="OnOpenPreferences"/>
+                    </MenuItem>
+                    <MenuItem Header="Utility">
+                        <MenuItem Header="Encrypt / Decrypt File" Click="OnEncryptDecryptFile"/>
+                        <MenuItem Header="Encrypt / Decrypt Folder" Click="OnEncryptDecryptFolder"/>
+                        <MenuItem Header="String Hashing" Click="OnStringHashing"/>
+                    </MenuItem>
+                </Menu>
+                <TextBlock Grid.Column="3"
+                           VerticalAlignment="Center"
+                           Foreground="{DynamicResource MutedTextBrush}"
+                           Text="{Binding RootFolderName}"/>
+            </Grid>
+        </Border>
+
+        <Grid Grid.Row="1" Grid.Column="0" RowDefinitions="*,Auto">
+            <views:FileExplorerView x:Name="FileExplorerView" Grid.Row="0"/>
+            <views:MinimapView Grid.Row="1"
+                               DataContext="{Binding Minimap}"
+                               DoubleTapped="OnMinimapDoubleTapped"/>
+        </Grid>
+
+        <GridSplitter Grid.Row="1" Grid.Column="1"
+                      Width="4"
+                      Background="{DynamicResource PanelBorderBrush}"
+                      HorizontalAlignment="Stretch"/>
+
+        <Border Grid.Row="1" Grid.Column="2"
+                Background="Transparent"
+                Padding="12">
+            <Grid RowDefinitions="Auto,*">
+                <TabControl Grid.Row="0"
+                            TabStripPlacement="Top"
+                            SelectedIndex="{Binding SelectedTabIndex}">
+                    <TabItem Header="Map"/>
+                    <TabItem Header="Scripting"/>
+                </TabControl>
+
+                <Grid Grid.Row="1">
+                    <views:MapEditorView IsVisible="{Binding IsMapSelected}"/>
+
+                    <views:GcxEditorView x:Name="GcxEditorView"
+                                             IsVisible="{Binding IsScriptingSelected}"/>
+
+
+                </Grid>
+            </Grid>
+        </Border>
+
+        <views:StatusBarView Grid.Row="2" Grid.ColumnSpan="3"/>
+    </Grid>
+</Window>

@@ -1,0 +1,133 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:local="clr-namespace:HavenStudio"
+        xmlns:avaloniaHex="clr-namespace:AvaloniaHex;assembly=AvaloniaHex"
+        xmlns:rendering="clr-namespace:AvaloniaHex.Rendering;assembly=AvaloniaHex"
+        xmlns:avaloniaEdit="clr-namespace:AvaloniaEdit;assembly=AvaloniaEdit"
+        x:Class="HavenStudio.Views.GcxEditorView"
+        x:DataType="local:MainWindowViewModel">
+                    <Border Background="{DynamicResource PanelBackgroundBrush}"
+                            BorderBrush="{DynamicResource PanelBorderBrush}"
+                            BorderThickness="1"
+                            Padding="12"
+                            IsVisible="{Binding IsScriptingSelected}">
+                        <Grid RowDefinitions="Auto,*" ColumnDefinitions="*">
+                            <Border Grid.Row="0"
+                                    Background="{DynamicResource AccentSoftBrush}"
+                                    BorderBrush="{DynamicResource PanelBorderBrush}"
+                                    BorderThickness="0,0,0,1"
+                                    Padding="10,8"
+                                    Margin="-12,-12,-12,8">
+                                <Grid ColumnDefinitions="*,Auto">
+                                    <StackPanel Spacing="2">
+                                        <TextBlock FontSize="14" FontWeight="SemiBold" Text="Scripting Editor"/>
+                                        <TextBlock Foreground="{DynamicResource MutedTextBrush}" Text="{Binding GcxEditor.GcxFileName}"/>
+                                        <TextBlock Foreground="{DynamicResource MutedTextBrush}"
+                                                   Text="{Binding GcxEditor.GcxTimestamp, StringFormat=Timestamp: {0}}"/>
+                                        <TextBlock Foreground="{DynamicResource MutedTextBrush}"
+                                                   Text="{Binding GcxEditor.GcxCryptoSeed, StringFormat=Seed: {0}}"/>
+                                        <TextBlock Foreground="{DynamicResource MutedTextBrush}"
+                                                   Text="{Binding GcxEditor.GcxScriptCount, StringFormat=Scripts: {0}}"/>
+                                        <TextBlock Foreground="{DynamicResource MutedTextBrush}"
+                                                   Text="{Binding GcxEditor.GcxMainSize, StringFormat=Main Size: {0} bytes}"/>
+                                        <TextBlock Foreground="{DynamicResource MutedTextBrush}"
+                                                   Text="{Binding GcxEditor.SelectedScriptInfo}"/>
+                                    </StackPanel>
+                                    <StackPanel Grid.Column="1"
+                                                Orientation="Horizontal"
+                                                Spacing="8"
+                                                VerticalAlignment="Top">
+                                        <Button Content="Add Proc"
+                                                Classes="primary"
+                                                Click="OnAddProc"/>
+                                        <Button Content="Insert Command"
+                                                Classes="primary"
+                                                IsEnabled="{Binding GcxEditor.HasSelectedScript}"
+                                                Click="OnInsertCommand"/>
+                                        <Button Content="Save"
+                                                Classes="primary"
+                                                IsEnabled="{Binding GcxEditor.HasSelectedScript}"
+                                                Click="OnSaveScript"/>
+                                        <Button Content="Check Errors"
+                                                Classes="primary"
+                                                Click="OnCheckGcxErrors"/>
+                                    </StackPanel>
+                                </Grid>
+                            </Border>
+                            <Grid Grid.Row="1" ColumnDefinitions="240,8,*">
+                                <Border Background="{DynamicResource AccentSoftBrush}"
+                                        BorderBrush="{DynamicResource PanelBorderBrush}"
+                                        BorderThickness="1"
+                                        Padding="6">
+                                    <TreeView x:Name="GcxScriptTreeView"
+                                              ItemsSource="{Binding GcxEditor.ScriptItems}"
+                                              DoubleTapped="OnScriptTreeDoubleTapped">
+                                        <TreeView.ItemTemplate>
+                                            <TreeDataTemplate DataType="local:GcxScriptNode">
+                                                <TextBlock Text="{Binding Name}"/>
+                                            </TreeDataTemplate>
+                                        </TreeView.ItemTemplate>
+                                    </TreeView>
+                                </Border>
+                                <Border Grid.Column="2"
+                                        Background="{DynamicResource PanelBackgroundBrush}"
+                                        BorderBrush="{DynamicResource PanelBorderBrush}"
+                                        BorderThickness="1"
+                                        Padding="6">
+                                    <TabControl SelectedIndex="1">
+                                        <TabItem Header="Hex">
+                                            <avaloniaHex:HexEditor x:Name="ScriptHexEditor"
+                                                                   Document="{Binding GcxEditor.HexDocument}"
+                                                                   FontFamily="Courier New, monospace"
+                                                                   FontSize="16"
+                                                                   IsHeaderVisible="True"
+                                                                   ColumnPadding="12"
+                                                                   HorizontalScrollBarVisibility="Auto"
+                                                                   VerticalScrollBarVisibility="Auto"
+                                                                   KeyDown="OnHexEditorKeyDown">
+                                                <avaloniaHex:HexEditor.ContextMenu>
+                                                    <ContextMenu x:Name="HexEditorContextMenu"
+                                                                 DataContext="{Binding}">
+                                                        <MenuItem Header="Copy"
+                                                                  IsEnabled="{Binding GcxEditor.HasSelectedScript}"
+                                                                  Click="OnHexCopy"/>
+                                                        <MenuItem Header="Paste"
+                                                                  IsEnabled="{Binding GcxEditor.HasSelectedScript}"
+                                                                  Click="OnHexPaste"/>
+                                                        <MenuItem Header="Paste (Insert bytes)"
+                                                                  IsEnabled="{Binding GcxEditor.HasSelectedScript}"
+                                                                  Click="OnHexPasteInsert"/>
+                                                        <MenuItem Header="Delete"
+                                                                  IsEnabled="{Binding GcxEditor.HasSelectedScript}"
+                                                                  Click="OnHexDelete"/>
+                                                        <MenuItem Header="Update Proc Size"
+                                                                  IsEnabled="{Binding GcxEditor.HasSelectedScript}"
+                                                                  Click="OnUpdateProcSize"/>
+                                                    </ContextMenu>
+                                                </avaloniaHex:HexEditor.ContextMenu>
+                                                <avaloniaHex:HexEditor.Columns>
+                                                    <rendering:OffsetColumn IsUppercase="True" />
+                                                    <rendering:HexColumn IsUppercase="True"
+                                                                         UseDynamicHeader="False" />
+                                                    <rendering:AsciiColumn />
+                                                </avaloniaHex:HexEditor.Columns>
+                                            </avaloniaHex:HexEditor>
+                                        </TabItem>
+                                        <TabItem Header="Decompilation">
+                                            <avaloniaEdit:TextEditor x:Name="GcxDecompilationEditor"
+                                                                     FontFamily="Consolas, Menlo, 'DejaVu Sans Mono', 'Liberation Mono', Courier New, monospace"
+                                                                     FontSize="13"
+                                                                     IsReadOnly="True"
+                                                                     ShowLineNumbers="True"
+                                                                     KeyDown="OnDecompilationEditorKeyDown"
+                                                                     HorizontalAlignment="Stretch"
+                                                                     VerticalAlignment="Stretch"
+                                                                     Background="{DynamicResource PanelBackgroundBrush}"
+                                                                     Foreground="{DynamicResource AppTextBrush}"/>
+                                        </TabItem>
+                                    </TabControl>
+                                </Border>
+                            </Grid>
+                        </Grid>
+                    </Border>
+</UserControl>

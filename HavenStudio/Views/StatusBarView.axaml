@@ -1,0 +1,41 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:local="clr-namespace:HavenStudio"
+        x:Class="HavenStudio.Views.StatusBarView"
+        x:DataType="local:MainWindowViewModel">
+        <Border Grid.Row="2" Grid.ColumnSpan="3"
+                Background="{DynamicResource PanelBackgroundBrush}"
+                BorderBrush="{DynamicResource PanelBorderBrush}"
+                BorderThickness="0,1,0,0"
+                Padding="12,6">
+            <DockPanel>
+                <Button DockPanel.Dock="Right"
+                        Width="32"
+                        Height="32"
+                        Padding="2"
+                        Margin="8,0,0,0"
+                        Click="OnOpenMgoSite">
+                    <Image Source="avares://HavenStudio/Assets/savemgo.jpg"
+                           Stretch="UniformToFill"/>
+                </Button>
+                <TextBlock DockPanel.Dock="Left"
+                           Foreground="{DynamicResource MutedTextBrush}"
+                           Text="{Binding StatusLeftText}"/>
+                <StackPanel DockPanel.Dock="Right"
+                            Orientation="Horizontal"
+                            Spacing="8"
+                            HorizontalAlignment="Right"
+                            IsVisible="{Binding GcxEditor.IsBusy}">
+                    <ProgressBar Width="160"
+                                 Minimum="0"
+                                 Maximum="1"
+                                 Height="8"
+                                 IsIndeterminate="{Binding GcxEditor.IsProgressIndeterminate}"
+                                 Value="{Binding GcxEditor.ProgressValue}"/>
+                    <TextBlock Foreground="{DynamicResource MutedTextBrush}"
+                               Text="{Binding GcxEditor.ProgressText}"
+                               TextAlignment="Right"/>
+                </StackPanel>
+            </DockPanel>
+        </Border>
+</UserControl>
