@@ -93,14 +93,13 @@ public static partial class GcxColorFilterParser
     private static Vector3 ClampNonNegative(Vector3 value) => new(MathF.Max(0f, value.X), MathF.Max(0f, value.Y), MathF.Max(0f, value.Z));
 
     // Data-driven read straight from the GCX bytecode (not the decompiled text).
-    // The engine's color-filter command (ELF template @0xABA583) is:
-    //   -mono %d -scale %d %d %d -bright %d -contrast %d
-    //   -min_color_n %d %d %d -max_color_n %d %d %d
+    // The color-filter command takes:
+    //   -mono, -scale (3), -bright, -contrast,
+    //   -min_color_n (3), -max_color_n (3)
     // Each parameter is tagged in the bytecode by its strcode24 name hash; the
-    // typed values follow (01=i16, 02/03/04=u8, 08=u16). Units from RE: scale is
-    // /128 (ELF ColorFilterResetParms constant f31=128), the color min/max and the
-    // scalars are per-mille (/1000). Parameters stored as script variables (varbuf,
-    // no inline constant) keep the neutral default. Works on any map's GCX.
+    // typed values follow (01=i16, 02/03/04=u8, 08=u16). Scale is stored /128,
+    // the colour min/max and the scalars per-mille (/1000). Parameters stored as
+    // script variables (varbuf, no inline constant) keep the neutral default.
     private const uint ColorFilterCommandHash = 0x98CBCE;
     private const uint MonoHash = 0x384A2F;
     private const uint ScaleHash = 0x6311EC;

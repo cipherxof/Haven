@@ -187,7 +187,7 @@ namespace Avalonia3DControl
             }
         }
 
-        private float _shadowRange = 50000.0f;  // ENGINE-VERIFIED default (ELF 2739 +984)
+        private float _shadowRange = 50000.0f;
         public float ShadowRange
         {
             get => _renderer?.ShadowRange ?? _shadowRange;

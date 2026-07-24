@@ -59,10 +59,8 @@ namespace HavenStudio.Formats.Mdn;
         };
 
         /// <summary>
-        /// Engine build 2739 bakes FOUR per-vertex streams (three normalised
-        /// colour streams plus a log2-quantised HDR scale stream). Their MDN
-        /// element types are still being located; unknown types are captured
-        /// here instead of throwing, so the stream inventory can log them.
+        /// Vertex element types that are not mapped to a named stream are kept
+        /// here instead of throwing, so unusual buffers still load.
         /// </summary>
         private readonly Dictionary<int, MdnVertexElement> _extraElements = new();
 

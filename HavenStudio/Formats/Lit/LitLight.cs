@@ -20,7 +20,6 @@ public enum LitLightingTarget
 
 /// <summary>
 /// Target and state bits used by Konami's LIT/LT2/LT3 runtime.
-/// The values are confirmed by the original fmt_lit.h and by the MGS4 debug ELF.
 /// </summary>
 public static class LitFlags
 {
@@ -37,15 +36,10 @@ public static class LitFlags
             return false;
         }
 
-        // Stage vertex bake: the engine preshader tests the record flag with
-        //   rlwinm (bit 22) -> flag & 0x0200  (must be SET)
-        //   rlwinm (bit 16) -> flag & 0x8000  (must be CLEAR)
-        // and skips the record otherwise (DG_MakePreshaderModelUnit build 2739,
-        // prefilter passes @0x129E14 and friends). There is NO "no target bits
-        // means all targets" fallback on this path: in the real s01a10a.lt3, 409
-        // of 562 line records carry no target bit and the engine skips every one.
-        // Accepting them made Haven accumulate ~450 records where the engine uses
-        // 23 - the cause of the washed-out, contrast-free preview.
+        // Stage vertex bake: a record applies only when the Background bit is set
+        // and the Disable bit is clear. There is no "no target bits means all
+        // targets" fallback on this path - records without a target bit are
+        // skipped, which keeps the contributor count in line with the reference.
         if (target == LitLightingTarget.Background)
         {
             return (flag & Background) != 0;
@@ -86,22 +80,9 @@ public readonly record struct LitColor(byte R, byte G, byte B, byte A)
 
     /// <summary>
     /// Konami CVECTOR is an RGBM-style encoding: RGB are mantissa bytes and the
-    /// A byte is an intensity SCALE, not an alpha.
-    ///
-    /// Engine evidence (DG_GetLightScene, build 2739 @0x10CBF4-0x10CD14):
-    ///   lbz  r9,3(rec)      ; A
-    ///   fcfid / frsp -> f10 ; (float)A
-    ///   lbz  r9,1(rec)      ; a colour channel
-    ///   fmuls f0,f10,f0     ; channel * A
-    ///   fdivs f0,f0,f12     ; / 255
-    ///   fmuls f9,f11,f0     ; * attenuation
-    /// The same A also scales the intensity used for the qualification threshold.
-    ///
-    /// Ignoring A (the previous <see cref="ToVector3"/> behaviour) is wrong in
-    /// both directions: in the real s01a10a.lt3, 261 of 562 line records carry
-    /// A = 0 and contribute NOTHING in the engine while Haven lit them at full
-    /// colour, and the stage sun carries A = 2 so it was half as bright as it
-    /// should be.
+    /// A byte is an intensity scale, not an alpha. Each channel is decoded as
+    /// channel * A / 255, and the same A scales the intensity used for the
+    /// qualification threshold - records with A = 0 contribute nothing.
     /// </summary>
     public Vector3 ToScaledVector3() => new(
         R / 255f * A,

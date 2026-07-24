@@ -567,14 +567,7 @@ public sealed class MapEditorViewModel : INotifyPropertyChanged, IDisposable
             normalizedStage,
             cancellationToken);
         ReplaceLightDocuments(loaded, selection.Primary, selection.Reason);
-        // MGS4 exact spatial ambient: register any ".abc" ambient-cube files
-        // shipped in the stage cache (engine path: CMD_SetAmbcube -> table).
-        Mgs4Diagnostics.Log("MAP", $"light discovery: {loaded.Count} light document(s), " +
-            $"primary = {selection.Primary?.Path.FileName ?? "(none)"} ({selection.Reason})");
-        foreach (var doc in loaded)
-        {
-            Mgs4Diagnostics.LogLitInventory(doc.Path.FileName, doc.Document);
-        }
+        // Register any ".abc" ambient-cube files shipped in the stage cache.
         var abcStatus = Mgs4AmbientCubeLoader.RegisterFromWorkspace(workspace, snapshot);
         if (!string.IsNullOrEmpty(abcStatus))
         {

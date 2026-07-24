@@ -7,17 +7,15 @@ using OpenTK.Mathematics;
 namespace HavenStudio.Formats.Abc;
 
 /// <summary>
-/// MGS4 ambient-cube file (".abc"), the payload registered at runtime through
-/// GCX → CMD_SetAmbcube → DG_SetAmbientCubeData(data, id) — the engine stores
-/// the pointer AS-IS, so the file bytes are exactly the in-memory layout read
-/// by DG_GetAmbientCube (build 2739, all instruction-verified):
+/// MGS4 ambient-cube file (".abc"). The file bytes are the in-memory layout
+/// consumed by the ambient-cube evaluation:
 ///
 ///   0x00  char  magic[4]      "AMBC"
 ///   0x04  u16   version       (2 observed on sm_dd)
 ///   0x06  u16   reserved
 ///   0x08  u32   nodeCount
 ///   0x0C  u32   pad
-///   0x10  FVECTOR regionMin   ─ slot header fields the engine reads @+0x10/+0x20
+///   0x10  FVECTOR regionMin
 ///   0x20  FVECTOR regionMax
 ///   0x30  AMBCUBE nodes[nodeCount], 192 bytes each (big-endian):
 ///         inMin, inMax, outMin, outMax, center : FVECTOR
@@ -25,12 +23,9 @@ namespace HavenStudio.Formats.Abc;
 ///         parentIdx, childIdx, siblingIdx, pad  : s32
 ///
 /// Root nodes start at nodes[0], chained by siblingIdx; children via childIdx.
-/// Reference sample: sm_dd "s01a_load30_ambient.abc" (240 bytes, one leaf node,
-/// inner box = region − 1000 per face, matching the engine's fixed region band).
-///
-/// The cache id is (0x14 &lt;&lt; 24) | strcode24(name); the GCL options are
-/// 'region' (0x853338) and 'index' (0xC89D1E) → id = (region &lt;&lt; 16) | index.
-/// The id only selects a table entry — it does not affect evaluation.
+/// The inner box is the region inset by the fixed 1000-unit band per face.
+/// The registration id only selects a table entry - it does not affect
+/// evaluation.
 /// </summary>
 public sealed class AbcFile
 {

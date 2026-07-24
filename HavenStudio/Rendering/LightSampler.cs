@@ -22,11 +22,11 @@ public sealed record SampledLighting(
         AmbientCube?.Evaluate(normal) ?? Ambient;
 
     /// <summary>
-    /// Every in-range LT3 record contribution at this sample point, BEFORE the
-    /// 3-slot reduction. DG_MakePreshaderModelUnit (the stage vertex bake) sums
-    /// N.L over all in-range point/spot/line/parallel records per vertex; it does
-    /// NOT reduce to three (that limit is DG_LIGHT, the runtime/character path).
-    /// Falls back to the reduced set if not populated.
+    /// Every in-range LT3 record contribution at this sample point, before the
+    /// 3-slot reduction. The stage vertex bake sums N.L over all in-range
+    /// point/spot/line/parallel records per vertex; it does not reduce to three
+    /// (that limit is the runtime/character path). Falls back to the reduced set
+    /// if not populated.
     /// </summary>
     public IReadOnlyList<DirectionalLightSample> BakeLights =>
         BakeContributors ?? DirectionalLights;
@@ -47,44 +47,29 @@ public sealed record SampledLighting(
 }
 
 /// <summary>
-/// Samples Konami LT2/LT3 data into the three directional-light slots exposed by
-/// MGS4's DG_LIGHT structure. The formulas and target flags used here come from
-/// Konami's fmt_lit.h and are cross-checked against the MGS4 debug ELF.
+/// Samples Konami LT2/LT3 data into the three directional-light slots used by
+/// the MGS4 lighting model. Formulas and target flags follow the LT3 layout.
 /// </summary>
 public static class LightSampler
 {
     public const int MaximumDirectionalLights = 3;
-    private static int _samplerLogBudget = 3;
-    private static int _ambientLogBudget = 6;
-    private static bool _stageAmbientLogPending = true;
-    // Engine preshader multiplies the record colour by attenuation only
-    // (DG_MakePreshaderModelUnit accumulation loops). The former 1.5x boost was
-    // an invented factor; harmless when only 3 lights survived, but wrong once
-    // every in-range record is summed for the bake. Neutralised to 1.0.
+    // The record colour is multiplied by attenuation only (no extra centre
+    // boost), so every in-range record sums correctly for the bake.
     private const float PointCenterBoost = 1.0f;
-    // TRANSPLANT (Python bench, validated): fraction of the LT3 header ambient
-    // applied to STAGE geometry. The header ambient on sm_dd is near-white
-    // (1, 1, 0.99); applied at full strength it floods the scene and kills all
-    // sun/shadow contrast. 0 = sun + local records only (matches the viz that
-    // showed clean shadows and visible sunlight). Raise toward 1 only if
-    // deep-shadow areas turn into pure-black voids.
-    // 0 flooded contrast (near-white header ambient at full strength = the milky
-    // look). But 0 left faces turned away from the sun PURE BLACK. 0.16 = a modest
-    // fill floor from the LT3 header ambient colour so nothing is black (texture
-    // stays visible in shade) while the sun's N.L directional gradient and the
-    // shadows still read - Snake's "light everything, then shadows do the relief",
-    // dosed. Raise toward 0.3 for more fill, drop toward 0 for deeper shade.
+    // Fraction of the LT3 header ambient applied to stage geometry. The header
+    // ambient on sm_dd is near-white; at full strength it floods the scene and
+    // kills sun/shadow contrast. 0.16 keeps a modest fill floor so shaded faces
+    // stay visible while the sun gradient and shadows still read. Raise toward
+    // 0.3 for more fill, drop toward 0 for deeper shade.
     private const float StageAmbientScale = 0.16f;
 
-    // Background blackpoints darken the stage bake (they multiply the light by
-    // clamp01(dist/range) inside their bounds). The engine applies them, but the
-    // 2006 Lighting Editor reference does NOT show them - it produced the dark
-    // band along the street that reads as a fake shadow, absent in the dev
-    // capture. Off by default so the stage preview matches that reference; the
-    // per-vertex darkening only fired when this was implicitly on.
+    // Background blackpoints darken the bake by multiplying the light by
+    // clamp01(dist/range) inside their bounds. Off by default: they produce a
+    // dark band along the street that reads as a fake shadow and does not match
+    // the 2006 Lighting Editor reference.
     private const bool ApplyStageBlackPoints = false;
-    // Kept for reference: "sunshine" (0x696848) is one of the hs-amb scope names
-    // observed in s01a10a.lt3. No longer used as a filter (see AddHemi).
+    // Kept for reference: "sunshine" is one of the hs-amb scope names. No longer
+    // used as a filter (see AddHemi).
 #pragma warning disable IDE0051, CS0414
     private static readonly uint SunshineHash = HavenStudio.Utils.String.HashString("sunshine");
 #pragma warning restore IDE0051, CS0414
@@ -111,16 +96,6 @@ public static class LightSampler
         var ambient = target == LitLightingTarget.Character
             ? sceneLighting?.CharacterAmbientFloor ?? file.Ambient.ToScaledVector3()
             : file.Ambient.ToScaledVector3() * StageAmbientScale;
-        if (target != LitLightingTarget.Character && _stageAmbientLogPending)
-        {
-            _stageAmbientLogPending = false;
-            var raw = file.Ambient.ToScaledVector3();
-            Mgs4Diagnostics.Log("AMBIENT",
-                $"stage ambient scale={StageAmbientScale:F2} -> header ({raw.X:F2},{raw.Y:F2},{raw.Z:F2}) " +
-                (StageAmbientScale <= 0f
-                    ? "SUPPRESSED for stage geometry; the ~0.3 floor comes from the summed local records (engine bake model)"
-                    : $"applied at {StageAmbientScale:P0}"));
-        }
         var ambientCube = sceneLighting?.AmbientCubeFor(target, ambient) ??
             AmbientCubeLighting.Uniform(ambient);
         // NOTE: the exact MGS4 spatial ambient is applied LAST (see below), not
@@ -131,12 +106,8 @@ public static class LightSampler
         // directional variation from the ambient term.
         var encodedSunDirection = sceneLighting?.Direction ?? file.Direction.Xyz;
         var rawSunColor = sceneLighting?.DirectionalColorFor(target) ?? file.Color.ToScaledVector3();
-        // ENGINE-VERIFIED (build 2739, session "pixel-perfect"): dir.W never
-        // scales the light colour. DG_GetLightScene reads +12 exactly once
-        // (@0x10D90C) and only for the selection comparisons; and
-        // DG_SetSceneLightColor (@0x10B5D4) stores the RGB raw into the scene
-        // (+1088..) with no W multiply. W is a PRIORITY weight. The previous
-        // sunScale = Direction.W (0.609 on sm_dd) ran the sun at 61% strength.
+        // Direction.W is a priority weight, not a colour scale, so the sun runs
+        // at full strength.
         const float sunScale = 1f;
         var sunColor = rawSunColor * sunScale;
 
@@ -169,24 +140,17 @@ public static class LightSampler
                     continue;
                 }
 
-                // Engine rule (preshader parallel loop @0x12D420, build 2739):
-                // vsel with no comparison of forces - the LAST record whose bounds
-                // contain the point wins, in file order. The previous max-|Force|
-                // pick was invented. (What the engine does with the selected
-                // CVECTOR - it goes to the preshader's 4th output stream for the
-                // runtime shader - is still being reverse engineered; the blend
-                // below remains Haven's approximation of that consumer.)
+                // The last record whose bounds contain the point wins, in file
+                // order (no force comparison).
                 selectedParallel = parallel;
             }
         }
 
         if (selectedParallel != null)
         {
-            // LIT_PARALLEL contains an explicit force. The previous preview ignored
-            // it and replaced the almost-white stage ambient with the very dark
-            // local CVECTOR, producing the large black cells visible in sm_dd.
-            // DG_GetLightScene starts from DG_LIGHT::ambient_color[6]; preserve that
-            // cube and blend the bounded local definition by its encoded force.
+            // LIT_PARALLEL carries an explicit force. Preserve the ambient cube
+            // and blend the bounded local definition by that force, rather than
+            // replacing the stage ambient outright.
             var localForce = Math.Clamp(MathF.Abs(selectedParallel.Force), 0f, 1f);
             var localAmbient = selectedParallel.Ambient.ToScaledVector3();
             ambientCube = ambientCube.BlendToward(
@@ -236,11 +200,9 @@ public static class LightSampler
                         if ((ApplyStageBlackPoints || target != LitLightingTarget.Background) &&
                             Contains(blackPoint.BoundsMin.Xyz, blackPoint.BoundsMax.Xyz, position))
                         {
-                            // Engine (preshader blackpoint loop @0x12D334, build
-                            // 2739): EVERY contained blackpoint contributes a
+                            // Every contained blackpoint contributes a
                             // multiplicative factor clamp01(|pos-point| / range);
                             // outside bounds or beyond range the factor is 1.0.
-                            // "First match only" and the old range*2 were invented.
                             (activeBlackPoints ??= new List<LitBlackPoint>()).Add(blackPoint);
                         }
                         break;
@@ -289,9 +251,8 @@ public static class LightSampler
                             light.Color.LengthSquared > 0f)
             .ToArray();
 
-        // DG_LIGHT in the debug ELF contains exactly three light_dir and three
-        // light_color FVECTORs. Keep the projected stage sun and choose the two
-        // strongest remaining candidates by Konami's force metric.
+        // Three directional slots: keep the projected stage sun and choose the
+        // two strongest remaining candidates by the force metric.
         var reduced = new List<DirectionalLightSample>(MaximumDirectionalLights);
         var projectedSun = valid.FirstOrDefault(light => light.CastsProjectedShadow);
         if (projectedSun.CastsProjectedShadow)
@@ -311,42 +272,16 @@ public static class LightSampler
             reduced.Add(light);
         }
 
-        if (_samplerLogBudget > 0)
-        {
-            _samplerLogBudget--;
-            Mgs4Diagnostics.Log("SAMPLER",
-                $"target={target} position=({position.X:F0},{position.Y:F0},{position.Z:F0}) " +
-                $"contributors={valid.Length} (reduced to {MaximumDirectionalLights}) " +
-                $"sun=({sunColor.X:F3},{sunColor.Y:F3},{sunColor.Z:F3}) sunScale={sunScale:F3} " +
-                $"sceneLighting={(sceneLighting != null ? "GCX" : "LT3 header")} " +
-                $"mgs4Cube={(Mgs4AmbientCubeEvaluator.HasData ? "ACTIVE" : "inactive")}");
-        }
-
-        // Ambient authority: hs-amb volumes containing this position win where
-        // present. The .abc is CHARACTER ambient (ExportAmbcube of the hs-amb) and
-        // its single whole-map node flattens the stage, so it applies to Character
-        // targets only; the stage takes header*StageAmbientScale (0) + local records.
+        // Ambient authority: hs-amb volumes containing this position take
+        // precedence where present. The .abc cube applies to Character targets
+        // only; the stage takes header*StageAmbientScale plus local records.
         {
             if (hemiCount > 0 && hemiAccumulator is { } accumulated)
             {
                 ambientCube = Divide(accumulated, hemiCount);
-                if (_ambientLogBudget > 0)
-                {
-                    _ambientLogBudget--;
-                    Mgs4Diagnostics.Log("AMBIENT",
-                        $"hs-amb volumes applied: {hemiCount} -> T={ambientCube.Top} B={ambientCube.Bottom}");
-                }
             }
             else
             {
-                if (_ambientLogBudget > 0)
-                {
-                    _ambientLogBudget--;
-                    Mgs4Diagnostics.Log("AMBIENT",
-                        $"hs-amb volumes applied: 0 (Character-flagged; target={target}) -> " +
-                        (target == LitLightingTarget.Character && Mgs4AmbientCubeEvaluator.HasData
-                            ? ".abc cube (Character)" : "header*StageAmbientScale (stage=0)"));
-                }
                 if (target == LitLightingTarget.Character &&
                     Mgs4AmbientCubeEvaluator.TryEvaluate(position, out var mgs4Cube))
                 {
@@ -356,10 +291,9 @@ public static class LightSampler
         }
 
         var finalCube = ambientCube.ClampNonNegative();
-        // BakeContributors = every in-range record (post-blackpoint), NOT reduced
-        // to three. This is what DG_MakePreshaderModelUnit accumulates per vertex;
-        // the flat preview came from feeding the 3-slot runtime set to the stage
-        // bake. The reduced set is kept for any genuine runtime/character use.
+        // BakeContributors = every in-range record (post-blackpoint), not reduced
+        // to three: this is what the stage bake accumulates per vertex. The
+        // reduced set is kept for runtime/character use.
         return new SampledLighting(
             ClampNonNegative(finalCube.Average),
             reduced,
@@ -407,9 +341,7 @@ public static class LightSampler
         }
 
         var distance = toLight.Length;
-        // DG_GetLightScene (build 2739 @0x10C758) culls on len2 > r_range*r_range
-        // and ramps over r_range itself; the previous 2x radius was not engine
-        // behaviour and over-extended every point light.
+        // Cull on distance^2 > range^2 and ramp over the range itself.
         var attenuation = RadialAttenuation(distance, MathF.Abs(point.Range));
         if (attenuation <= 0f || distance <= 0.0001f)
         {
@@ -485,11 +417,9 @@ public static class LightSampler
         var nearest = start + segment * t;
         var toLight = nearest - position;
         var distance = toLight.Length;
-        // ENGINE-VERIFIED (line loop @0x12CF24, build 2739): closest point on the
-        // segment [P0, P0 + dir*len] via t = clamp(dot(pos-P0, dir), 0, len), then
-        // colour * max(0, N.L) * max(0, 1 - d/range). The engine expresses the ramp
-        // as dot_u * (1/d - 1/range) with a select to 1/d beyond range, which is
-        // algebraically identical and cuts to exactly zero past r_range.
+        // Closest point on the segment [P0, P0 + dir*len] via
+        // t = clamp(dot(pos-P0, dir), 0, len), then colour * max(0, N.L) *
+        // max(0, 1 - d/range), cutting to zero past the range.
         var attenuation = RadialAttenuation(distance, MathF.Abs(line.Range));
         if (attenuation <= 0f || distance <= 0.0001f)
         {
@@ -524,20 +454,12 @@ public static class LightSampler
             return;
         }
 
-        // The old scope filter compared the volume's MetadataScopeHash against the
-        // MODEL's asset-name hash. Measured on the real s01a10a.lt3: the volumes are
-        // scoped to sub-AREA names (only "sunshine" = 0x696848 resolved; the map
-        // model hash "n021a" = 0xF8CE87 matches none of them), so the comparison
-        // silently rejected 370 of 371 volumes. The engine's prefilter is AABB +
-        // record flags (DG_MakePreshaderModelUnit class passes) - there is no
-        // name-scope test on the stage path. Spatial containment above is the gate.
+        // Volumes are gated by spatial containment (AABB), not a name-scope test.
 
-        // A hemisphere light is sky above / ground below, i.e. a DIRECTIONAL
-        // ambient - not a uniform add plus a fake directional light. The stage
-        // carries 371 of these "hs-amb" volumes (they are the entries filling the
-        // list panel of Konami's Lighting Editor), and they are the authored
-        // source that ExportAmbcube bakes into .abc files. They are the per-room
-        // ambient detail: dark interiors, bright courtyards.
+        // A hemisphere light is sky above / ground below, i.e. a directional
+        // ambient - not a uniform add plus a fake directional light. These
+        // "hs-amb" volumes are the per-room ambient detail (dark interiors,
+        // bright courtyards) and the authored source baked into .abc files.
         //
         // Each of the six cube faces takes lerp(ground, sky, (dot(axis,dir)+1)/2),
         // the standard hemisphere-to-cube projection. Colours use the RGBM decode
@@ -583,12 +505,10 @@ public static class LightSampler
         new(c.Left / d, c.Right / d, c.Top / d, c.Bottom / d, c.Front / d, c.Back / d);
 
     /// <summary>
-    /// ENGINE-VERIFIED (spot loop @0x12D0F4, build 2739). The preshader computes
-    /// cos(theta) = dot(pos - apex, axis) * (1/dist) explicitly (0x12D25C), then a
-    /// LINEAR ramp between the two floats stored at +68/+72 of the record:
-    /// 0 below the lower threshold, 1 above the upper one. The file stores raw
-    /// COSINES; ToCosine passes [-1,1] through unchanged, and the min/max ordering
-    /// below reproduces the engine ramp regardless of which field is which.
+    /// cos(theta) = dot(pos - apex, axis) / dist, then a linear ramp between the
+    /// two cosine thresholds stored in the record: 0 below the lower threshold,
+    /// 1 above the upper one. The file stores raw cosines; the min/max ordering
+    /// below reproduces the ramp regardless of which field is which.
     /// </summary>
     private static float ConeAttenuation(float cosine, float umbra, float penumbra)
     {

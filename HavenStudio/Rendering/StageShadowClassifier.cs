@@ -57,39 +57,7 @@ public static class StageShadowClassifier
         model.CastsShadow = IsArchitecturalCaster(assetName) &&
                             model.WriteDepth &&
                             !model.BlendEnabled;
-
-        // Diagnostics: the caster whitelist is NAME-token based, the same
-        // pattern that silently killed the hs-amb volumes via scope hashes.
-        // Count every classification and log a running summary + example names
-        // so an empty caster set can never hide again.
-        System.Threading.Interlocked.Increment(ref _classified);
-        if (model.CastsShadow)
-        {
-            System.Threading.Interlocked.Increment(ref _casters);
-            if (_casterExamples.Count < 8)
-            {
-                lock (_casterExamples) { if (_casterExamples.Count < 8) _casterExamples.Add(assetName); }
-            }
-        }
-        else if (_rejectedExamples.Count < 8)
-        {
-            lock (_rejectedExamples) { if (_rejectedExamples.Count < 8) _rejectedExamples.Add(assetName); }
-        }
-        if (_classified % 200 == 0 || (_classified >= 20 && !_summaryLogged))
-        {
-            _summaryLogged = true;
-            Mgs4Diagnostics.Log("SHADOW",
-                $"classifier: {_casters}/{_classified} models are casters; " +
-                $"casters e.g. [{string.Join(", ", _casterExamples)}]; " +
-                $"rejected e.g. [{string.Join(", ", _rejectedExamples)}]");
-        }
     }
-
-    private static int _classified;
-    private static int _casters;
-    private static bool _summaryLogged;
-    private static readonly System.Collections.Generic.List<string> _casterExamples = new();
-    private static readonly System.Collections.Generic.List<string> _rejectedExamples = new();
 
     public static bool IsArchitecturalCaster(string? sourceAssetName)
     {
@@ -114,15 +82,8 @@ public static class StageShadowClassifier
             }
         }
 
-        // Engine behaviour: geometry casts. The previous explicit-caster
-        // allowlist silently excluded every asset whose name matched no token -
-        // including s01a_car_b0_sk, the main ruin/arch architecture (1262 verts,
-        // the very piece whose baked contrast was verified in the [APPLY] probe).
-        // Measured: 663 of 2210 models were never registered as casters, which
-        // is why entire arch rows cast nothing. Same silent name-filter pattern
-        // that previously dropped 370/371 ambient volumes. Default is now CAST;
-        // only the non-solid backdrop (sky, distant scenery, previews) and the
-        // ground receiver stay excluded above.
+        // Default is to cast: only the non-solid backdrop (sky, distant scenery,
+        // previews) and the ground receiver are excluded by the tokens above.
         return true;
     }
 

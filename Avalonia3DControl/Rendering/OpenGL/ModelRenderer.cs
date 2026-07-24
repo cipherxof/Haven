@@ -28,6 +28,11 @@ namespace Avalonia3DControl.Rendering.OpenGL
             public int LineEBO { get; set; }
             public int LineIndexCount { get; set; }
         }
+
+        private readonly record struct VertexLayout(
+            int Stride,
+            int UvOffset,
+            int ShadowColorOffset);
         #endregion
 
         #region 构造函数
@@ -66,6 +71,14 @@ namespace Avalonia3DControl.Rendering.OpenGL
 
             // 设置材质属性
             SetMaterialProperties(shaderProgram, model);
+
+            var shadowedLightingLocation = GL.GetUniformLocation(shaderProgram, "uHasShadowedLighting");
+            if (shadowedLightingLocation != -1)
+            {
+                var hasShadowedLighting = model.VertexCount > 0 &&
+                    model.ShadowedColors.Length >= model.VertexCount * 3;
+                GL.Uniform1(shadowedLightingLocation, hasShadowedLighting ? 1 : 0);
+            }
             
             // 设置材质透明度
             var alphaLocation = GL.GetUniformLocation(shaderProgram, "materialAlpha");
@@ -116,6 +129,7 @@ namespace Avalonia3DControl.Rendering.OpenGL
             SetBool(shaderProgram, "uUseVertexAlpha", model.UseVertexAlpha);
             SetFloat(shaderProgram, "uAlphaTestRef", model.AlphaTestRef);
             SetBool(shaderProgram, "uForceOpaqueAlpha", model.ForceOpaqueAlpha);
+            SetBool(shaderProgram, "uReceiveShadow", model.ReceivesShadow);
 
             // 处理纹理
             HandleTexture(model);
@@ -187,6 +201,42 @@ namespace Avalonia3DControl.Rendering.OpenGL
         }
 
         /// <summary>
+        /// Minimal depth/alpha-test submission used by the Haven shadow pass.
+        /// It intentionally skips material, blending and lighting uniforms to keep
+        /// camera-dependent shadow updates cheap on large stages.
+        /// </summary>
+        public void RenderShadowModel(Model3D model, int shaderProgram)
+        {
+            if (model == null || !model.Visible || model.Indices.Length < 3)
+            {
+                return;
+            }
+
+            if (!_modelRenderData.TryGetValue(model, out var renderData))
+            {
+                CreateModelRenderData(model);
+                renderData = _modelRenderData[model];
+            }
+
+            var modelMatrix = model.GetModelMatrix();
+            SetMatrix(shaderProgram, "model", modelMatrix);
+            SetBool(shaderProgram, "hasTexture", model.TextureId > 0);
+            SetBool(shaderProgram, "uUseVertexAlpha", model.UseVertexAlpha);
+            SetFloat(shaderProgram, "uAlphaTestRef", model.AlphaTestRef);
+
+            var textureLocation = GL.GetUniformLocation(shaderProgram, "texture0");
+            if (textureLocation >= 0)
+            {
+                GL.Uniform1(textureLocation, 0);
+            }
+
+            GL.BindVertexArray(renderData.VAO);
+            HandleTexture(model);
+            DrawModel(model, renderData, RenderMode.Fill);
+            GL.BindVertexArray(0);
+        }
+
+        /// <summary>
         /// 更新模型顶点缓冲区
         /// </summary>
         /// <param name="model">要更新的模型</param>
@@ -207,9 +257,12 @@ namespace Avalonia3DControl.Rendering.OpenGL
 
             try
             {
+                GL.BindVertexArray(renderData.VAO);
                 GL.BindBuffer(BufferTarget.ArrayBuffer, renderData.VBO);
-                var vertices = BuildVertexData(model, out _);
+                var vertices = BuildVertexData(model, out var layout);
                 GL.BufferData(BufferTarget.ArrayBuffer, vertices.Length * sizeof(float), vertices, BufferUsageHint.DynamicDraw);
+                SetupVertexAttributes(layout);
+                GL.BindVertexArray(0);
                 GL.BindBuffer(BufferTarget.ArrayBuffer, 0);
             }
             catch (Exception ex)
@@ -318,11 +371,11 @@ namespace Avalonia3DControl.Rendering.OpenGL
             // 创建VBO
             renderData.VBO = GL.GenBuffer();
             GL.BindBuffer(BufferTarget.ArrayBuffer, renderData.VBO);
-            var vertices = BuildVertexData(model, out int stride);
+            var vertices = BuildVertexData(model, out var layout);
             GL.BufferData(BufferTarget.ArrayBuffer, vertices.Length * sizeof(float), vertices, BufferUsageHint.StaticDraw);
 
             // 设置顶点属性
-            SetupVertexAttributes(stride);
+            SetupVertexAttributes(layout);
 
             // 创建EBO（用于三角形）
             if (model.Indices != null && model.Indices.Length > 0)
@@ -342,65 +395,97 @@ namespace Avalonia3DControl.Rendering.OpenGL
         /// <summary>
         /// 设置顶点属性
         /// </summary>
-        private void SetupVertexAttributes(int stride)
+        private void SetupVertexAttributes(VertexLayout layout)
         {
-            int strideBytes = stride * sizeof(float);
+            int strideBytes = layout.Stride * sizeof(float);
 
-            // 位置属性 (location = 0) - 3 components
+            // Position: location 0, RGB color + coverage alpha: location 1.
             GL.VertexAttribPointer(0, 3, VertexAttribPointerType.Float, false, strideBytes, 0);
             GL.EnableVertexAttribArray(0);
-
-            // 颜色属性 (location = 1) - 4 components for RGBA
             GL.VertexAttribPointer(1, 4, VertexAttribPointerType.Float, false, strideBytes, 3 * sizeof(float));
             GL.EnableVertexAttribArray(1);
 
-            // 纹理坐标属性 (location = 2) - 2 components
-            // Stride >= 9 means: pos(3) + color(4) + uv(2) = 9
-            if (stride >= 9)
+            if (layout.UvOffset >= 0)
             {
-                GL.VertexAttribPointer(2, 2, VertexAttribPointerType.Float, false, strideBytes, 7 * sizeof(float));
+                GL.VertexAttribPointer(
+                    2,
+                    2,
+                    VertexAttribPointerType.Float,
+                    false,
+                    strideBytes,
+                    layout.UvOffset * sizeof(float));
                 GL.EnableVertexAttribArray(2);
             }
             else
             {
                 GL.DisableVertexAttribArray(2);
+                GL.VertexAttrib2(2, 0.0f, 0.0f);
+            }
+
+            // RGB lighting with the projected sun removed. This is the exact LT3
+            // endpoint used when the building shadow map occludes the sun.
+            if (layout.ShadowColorOffset >= 0)
+            {
+                GL.VertexAttribPointer(
+                    3,
+                    3,
+                    VertexAttribPointerType.Float,
+                    false,
+                    strideBytes,
+                    layout.ShadowColorOffset * sizeof(float));
+                GL.EnableVertexAttribArray(3);
+            }
+            else
+            {
+                GL.DisableVertexAttribArray(3);
+                GL.VertexAttrib3(3, 0.0f, 0.0f, 0.0f);
             }
         }
 
-        private float[] BuildVertexData(Model3D model, out int stride)
+        private float[] BuildVertexData(Model3D model, out VertexLayout layout)
         {
-            stride = 7; // Default: pos(3) + color(4)
             if (model.Vertices != null && model.Vertices.Length > 0 && model.Positions.Length == 0)
             {
+                var interleavedStride = 7;
                 if (model.VertexCount > 0)
                 {
                     int candidateStride = model.Vertices.Length / model.VertexCount;
                     if (candidateStride >= 9)
                     {
-                        stride = 9; // pos(3) + color(4) + uv(2)
+                        interleavedStride = 9; // pos(3) + color(4) + uv(2)
                     }
                     else if (candidateStride >= 7)
                     {
-                        stride = 7; // pos(3) + color(4)
+                        interleavedStride = 7; // pos(3) + color(4)
                     }
                 }
 
+                layout = new VertexLayout(
+                    interleavedStride,
+                    interleavedStride >= 9 ? 7 : -1,
+                    -1);
                 return model.Vertices;
             }
 
             int vertexCount = model.VertexCount > 0 ? model.VertexCount : model.Positions.Length / 3;
             if (vertexCount <= 0)
             {
+                layout = new VertexLayout(7, -1, -1);
                 return Array.Empty<float>();
             }
 
-            // Detect if colors are RGBA (4 components) or RGB (3 components)
             bool hasRgbaColors = model.Colors.Length >= vertexCount * 4;
             bool hasRgbColors = !hasRgbaColors && model.Colors.Length >= vertexCount * 3;
             bool hasUvs = model.UVs.Length >= vertexCount * 2;
+            bool hasShadowedColors = model.ShadowedColors.Length >= vertexCount * 3;
 
-            // Calculate stride: pos(3) + color(4) + uv(2 if present)
-            stride = hasUvs ? 9 : 7;
+            // Separate-array stage models reserve RGB for the LT3 result with the
+            // projected sun removed. The layout remains stable when Game lighting is
+            // toggled; models without baked LT3 data are flagged by a uniform.
+            var stride = hasUvs ? 12 : 10;
+            var uvOffset = hasUvs ? 7 : -1;
+            var shadowOffset = hasUvs ? 9 : 7;
+            layout = new VertexLayout(stride, uvOffset, shadowOffset);
             var data = new float[vertexCount * stride];
 
             var fallbackColor = model.Color;
@@ -409,7 +494,6 @@ namespace Avalonia3DControl.Rendering.OpenGL
                 int dst = i * stride;
                 int posSrc = i * 3;
 
-                // Position (3 components)
                 if (model.Positions.Length >= posSrc + 3)
                 {
                     data[dst] = model.Positions[posSrc];
@@ -417,38 +501,43 @@ namespace Avalonia3DControl.Rendering.OpenGL
                     data[dst + 2] = model.Positions[posSrc + 2];
                 }
 
-                // Color (4 components - RGBA)
                 if (hasRgbaColors)
                 {
                     int colorSrc = i * 4;
-                    data[dst + 3] = model.Colors[colorSrc];     // R
-                    data[dst + 4] = model.Colors[colorSrc + 1]; // G
-                    data[dst + 5] = model.Colors[colorSrc + 2]; // B
-                    data[dst + 6] = model.Colors[colorSrc + 3]; // A
+                    data[dst + 3] = model.Colors[colorSrc];
+                    data[dst + 4] = model.Colors[colorSrc + 1];
+                    data[dst + 5] = model.Colors[colorSrc + 2];
+                    data[dst + 6] = model.Colors[colorSrc + 3];
                 }
                 else if (hasRgbColors)
                 {
                     int colorSrc = i * 3;
-                    data[dst + 3] = model.Colors[colorSrc];     // R
-                    data[dst + 4] = model.Colors[colorSrc + 1]; // G
-                    data[dst + 5] = model.Colors[colorSrc + 2]; // B
-                    data[dst + 6] = 1.0f;                       // A (default opaque)
+                    data[dst + 3] = model.Colors[colorSrc];
+                    data[dst + 4] = model.Colors[colorSrc + 1];
+                    data[dst + 5] = model.Colors[colorSrc + 2];
+                    data[dst + 6] = 1.0f;
                 }
                 else
                 {
-                    // Fallback color (opaque)
-                    data[dst + 3] = fallbackColor.X; // R
-                    data[dst + 4] = fallbackColor.Y; // G
-                    data[dst + 5] = fallbackColor.Z; // B
-                    data[dst + 6] = 1.0f;            // A
+                    data[dst + 3] = fallbackColor.X;
+                    data[dst + 4] = fallbackColor.Y;
+                    data[dst + 5] = fallbackColor.Z;
+                    data[dst + 6] = 1.0f;
                 }
 
-                // Texture coordinates (2 components)
                 if (hasUvs)
                 {
                     int uvSrc = i * 2;
-                    data[dst + 7] = model.UVs[uvSrc];
-                    data[dst + 8] = model.UVs[uvSrc + 1];
+                    data[dst + uvOffset] = model.UVs[uvSrc];
+                    data[dst + uvOffset + 1] = model.UVs[uvSrc + 1];
+                }
+
+                var shadowSource = i * 3;
+                if (hasShadowedColors)
+                {
+                    data[dst + shadowOffset] = MathF.Max(0.0f, model.ShadowedColors[shadowSource]);
+                    data[dst + shadowOffset + 1] = MathF.Max(0.0f, model.ShadowedColors[shadowSource + 1]);
+                    data[dst + shadowOffset + 2] = MathF.Max(0.0f, model.ShadowedColors[shadowSource + 2]);
                 }
             }
 
@@ -637,7 +726,7 @@ namespace Avalonia3DControl.Rendering.OpenGL
         }
 
         /// <summary>
-        /// Maps an MDN packet blend-mode index to GL blend state. Mirrors DG_SetBlendMode.
+        /// Maps an MDN packet blend-mode index to GL blend state.
         /// </summary>
         private static void ApplyBlendMode(ModelBlendMode mode)
         {

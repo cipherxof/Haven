@@ -7,7 +7,7 @@ namespace Avalonia3DControl.Core.Models
 {
     /// <summary>
     /// Blend equations a model can request. Mirrors the MGS4/MGO2 MDN packet blend-mode
-    /// index (low nibble of the packet flag) decoded from DG_ChainModel / DG_SetBlendMode.
+    /// index (low nibble of the packet flag).
     /// </summary>
     public enum ModelBlendMode
     {
@@ -33,6 +33,10 @@ namespace Avalonia3DControl.Core.Models
         public RenderMode? RenderModeOverride { get; set; }
         public bool Visible { get; set; }
         public string Name { get; set; }
+
+        /// <summary>Workspace MDN asset that produced this render packet, without extension.</summary>
+        public string SourceAssetName { get; set; } = string.Empty;
+
         public int MaterialIndex { get; set; }
 
         // ---- Per-packet render state (decoded from the MDN packet flag; see
@@ -55,10 +59,24 @@ namespace Avalonia3DControl.Core.Models
 
         /// <summary>Force output alpha to 1.0 (opaque and alpha-tested cutout packets).</summary>
         public bool ForceOpaqueAlpha { get; set; } = false;
+
+        /// <summary>Whether this model contributes geometry to the directional shadow map.</summary>
+        public bool CastsShadow { get; set; } = false;
+
+        /// <summary>Whether the normal color pass applies the directional shadow map to this model.</summary>
+        public bool ReceivesShadow { get; set; } = false;
         // 几何数据
         public float[] Vertices { get; set; } = Array.Empty<float>();
         public float[] Positions { get; set; } = Array.Empty<float>();
         public float[] Colors { get; set; } = Array.Empty<float>();
+
+        /// <summary>
+        /// Per-vertex LT3 lighting after removing only the projected directional sun.
+        /// This keeps the exact ambient, hemi and local-light RGB in shadow instead of
+        /// approximating it with a single luminance weight. Stored as RGB triples.
+        /// </summary>
+        public float[] ShadowedColors { get; set; } = Array.Empty<float>();
+
         public float[] UVs { get; set; } = Array.Empty<float>();
         public uint[] Indices { get; set; } = Array.Empty<uint>();
         public int VertexCount { get; set; }

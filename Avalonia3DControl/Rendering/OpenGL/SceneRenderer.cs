@@ -22,13 +22,8 @@ namespace Avalonia3DControl.Rendering.OpenGL
         private readonly GradientBar? _gradientBar;
         private readonly AxisLabelRenderer _axisLabelRenderer;
         private readonly ShadowMapRenderer _shadowMapRenderer;
-        // MGS4 screen glare/bloom (engine defaults 1.0/1.0, see GlareRenderer)
-        private readonly GlareRenderer _glareRenderer = new GlareRenderer();
-        public bool GlareEnabled
-        {
-            get => _glareRenderer.Enabled;
-            set => _glareRenderer.Enabled = value;
-        }
+        // Retained as an inert toggle; screen glare is not applied in the preview.
+        public bool GlareEnabled { get; set; }
         private RenderMode _currentRenderMode = RenderMode.Fill;
 
         public bool ShadowsEnabled { get; set; } = false;
@@ -88,25 +83,18 @@ namespace Avalonia3DControl.Rendering.OpenGL
             Model3D? coordinateAxes = null, MiniAxes? miniAxes = null, BoundingBoxRenderer? boundingBoxRenderer = null, double dpiScale = 1.0)
         {
             // 更新动画
-            
-            // Execution-order trace for HavenStudio-render.log: every pass
-            // appends its marker in the order it actually ran; the line is
-            // written (deduplicated) at the end of the frame.
-            var order = new System.Text.StringBuilder();
 
-            // Build/update the directional depth map BEFORE binding the glare
-            // capture target: ShadowMapRenderer manages its own framebuffer and
-            // restores the previous binding when done.
+            // Build/update the directional depth map before the main pass:
+            // ShadowMapRenderer manages its own framebuffer and restores the
+            // previous binding when done.
             if (ShadowsEnabled && renderMode == RenderMode.Fill)
             {
                 int shadowProgram = _shaderManager.GetShaderProgram("shadowDepth");
                 _shadowMapRenderer.Render(camera, models, lights, _modelRenderer, shadowProgram);
-                order.Append("shadowPass -> ");
             }
 
             // 准备渲染环境
             PrepareRenderEnvironment(backgroundColor, renderMode);
-            order.Append("clear -> ");
 
             // 获取主着色器程序
             int shaderProgram = _shaderManager.GetShaderProgram(shadingMode);
@@ -132,7 +120,6 @@ namespace Avalonia3DControl.Rendering.OpenGL
             
             // 渲染所有模型
             RenderModels(models, shaderProgram);
-            order.Append($"mainPass({models.Count} models) -> ");
             
             // 渲染包围盒
             if (boundingBoxRenderer != null && boundingBoxRenderer.Visible)
@@ -148,12 +135,6 @@ namespace Avalonia3DControl.Rendering.OpenGL
             
             // 渲染UI元素（梯度条等）
             RenderUIElements(dpiScale);
-            order.Append("ui");
-            RenderLog.Order(order.ToString());
-            RenderLog.State(
-                $"shadows={ShadowsEnabled} shadowDistance={_shadowMapRenderer.ShadowDistance:F0} " +
-                $"glare={GlareEnabled} exposure={ExposureScale:F2} textureIsSrgb={TextureIsSrgb:F0} " +
-                $"colorFilter={ColorFilterEnabled}");
 
             GL.UseProgram(0);
         }
@@ -435,30 +416,14 @@ namespace Avalonia3DControl.Rendering.OpenGL
         }
 
         /// <summary>
-        /// Display encoding for MGS4 linear lighting.
-        ///
-        /// Evidence: DG_MakePreshaderModelUnit (build 2739 @0x129AE4) performs no
-        /// transcendental call at all - it clamps, converts with vctsxs and packs
-        /// bytes. The preshader therefore emits LINEAR values; the display curve
-        /// lives downstream (RSX, plus viewport hdr_gamma / hdr_tonemap_scale,
-        /// which are not yet reverse engineered). Writing linear values straight
-        /// to an sRGB framebuffer is why the preview read much darker than the
-        /// Konami Lighting Editor reference.
-        ///
-        /// <see cref="OutputGamma"/> = 0 restores the previous (uncorrected)
-        /// behaviour. The default 2.2 is the standard display curve, NOT a value
-        /// recovered from the ELF; the exact engine curve and tonemap remain an
-        /// open work item. <see cref="ExposureScale"/> exists because the Konami
-        /// reference screenshot was captured with exposure compensation +0.5.
+        /// Display encoding for the linear lighting result. The per-vertex bake
+        /// emits linear values, so the display curve is applied here. 0 disables
+        /// the transform; the default 2.2 is the standard display curve.
         /// </summary>
         public float OutputGamma { get; set; } = 2.2f;
 
-        // Exposure multiplier. NEUTRAL by default: the toolbar slider is the
-        // user's live control (the 2006 reference sits at +0.5 EV = 1.414 if
-        // wanted, but the level is an artistic judgement that belongs to the
-        // user, not to a hard-coded default).
-        // Neutral 1.0; driven live by the slider. (~0.7 approaches the darker
-        // viz look.) The operative value comes from OpenGLRenderer._exposureScale.
+        // Exposure multiplier, neutral by default and driven live by the toolbar
+        // slider. The operative value comes from OpenGLRenderer._exposureScale.
         public float ExposureScale { get; set; } = 1.0f;
 
         /// <summary>

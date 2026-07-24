@@ -99,13 +99,8 @@ void main() {
     {
         result = mix(result, uFogColor.rgb, Mgs4FogAmount(viewDepth));
     }
-    // MGS4 output transform. DG_MakePreshaderModelUnit (build 2739, 0x129AE4)
-    // contains NO transcendental call and no gamma curve: it clamps, converts
-    // with vctsxs and byte-packs LINEAR values. The display encoding happens
-    // downstream (RSX + viewport hdr_gamma / hdr_tonemap_scale). Rendering the
-    // linear result directly to an sRGB framebuffer is what made the preview
-    // read far darker than Konami's Lighting Editor.
-    // uOutputGamma <= 0 disables the transform (legacy behaviour).
+    // Output transform: the per-vertex bake stays linear, so the display
+    // encoding is applied here. uOutputGamma <= 0 disables the transform.
     vec3 outColor = ApplyKonamiColorFilter(result);
     if (uOutputGamma > 0.0)
     {

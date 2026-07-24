@@ -12,13 +12,12 @@ using OpenTK.Mathematics;
 namespace Avalonia3DControl.Rendering.OpenGL;
 
 /// <summary>
-/// Camera-dependent Haven Studio MGS4 renderer update directional shadow-buffer preview.
+/// Camera-dependent directional shadow-buffer preview.
 ///
-/// The MGS4 debug ELFs show a view-volume-driven shadow path with persistent
-/// caster lists and separate ShadowProjection/TSM/TSM2 state. Haven reconstructs
-/// the inlined MakeTSMTransform geometry (centre line, support lines, projection
-/// point q and trapezoidal projective matrix), with an orthographic fallback only
-/// for degenerate camera/light configurations.
+/// The shadow path is view-volume driven, with persistent caster lists and a
+/// trapezoidal shadow-map transform (centre line, support lines, projection
+/// point q and projective matrix), falling back to an orthographic fit for
+/// degenerate camera/light configurations.
 ///
 /// Performance rules:
 /// - no LINQ or managed allocation in the navigation path;
@@ -30,16 +29,20 @@ namespace Avalonia3DControl.Rendering.OpenGL;
 /// </summary>
 public sealed class ShadowMapRenderer : IDisposable
 {
-    public const int DefaultResolution = 8192;  // 4096 over a large TSM extent still read as mush/acne at the ranges needed to cover the map. 8192 halves world-units-per-texel (e.g. 100k range -> 12 u/texel, as crisp as 50k/4096 was) so a moderate range gives BOTH coverage and 2006-style crisp cast shadows. Needs GPU max texture size >= 8192 (clamped at runtime).
+    // 8192 halves world-units-per-texel versus 4096 over the same extent, so a
+    // moderate range gives both coverage and crisp cast shadows. Requires a GPU
+    // max texture size >= 8192 (clamped at runtime).
+    public const int DefaultResolution = 8192;
 
     private const int MinimumResolution = 512;
-    private const int MaximumResolution = 8192;  // raised with DefaultResolution; runtime still clamps to the GPU's max texture size
-    private const float DefaultShadowDistance = 50000.0f; // ENGINE-VERIFIED: default max_shadow_range from DG_ResetViewportSystem (+984 @0xDD35C, ELF 2739) = 50000. 50k/4096 = 12.2 u/texel. Per-stage override lives in DM_SetShadowRange (input x 5248, scenerio.gcx) when present.
+    private const int MaximumResolution = 8192;  // runtime still clamps to the GPU's max texture size
+    // Default max shadow range; a per-stage override in scenerio.gcx wins when present.
+    private const float DefaultShadowDistance = 50000.0f;
     private const float SpatialCellSize = 20000.0f;
     private const float FootprintPaddingFactor = 0.075f;
     private const float MinimumFootprintPadding = 100.0f;
     private const long MaximumSubmittedIndices = 14_400_000; // 4.8M triangles - sized for the full caster set
-    private const int MaximumShadowDrawCalls = 4096;  // covers every registered caster (2210 on sm_dd) with headroom
+    private const int MaximumShadowDrawCalls = 4096;  // covers the full caster set with headroom
     private const int MaximumSpatialCellsPerQuery = 4096;
     private const int ShadowTextureUnit = 10;
     private const double MaximumUpdateRate = 8.0;
@@ -669,11 +672,9 @@ public sealed class ShadowMapRenderer : IDisposable
             return false;
         }
 
-        // The debug ELF keeps three separate matrices in DG_VIEWPORT and inlines
-        // MakeTSMTransform inside DG_DrawShadowBufferStage. Reconstruct that same
-        // decomposition here: light view, center-line alignment, then the
-        // trapezoidal projective warp. A conservative orthographic fallback remains
-        // for degenerate camera/light configurations.
+        // Decomposition: light view, centre-line alignment, then the trapezoidal
+        // projective warp. A conservative orthographic fallback remains for
+        // degenerate camera/light configurations.
         if (!TryBuildTrapezoidalProjection(
                 frustumCorners,
                 lightView,
@@ -768,25 +769,17 @@ public sealed class ShadowMapRenderer : IDisposable
             return false;
         }
 
-        // ENGINE-ALIGNED (build 2739, sessions 3-7). The focus point is the
-        // CENTRE of the near/far anchor line: pool constant f1 = [-32692] = 0.5
-        // (read @0x123430/0x1233C8) - NOT an arbitrary fraction. The engine's
-        // eta denominator is literally 1.6*D - 2*delta (fdiv @0x125D40), which
-        // is this formula with focusImageY = -0.6 ([-32584]); the (1+focusImageY)
-        // numerator factor is the fmadd @0x125D2C. Two engine gates replace the
-        // old clamp:
-        //   - delta/lambda >= 0.8  -> reject to the plain fit (the 80% rule's
-        //     second form, @0x12382C-0x123854: 1.6*D - 2*delta > 0 branches to
-        //     the warp; its complement falls back);
-        //   - xi >= -0.6 (focus not deep enough) -> plain fit (@0x123820).
-        const float focusFraction = 0.50f;   // f1 = 0.5, CONFIRMED
-        const float focusImageY = -0.60f;    // [-32584], CONFIRMED
+        // The focus point is the centre of the near/far anchor line, and the eta
+        // denominator is 1.6*lambda - 2*delta. Two gates fall back to the plain
+        // fit: delta/lambda >= 0.8, and xi >= -0.6 (focus not deep enough).
+        const float focusFraction = 0.50f;
+        const float focusImageY = -0.60f;
         var focusY = alignedNearCenter.Y +
             (alignedFarCenter.Y - alignedNearCenter.Y) * focusFraction;
         var delta0 = focusY - receiverTop;
         if (!float.IsFinite(delta0) || delta0 <= lambda * 0.001f)
         {
-            // Engine xi >= -0.6 territory: take the plain fit.
+            // xi >= -0.6 territory: take the plain fit.
             ShadowLog.Log("[TSM] plain fit: focus too shallow (xi >= -0.6 territory)");
             return false;
         }
