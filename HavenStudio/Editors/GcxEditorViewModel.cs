@@ -81,6 +81,12 @@ public sealed class GcxEditorViewModel : INotifyPropertyChanged, IDisposable
     public string ProgressText => _progressText;
     public bool HasDocument => _documentSession.HasDocument;
     public SceneLightSettings? SystemLighting => GcxSystemLightParser.Parse(_decompiledScripts.Values);
+    public SceneColorFilterSettings? ColorFilter =>
+        ParseColorFilterFromGcxBytes() ??
+        GcxColorFilterParser.Parse(_decompiledScripts.Values);
+    public SceneFogSettings? Fog =>
+        GcxFogBytecodeParser.Parse(_documentSession.Document) ??
+        GcxFogParser.Parse(_decompiledScripts.Values);
     public IReadOnlyList<string> ProcedureNames => ScriptItems
         .Where(node => !node.IsAggregate && node.Script != null)
         .Select(node => node.Name)
@@ -621,6 +627,30 @@ public sealed class GcxEditorViewModel : INotifyPropertyChanged, IDisposable
 
     public event PropertyChangedEventHandler? PropertyChanged;
 
+    // Reads the color filter straight from the loaded GCX bytecode (data-driven,
+    // by parameter name hash), like the fog parser above. Falls back to the
+    // decompiled-text parser when no literal command is present.
+    private SceneColorFilterSettings? ParseColorFilterFromGcxBytes()
+    {
+        var document = _documentSession.Document;
+        if (document == null)
+        {
+            return null;
+        }
+
+        var scripts = new List<byte[]?>();
+        foreach (var definition in document.ScriptDefinitions)
+        {
+            scripts.Add(definition.Script?.Bytes);
+        }
+        foreach (var definition in document.StringDefinitions)
+        {
+            scripts.Add(definition.Script?.Bytes);
+        }
+        scripts.Add(document.MainScript?.Bytes);
+        return GcxColorFilterParser.ParseGcxScripts(scripts);
+    }
+
     private async Task LoadAsync(WorkspacePath? path)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
@@ -892,6 +922,9 @@ public sealed class GcxEditorViewModel : INotifyPropertyChanged, IDisposable
         OnPropertyChanged(nameof(HasDocument));
         OnPropertyChanged(nameof(ProcedureNames));
         OnPropertyChanged(nameof(DefaultPlacementProcedureName));
+        OnPropertyChanged(nameof(SystemLighting));
+        OnPropertyChanged(nameof(ColorFilter));
+        OnPropertyChanged(nameof(Fog));
     }
 
     private void PublishSelection()
@@ -976,6 +1009,8 @@ public sealed class GcxEditorViewModel : INotifyPropertyChanged, IDisposable
         {
             _decompiledScripts[name] = text;
             OnPropertyChanged(nameof(SystemLighting));
+            OnPropertyChanged(nameof(ColorFilter));
+            OnPropertyChanged(nameof(Fog));
         }
     }
 

@@ -99,6 +99,135 @@ namespace Avalonia3DControl
             }
         }
 
+
+        public bool FogEnabled
+        {
+            get => _renderer?.FogEnabled ?? _fogEnabled;
+            set
+            {
+                _fogEnabled = value;
+                if (_renderer != null) _renderer.FogEnabled = value;
+                RequestNextFrameRendering();
+            }
+        }
+        private bool _fogEnabled;
+        private float _fogNear = 0.0f;
+        private float _fogFar = 10000.0f;
+        private Vector4 _fogColor = new(0.0f, 0.0f, 0.0f, 1.0f);
+        private float _fogLimitMin = 0.0f;
+        private float _fogLimitMax = 1.0f;
+
+        public void SetFog(float near, float far, Vector4 color, float limitMin, float limitMax)
+        {
+            _fogNear = near;
+            _fogFar = far;
+            _fogColor = color;
+            _fogLimitMin = limitMin;
+            _fogLimitMax = limitMax;
+            _renderer?.SetFog(near, far, color, limitMin, limitMax);
+            RequestNextFrameRendering();
+        }
+
+        public bool ColorFilterEnabled
+        {
+            get => _renderer?.ColorFilterEnabled ?? false;
+            set { if (_renderer != null) _renderer.ColorFilterEnabled = value; RequestNextFrameRendering(); }
+        }
+
+        public void SetColorFilter(float mono, Vector3 scale, float brightness, float contrast, Vector3 minimum, Vector3 maximum, float noise)
+        {
+            _renderer?.SetColorFilter(mono, scale, brightness, contrast, minimum, maximum, noise);
+            RequestNextFrameRendering();
+        }
+        public bool ShadowsEnabled
+        {
+            get => _renderer?.ShadowsEnabled ?? _shadowsEnabled;
+            set
+            {
+                _shadowsEnabled = value;
+                if (_renderer != null)
+                {
+                    _renderer.ShadowsEnabled = value;
+                }
+                RequestNextFrameRendering();
+            }
+        }
+
+        private bool _shadowsEnabled = false;
+
+        public bool GlareEnabled
+        {
+            get => _renderer?.GlareEnabled ?? _glareEnabled;
+            set
+            {
+                _glareEnabled = value;
+                if (_renderer != null)
+                {
+                    _renderer.GlareEnabled = value;
+                }
+                RequestNextFrameRendering();
+            }
+        }
+
+        private bool _glareEnabled = false;
+
+        private float _exposureScale = 1.0f;
+        private float _contrast = 1.0f;
+        public float Contrast
+        {
+            get => _renderer?.Contrast ?? _contrast;
+            set
+            {
+                _contrast = value;
+                if (_renderer != null)
+                {
+                    _renderer.Contrast = value;
+                }
+                RequestNextFrameRendering();
+            }
+        }
+
+        private float _shadowRange = 50000.0f;  // ENGINE-VERIFIED default (ELF 2739 +984)
+        public float ShadowRange
+        {
+            get => _renderer?.ShadowRange ?? _shadowRange;
+            set
+            {
+                _shadowRange = value;
+                if (_renderer != null)
+                {
+                    _renderer.ShadowRange = value;
+                }
+                InvalidateShadowScene();
+                RequestNextFrameRendering();
+            }
+        }
+        public float ExposureScale
+        {
+            get => _renderer?.ExposureScale ?? _exposureScale;
+            set
+            {
+                _exposureScale = value;
+                if (_renderer != null)
+                {
+                    _renderer.ExposureScale = value;
+                }
+                RequestNextFrameRendering();
+            }
+        }
+
+        public void InvalidateShadowScene()
+        {
+            _renderer?.InvalidateShadowScene();
+            RequestNextFrameRendering();
+        }
+
+        public void InvalidateShadowTransforms()
+        {
+            _renderer?.InvalidateShadowTransforms();
+            RequestNextFrameRendering();
+        }
+
         public float CameraSpeedScale
         {
             get => _cameraSpeedScale;
@@ -219,8 +348,14 @@ namespace Avalonia3DControl
             try
             {
                 // 初始化渲染器
-                _renderer = new OpenGLRenderer();
+                _renderer = new OpenGLRenderer
+                {
+                    ShadowsEnabled = _shadowsEnabled,
+                    GlareEnabled = _glareEnabled,
+                    FogEnabled = _fogEnabled
+                };
                 _renderer.Initialize(gl);
+                _renderer.SetFog(_fogNear, _fogFar, _fogColor, _fogLimitMin, _fogLimitMax);
                 _renderer.SetGradientBarVisible(_gradientBarVisible);
                 
                 // 初始化相机控制器 (based on camera mode)

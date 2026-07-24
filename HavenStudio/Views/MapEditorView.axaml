@@ -16,63 +16,60 @@
                     BorderThickness="0,0,0,1"
                     Padding="10,8"
                     Margin="-10,-10,-10,0">
-                <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="16">
-                    <StackPanel Spacing="2">
-                        <TextBlock FontSize="14" FontWeight="SemiBold" Text="Map Editor"/>
-                        <TextBlock Foreground="{DynamicResource MutedTextBrush}"
-                                   Text="{Binding CollisionEditor.GeomFileName}"/>
-                    </StackPanel>
-                    <StackPanel Grid.Column="1"
-                                Orientation="Horizontal"
-                                HorizontalAlignment="Center"
-                                VerticalAlignment="Center"
-                                Spacing="12">
-                        <CheckBox Content="Models" IsChecked="{Binding MapEditor.VisualModelsVisible}"/>
-                        <CheckBox Content="Placements" IsChecked="{Binding MapEditor.PlacementsVisible}"/>
-                        <CheckBox Content="Collision" IsChecked="{Binding MapEditor.CollisionVisible}"/>
-                        <CheckBox Content="Effects" IsChecked="{Binding MapEditor.EffectsVisible}"/>
-                        <CheckBox Content="Lights" IsChecked="{Binding MapEditor.LightsVisible}"/>
-                        <CheckBox Content="Game lighting"
-                                  IsChecked="{Binding MapEditor.GameLightingEnabled}"
-                                  IsEnabled="{Binding MapEditor.HasLights}"
-                                  ToolTip.Tip="Preview LT lighting on stage geometry and placed models. Disable to restore original vertex colors."/>
-                        <CheckBox Content="Grid" IsChecked="{Binding MapEditor.GridVisible}"/>
-                        <ComboBox Width="170"
-                                  ToolTip.Tip="Show collision primitives containing the selected attribute flag."
-                                  ItemsSource="{Binding CollisionEditor.CollisionFlagFilters}"
-                                  SelectedItem="{Binding CollisionEditor.SelectedCollisionFlagFilter}">
+                <Grid RowDefinitions="Auto,Auto,Auto" RowSpacing="8">
+                    <Grid Grid.Row="0" ColumnDefinitions="Auto,*,Auto" ColumnSpacing="12">
+                        <StackPanel Spacing="2">
+                            <TextBlock FontSize="14" FontWeight="SemiBold" Text="Map Editor"/>
+                            <TextBlock Foreground="{DynamicResource MutedTextBrush}"
+                                       Text="{Binding CollisionEditor.GeomFileName}"/>
+                        </StackPanel>
+                        <WrapPanel Grid.Column="2" Orientation="Horizontal" HorizontalAlignment="Right">
+                            <Button Content="Undo" Margin="0,0,6,0" IsEnabled="{Binding MapEditor.CanUndo}" ToolTip.Tip="{Binding MapEditor.UndoToolTip}" Click="OnUndo"/>
+                            <Button Content="Redo" Margin="0,0,10,0" IsEnabled="{Binding MapEditor.CanRedo}" ToolTip.Tip="{Binding MapEditor.RedoToolTip}" Click="OnRedo"/>
+                            <Button Content="Add Object" Margin="0,0,6,0" IsEnabled="{Binding GcxEditor.HasDocument}" ToolTip.Tip="{Binding MapEditor.SpawnPositionText}" Click="OnAddObject"/>
+                            <Button Content="Add Effect" Margin="0,0,6,0" IsEnabled="{Binding CollisionEditor.CanAddEffect}" ToolTip.Tip="Add a root effect marker at the camera position." Click="OnAddEffect"/>
+                            <Button Content="Save Map" Classes="primary" Click="OnSaveCollision"/>
+                        </WrapPanel>
+                    </Grid>
+
+                    <WrapPanel Grid.Row="1" Orientation="Horizontal" VerticalAlignment="Center">
+                        <TextBlock Text="Preview" FontWeight="SemiBold" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                        <CheckBox Content="Models" Margin="0,0,10,0" IsChecked="{Binding MapEditor.VisualModelsVisible}"/>
+                        <CheckBox Content="Placements" Margin="0,0,10,0" IsChecked="{Binding MapEditor.PlacementsVisible}"/>
+                        <CheckBox Content="Collision" Margin="0,0,10,0" IsChecked="{Binding MapEditor.CollisionVisible}"/>
+                        <CheckBox Content="Effects" Margin="0,0,10,0" IsChecked="{Binding MapEditor.EffectsVisible}"/>
+                        <CheckBox Content="Lights" Margin="0,0,10,0" IsChecked="{Binding MapEditor.LightsVisible}"/>
+                        <CheckBox Content="Game lighting" Margin="0,0,10,0" IsChecked="{Binding MapEditor.GameLightingEnabled}" IsEnabled="{Binding MapEditor.HasLights}" ToolTip.Tip="Preview LT lighting only; the GCX is never modified."/>
+                        <CheckBox Content="Shadows" Margin="0,0,10,0" IsChecked="{Binding MapEditor.ShadowsEnabled}" ToolTip.Tip="Low-cost cached shadow preview; the GCX is never modified."/>
+                        <CheckBox Content="Color filter" Margin="0,0,10,0" IsChecked="{Binding MapEditor.GameFilterEnabled}" ToolTip.Tip="{Binding MapEditor.GameFilterSummary}"/>
+                        <CheckBox Content="Fog" Margin="0,0,10,0" IsChecked="{Binding MapEditor.FogEnabled}" IsEnabled="{Binding MapEditor.HasGameFog}" ToolTip.Tip="{Binding MapEditor.GameFogSummary}"/>
+                        <CheckBox Content="Grid" Margin="0,0,10,0" IsChecked="{Binding MapEditor.GridVisible}"/>
+                        <CheckBox Content="Wireframe" Margin="0,0,10,0" IsChecked="{Binding CollisionEditor.WireframeMode}" IsEnabled="{Binding MapEditor.CollisionVisible}" VerticalAlignment="Center"/>
+                        <ComboBox Width="170" ToolTip.Tip="Show collision primitives containing the selected attribute flag." ItemsSource="{Binding CollisionEditor.CollisionFlagFilters}" SelectedItem="{Binding CollisionEditor.SelectedCollisionFlagFilter}">
                             <ComboBox.ItemTemplate>
                                 <DataTemplate x:DataType="editors:CollisionFlagFilterOption">
                                     <TextBlock Text="{Binding DisplayName}" TextTrimming="CharacterEllipsis"/>
                                 </DataTemplate>
                             </ComboBox.ItemTemplate>
                         </ComboBox>
-                    </StackPanel>
-                    <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8">
-                        <Button Content="Undo"
-                                IsEnabled="{Binding MapEditor.CanUndo}"
-                                ToolTip.Tip="{Binding MapEditor.UndoToolTip}"
-                                Click="OnUndo"/>
-                        <Button Content="Redo"
-                                IsEnabled="{Binding MapEditor.CanRedo}"
-                                ToolTip.Tip="{Binding MapEditor.RedoToolTip}"
-                                Click="OnRedo"/>
-                        <CheckBox Content="Wireframe"
-                                  IsChecked="{Binding CollisionEditor.WireframeMode}"
-                                  IsEnabled="{Binding MapEditor.CollisionVisible}"
-                                  VerticalAlignment="Center"/>
-                        <Button Content="Add Object"
-                                IsEnabled="{Binding GcxEditor.HasDocument}"
-                                ToolTip.Tip="{Binding MapEditor.SpawnPositionText}"
-                                Click="OnAddObject"/>
-                        <Button Content="Add Effect"
-                                IsEnabled="{Binding CollisionEditor.CanAddEffect}"
-                                ToolTip.Tip="Add a root effect marker at the camera position."
-                                Click="OnAddEffect"/>
-                        <Button Content="Save Map"
-                                Classes="primary"
-                                Click="OnSaveCollision"/>
-                    </StackPanel>
+                    </WrapPanel>
+
+                    <WrapPanel Grid.Row="2" Orientation="Horizontal" VerticalAlignment="Center">
+                        <TextBlock Text="GCX" FontWeight="SemiBold" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                        <Button Content="Modify Shadows..." Margin="0,0,6,0" Padding="8,3" IsEnabled="{Binding GcxEditor.HasDocument}" ToolTip.Tip="Open the shadow command in the GCX scripting editor." Click="OnModifyShadow"/>
+                        <Button Content="Modify Color Filter..." Margin="0,0,6,0" Padding="8,3" IsEnabled="{Binding GcxEditor.HasDocument}" ToolTip.Tip="Open NewColorFilter/NewColorFilterSet in the GCX scripting editor." Click="OnModifyColorFilter"/>
+                        <Button Content="Modify Exposure..." Margin="0,0,6,0" Padding="8,3" IsEnabled="{Binding GcxEditor.HasDocument}" ToolTip.Tip="Open NewExposureControl/NewExposureControlSet in the GCX scripting editor." Click="OnModifyExposure"/>
+                        <Button Content="Modify Fog..." Padding="8,3" IsEnabled="{Binding GcxEditor.HasDocument}" ToolTip.Tip="Open the fog command in the GCX scripting editor." Click="OnModifyFog"/>
+                        <TextBlock Text="Exposure" FontWeight="SemiBold" VerticalAlignment="Center" Margin="18,0,8,0"/>
+                        <Slider x:Name="ExposureSlider" Minimum="0.1" Maximum="4.0" Value="1.00" Width="180" TickFrequency="0.05" IsSnapToTickEnabled="True" VerticalAlignment="Center" ValueChanged="OnExposureSliderChanged" ToolTip.Tip="Live exposure multiplier. 1.00 = neutral; drag toward ~0.7 for the darker viz look."/>
+                        <TextBlock x:Name="ExposureValueLabel" Text="1.00" VerticalAlignment="Center" Margin="8,0,0,0" MinWidth="34"/>
+                        <TextBlock Text="Shadow range" FontWeight="SemiBold" VerticalAlignment="Center" Margin="18,0,8,0"/>
+                        <Slider x:Name="ShadowRangeSlider" Minimum="20000" Maximum="500000" Value="50000" Width="180" TickFrequency="5000" IsSnapToTickEnabled="True" VerticalAlignment="Center" ValueChanged="OnShadowRangeSliderChanged" ToolTip.Tip="Shadow coverage in world units. Shorter = sharper silhouettes (range/4096 per texel); longer = wider coverage but softer."/>
+                        <TextBlock x:Name="ShadowRangeValueLabel" Text="50k" VerticalAlignment="Center" Margin="8,0,0,0" MinWidth="40"/>
+                        <TextBlock Text="Contrast" FontWeight="SemiBold" VerticalAlignment="Center" Margin="18,0,8,0"/>
+                        <Slider x:Name="ContrastSlider" Minimum="0.5" Maximum="2.0" Value="1.00" Width="150" TickFrequency="0.05" IsSnapToTickEnabled="True" VerticalAlignment="Center" ValueChanged="OnContrastSliderChanged" ToolTip.Tip="Display contrast around mid-grey. 1.00 = neutral."/>
+                        <TextBlock x:Name="ContrastValueLabel" Text="1.00" VerticalAlignment="Center" Margin="8,0,0,0" MinWidth="34"/>
+                    </WrapPanel>
                 </Grid>
             </Border>
 

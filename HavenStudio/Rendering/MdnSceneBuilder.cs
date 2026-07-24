@@ -29,6 +29,7 @@ public static class MdnSceneBuilder
             positions.CopyTo(0, positionData, 0, positionData.Length);
 
             var colorData = BuildColors(vb, vi.VertexCount);
+            LogStreamInventory(vb, vi.VertexCount);
             var normalData = BuildNormals(vb, vi.VertexCount);
             var uvData = BuildUvs(vb, vi.VertexCount);
 
@@ -96,7 +97,9 @@ public static class MdnSceneBuilder
                     IndexCount = indices.Length,
                     Color = new Vector3(1.0f, 1.0f, 1.0f),
                     Alpha = 1.0f,
-                    MaterialIndex = -1
+                    MaterialIndex = -1,
+                    CastsShadow = true,
+                    ReceivesShadow = true
                 };
                 models.Add(model);
                 LightVertexBaker.Register(model, normalData, colorData);
@@ -118,7 +121,9 @@ public static class MdnSceneBuilder
                     IndexCount = indices.Length,
                     Color = new Vector3(1.0f, 1.0f, 1.0f),
                     Alpha = 1.0f,
-                    MaterialIndex = batch.Group
+                    MaterialIndex = batch.Group,
+                    CastsShadow = true,
+                    ReceivesShadow = true
                 };
                 ApplyPacketFlag(model, batch.Flag);
                 models.Add(model);
@@ -225,11 +230,20 @@ public static class MdnSceneBuilder
                 }
                 for (var index = 0; index < vertexCount; index++)
                 {
-                    var packed = data[index];
+                    // DEC3N: big-endian u32, 11-11-10 signed bits (x,y,z),
+                    // normalized by 1023, 1023, 511. Haven previously read this as
+                    // 10-10-10 / 511 (SignExtend10) = garbage normals ~99 deg off
+                    // (61-73% inverted) -> THE root cause of the inverted floor/
+                    // wall sun shading. Verified vs the DEC3N reference decoder on
+                    // sm_dd (ground vertices -> (0, +1, 0)).
+                    uint packed = (uint)data[index];
                     var target = index * 3;
-                    normals[target] = SignExtend10(packed) / 511f;
-                    normals[target + 1] = SignExtend10(packed >> 10) / 511f;
-                    normals[target + 2] = SignExtend10(packed >> 20) / 511f;
+                    uint xr = packed & 0x7FFu;
+                    uint yr = (packed >> 11) & 0x7FFu;
+                    uint zr = (packed >> 22) & 0x3FFu;
+                    normals[target] = (xr <= 1023u ? (int)xr : (int)xr - 2048) / 1023f;
+                    normals[target + 1] = (yr <= 1023u ? (int)yr : (int)yr - 2048) / 1023f;
+                    normals[target + 2] = (zr <= 511u ? (int)zr : (int)zr - 1024) / 511f;
                 }
                 break;
             }
@@ -268,12 +282,6 @@ public static class MdnSceneBuilder
             }
         }
         return normals;
-
-        static int SignExtend10(int value)
-        {
-            value &= 0x3FF;
-            return (value & 0x200) != 0 ? value - 0x400 : value;
-        }
     }
 
     private static float[] BuildColors(MdnVertexBuffer vb, int vertexCount)
@@ -389,5 +397,48 @@ public static class MdnSceneBuilder
         }
 
         return Array.Empty<float>();
+    }
+
+    private static int _inventoryBudget = 24;
+
+    /// <summary>
+    /// Stream inventory for the HDR colour-buffer hunt (engine bakes 4 streams;
+    /// scale = log2-quantised, decode max = 2^(byte/17.6746 - 13.2841), pool
+    /// constants 0x418D6247 / 0xC1548BB0). Logs which element types each vertex
+    /// buffer actually carries so the missing streams can be located on real
+    /// files instead of guessed.
+    /// </summary>
+    private static void LogStreamInventory(MdnVertexBuffer vb, int vertexCount)
+    {
+        if (_inventoryBudget <= 0)
+        {
+            return;
+        }
+        _inventoryBudget--;
+        var present = new System.Text.StringBuilder();
+        foreach (var element in vb.Elements)
+        {
+            if (element.Format == 0 && element.GetByteData().Count == 0)
+            {
+                continue;
+            }
+            present.Append($"0x{element.Type:X}(fmt 0x{element.Format:X}) ");
+        }
+        var extras = vb.ExtraElements.Count == 0
+            ? "none"
+            : string.Join(", ", System.Linq.Enumerable.Select(vb.ExtraElements,
+                kv =>
+                {
+                    var data = kv.Value.GetByteData();
+                    var count = Math.Min(data.Count, 8);
+                    var sample = new System.Text.StringBuilder();
+                    for (var i = 0; i < count; i++)
+                    {
+                        sample.Append(data[i].ToString("X2"));
+                    }
+                    return $"0x{kv.Key:X}[{data.Count} B, head {sample}]";
+                }));
+        Mgs4Diagnostics.Log("MDN",
+            $"streams: {present}| extra types: {extras} | vertices={vertexCount}");
     }
 }

@@ -26,7 +26,120 @@ namespace Avalonia3DControl.Rendering.OpenGL
         private bool _isInitialized = false;
         private GradientBar? _gradientBar;
         private RenderMode _currentRenderMode = RenderMode.Fill;
+        private bool _shadowsEnabled = false;
+        private bool _colorFilterEnabled;
+        private bool _fogEnabled;
+        private float _fogNear = 0.0f;
+        private float _fogFar = 10000.0f;
+        private Vector4 _fogColor = new(0.0f, 0.0f, 0.0f, 1.0f);
+        private float _fogLimitMin = 0.0f;
+        private float _fogLimitMax = 1.0f;
         #endregion
+
+
+        public bool FogEnabled
+        {
+            get => _sceneRenderer?.FogEnabled ?? _fogEnabled;
+            set { _fogEnabled = value; if (_sceneRenderer != null) _sceneRenderer.FogEnabled = value; }
+        }
+
+        public void SetFog(float near, float far, Vector4 color, float limitMin, float limitMax)
+        {
+            _fogNear = near;
+            _fogFar = far;
+            _fogColor = color;
+            _fogLimitMin = limitMin;
+            _fogLimitMax = limitMax;
+            _sceneRenderer?.SetFog(near, far, color, limitMin, limitMax);
+        }
+
+        public void InvalidateShadowScene()
+        {
+            _sceneRenderer?.InvalidateShadowScene();
+        }
+
+        public void InvalidateShadowTransforms()
+        {
+            _sceneRenderer?.InvalidateShadowTransforms();
+        }
+
+        public bool ColorFilterEnabled
+        {
+            get => _sceneRenderer?.ColorFilterEnabled ?? _colorFilterEnabled;
+            set { _colorFilterEnabled = value; if (_sceneRenderer != null) _sceneRenderer.ColorFilterEnabled = value; }
+        }
+
+        public void SetColorFilter(float mono, Vector3 scale, float brightness, float contrast, Vector3 minimum, Vector3 maximum, float noise)
+        {
+            _sceneRenderer?.SetColorFilter(mono, scale, brightness, contrast, minimum, maximum, noise);
+        }
+        public bool ShadowsEnabled
+        {
+            get => _sceneRenderer?.ShadowsEnabled ?? _shadowsEnabled;
+            set
+            {
+                _shadowsEnabled = value;
+                if (_sceneRenderer != null)
+                {
+                    _sceneRenderer.ShadowsEnabled = value;
+                }
+            }
+        }
+
+        private bool _glareEnabled;
+        public bool GlareEnabled
+        {
+            get => _sceneRenderer?.GlareEnabled ?? _glareEnabled;
+            set
+            {
+                _glareEnabled = value;
+                if (_sceneRenderer != null)
+                {
+                    _sceneRenderer.GlareEnabled = value;
+                }
+            }
+        }
+
+        private float _exposureScale = 1.0f;
+        private float _contrast = 1.0f;
+        public float Contrast
+        {
+            get => _sceneRenderer?.Contrast ?? _contrast;
+            set
+            {
+                _contrast = value;
+                if (_sceneRenderer != null)
+                {
+                    _sceneRenderer.Contrast = value;
+                }
+            }
+        }
+
+        private float _shadowRange = 50000.0f;  // ENGINE-VERIFIED default (ELF 2739 +984)
+        public float ShadowRange
+        {
+            get => _sceneRenderer?.ShadowDistance ?? _shadowRange;
+            set
+            {
+                _shadowRange = value;
+                if (_sceneRenderer != null)
+                {
+                    _sceneRenderer.ShadowDistance = value;
+                }
+            }
+        }
+        public float ExposureScale
+        {
+            get => _sceneRenderer?.ExposureScale ?? _exposureScale;
+            set
+            {
+                _exposureScale = value;
+                if (_sceneRenderer != null)
+                {
+                    _sceneRenderer.ExposureScale = value;
+                }
+            }
+        }
 
         #region 构造函数
         public OpenGLRenderer()
@@ -99,7 +212,16 @@ namespace Avalonia3DControl.Rendering.OpenGL
             // 初始化场景渲染器
             if (_modelRenderer != null)
             {
-                _sceneRenderer = new SceneRenderer(_shaderManager, _modelRenderer, _gradientBar);
+                _sceneRenderer = new SceneRenderer(_shaderManager, _modelRenderer, _gradientBar)
+                {
+                    ShadowsEnabled = _shadowsEnabled,
+                    GlareEnabled = _glareEnabled,
+                    ColorFilterEnabled = _colorFilterEnabled,
+                    FogEnabled = _fogEnabled,
+                    ExposureScale = _exposureScale,
+                    Contrast = _contrast
+                };
+                _sceneRenderer.SetFog(_fogNear, _fogFar, _fogColor, _fogLimitMin, _fogLimitMax);
             }
             
             // 初始化梯度条
@@ -521,6 +643,10 @@ namespace Avalonia3DControl.Rendering.OpenGL
         /// </summary>
         public void Cleanup()
         {
+            // Release framebuffer-backed render passes before deleting shader/model resources.
+            _sceneRenderer?.Dispose();
+            _sceneRenderer = null;
+
             // 清理模型渲染器
             _modelRenderer?.Cleanup();
             

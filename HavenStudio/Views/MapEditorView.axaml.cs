@@ -158,4 +158,74 @@ public partial class MapEditorView : UserControl
 
         await viewModel.MapEditor.DuplicatePlacementAsync(placement);
     }
+    private void OnModifyShadow(object? sender, RoutedEventArgs eventArgs)
+    {
+        NavigateToGcxEffect(
+            "Shadow",
+            "NewShadowRange", "DM_SetShadowRange", "ShadowProjection",
+            "A9C1B7", "590ED2", "2353D2");
+    }
+
+    private void OnModifyColorFilter(object? sender, RoutedEventArgs eventArgs)
+    {
+        NavigateToGcxEffect(
+            "Color Filter",
+            "NewColorFilterSet", "NewColorFilter", "ColorFilter",
+            "98CBCE", "[98CBCE]");
+    }
+
+    private void OnModifyExposure(object? sender, RoutedEventArgs eventArgs)
+    {
+        NavigateToGcxEffect(
+            "Exposure",
+            "NewExposureControlSet", "NewExposureControl", "ExposureControl", "EXPOSURE",
+            "B82FC7", "727216", "[B82FC7]", "[727216]");
+    }
+
+    private void OnModifyFog(object? sender, RoutedEventArgs eventArgs)
+    {
+        NavigateToGcxEffect(
+            "Fog",
+            "NewFog", "NewFogSet", "NewFogGas_gcl", "FogSet", "Fog",
+            "DDE914", "DBFE67", "[DDE914]", "[DBFE67]");
+    }
+
+    private void OnExposureSliderChanged(object? sender, Avalonia.Controls.Primitives.RangeBaseValueChangedEventArgs eventArgs)
+    {
+        var value = (float)eventArgs.NewValue;
+        if (this.FindControl<TextBlock>("ExposureValueLabel") is { } label)
+        {
+            label.Text = value.ToString("0.00", System.Globalization.CultureInfo.InvariantCulture);
+        }
+        ViewModel?.MapEditor.SetExposure(value);
+    }
+
+    private void OnShadowRangeSliderChanged(object? sender, Avalonia.Controls.Primitives.RangeBaseValueChangedEventArgs eventArgs)
+    {
+        var value = (float)eventArgs.NewValue;
+        if (this.FindControl<TextBlock>("ShadowRangeValueLabel") is { } label)
+        {
+            label.Text = (value / 1000f).ToString("0", System.Globalization.CultureInfo.InvariantCulture) + "k";
+        }
+        ViewModel?.MapEditor.SetShadowRange(value);
+    }
+
+    private void OnContrastSliderChanged(object? sender, Avalonia.Controls.Primitives.RangeBaseValueChangedEventArgs eventArgs)
+    {
+        var value = (float)eventArgs.NewValue;
+        if (this.FindControl<TextBlock>("ContrastValueLabel") is { } label)
+        {
+            label.Text = value.ToString("0.00", System.Globalization.CultureInfo.InvariantCulture);
+        }
+        ViewModel?.MapEditor.SetContrast(value);
+    }
+
+    private void NavigateToGcxEffect(string displayName, params string[] searchTerms)
+    {
+        if (TopLevel.GetTopLevel(this) is MainWindow owner)
+        {
+            owner.NavigateToGcxEffect(displayName, searchTerms);
+        }
+    }
+
 }

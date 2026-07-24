@@ -55,8 +55,28 @@ namespace HavenStudio.Formats.Mdn;
             TypeTextureCoords4 => _tex4,
             TypeTextureCoords5 => _tex5,
             TypeTangents => _tangents,
-            _ => throw new InvalidDataException($"Unknown vertex element type: 0x{type:X}")
+            _ => GetOrCreateExtraElement(type)
         };
+
+        /// <summary>
+        /// Engine build 2739 bakes FOUR per-vertex streams (three normalised
+        /// colour streams plus a log2-quantised HDR scale stream). Their MDN
+        /// element types are still being located; unknown types are captured
+        /// here instead of throwing, so the stream inventory can log them.
+        /// </summary>
+        private readonly Dictionary<int, MdnVertexElement> _extraElements = new();
+
+        public IReadOnlyDictionary<int, MdnVertexElement> ExtraElements => _extraElements;
+
+        private MdnVertexElement GetOrCreateExtraElement(int type)
+        {
+            if (!_extraElements.TryGetValue(type, out var element))
+            {
+                element = new MdnVertexElement(type);
+                _extraElements[type] = element;
+            }
+            return element;
+        }
         
         public static MdnVertexBuffer ReadDefinitionFrom(EndianBinaryReader r)
         {

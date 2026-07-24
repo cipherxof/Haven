@@ -48,12 +48,32 @@ public static class LightSceneBuilder
                         "spot cone"));
                     break;
                 case LitLineLight line:
+                    // Parity with the 2006 Lighting Editor: line lights are drawn
+                    // as their RANGE circles at both segment endpoints (562 of
+                    // them carpet the dev viewport). The previous tiny arrow was
+                    // invisible at map scale, which read as "missing lights" even
+                    // though every record participates in the bake (log: LINE
+                    // total=562, pass gate=551).
+                    var lineEnd = line.Point.Xyz +
+                        SafeDirection(line.Direction.Xyz) * MathF.Max(0f, line.Direction.W);
+                    AddRangeSphere(models, line.Point.Xyz, line.Range, color, "line range");
+                    AddRangeSphere(models, lineEnd, line.Range, color * 0.8f, "line range end");
                     models.Add(BuildArrow(
                         line.Point.Xyz,
                         SafeDirection(line.Direction.Xyz),
                         ResolveLineMarkerLength(line.Range),
                         color,
                         "line light"));
+                    break;
+                case LitHemiLight hemi:
+                    // The teal AABB boxes of the dev editor: one per hs-amb
+                    // volume (371 on sm_dd). Display-only; hemis are Character
+                    // ambient sources and do not enter the stage bake.
+                    models.Add(BuildBounds(
+                        hemi.BoundsMin.Xyz,
+                        hemi.BoundsMax.Xyz,
+                        new Vector3(0.30f, 0.85f, 0.80f),
+                        "hemi bounds"));
                     break;
                 case LitBlackPoint blackPoint:
                     AddRangeSphere(models, blackPoint.Point.Xyz, blackPoint.Range,

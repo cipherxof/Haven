@@ -4,6 +4,7 @@ using System.Linq;
 using Avalonia3DControl;
 using Avalonia3DControl.Core;
 using Avalonia3DControl.Core.Cameras;
+using Avalonia3DControl.Core.Lighting;
 using Avalonia3DControl.Core.Models;
 using Avalonia3DControl.Materials;
 using HavenStudio.Editors.GcxEditing;
@@ -117,6 +118,7 @@ public sealed class SceneHost
             }
         }
 
+        ViewportControl.InvalidateShadowScene();
         ViewportControl.RequestNextFrameRendering();
         LayerChanged?.Invoke(layer);
     }
@@ -140,6 +142,7 @@ public sealed class SceneHost
             model.VerticesNeedUpdate = true;
         }
 
+        ViewportControl.InvalidateShadowScene();
         ViewportControl.RequestNextFrameRendering();
         LayerChanged?.Invoke(layer);
     }
@@ -165,6 +168,59 @@ public sealed class SceneHost
 
     public bool PlacementsVisible => _placementsVisible;
 
+    public bool ShadowsEnabled => ViewportControl.ShadowsEnabled;
+    public bool GlareEnabled => ViewportControl.GlareEnabled;
+    public bool ColorFilterEnabled => ViewportControl.ColorFilterEnabled;
+    public bool FogEnabled => ViewportControl.FogEnabled;
+
+    public void SetColorFilterEnabled(bool enabled) => ViewportControl.ColorFilterEnabled = enabled;
+    public void SetGlareEnabled(bool enabled) => ViewportControl.GlareEnabled = enabled;
+    public void SetFogEnabled(bool enabled) => ViewportControl.FogEnabled = enabled;
+
+    public void SetFog(Mgs4FogState state)
+    {
+        ViewportControl.SetFog(
+            state.Near,
+            state.Far,
+            state.Color,
+            state.LimitMin,
+            state.LimitMax);
+    }
+
+    public void SetColorFilter(SceneColorFilterSettings settings)
+    {
+        ViewportControl.SetColorFilter(settings.Mono, settings.Scale, settings.Brightness, settings.Contrast, settings.Minimum, settings.Maximum, settings.Noise);
+    }
+
+    public void SetShadowsEnabled(bool enabled)
+    {
+        ViewportControl.ShadowsEnabled = enabled;
+    }
+
+    public void InvalidateShadowTransforms()
+    {
+        ViewportControl.InvalidateShadowTransforms();
+    }
+
+    public void SetShadowLightDirection(Vector3 direction)
+    {
+        if (direction.LengthSquared <= 0.000001f ||
+            !float.IsFinite(direction.X) || !float.IsFinite(direction.Y) || !float.IsFinite(direction.Z))
+        {
+            return;
+        }
+
+        var normalized = Vector3.Normalize(direction);
+        var light = Scene.Lights.OfType<DirectionalLight>().FirstOrDefault();
+        if (light == null)
+        {
+            light = new DirectionalLight();
+            Scene.Lights.Insert(0, light);
+        }
+        light.Direction = normalized;
+        ViewportControl.RequestNextFrameRendering();
+    }
+
     public void SetStageModelsVisible(bool visible)
     {
         if (_stageModelsVisible == visible)
@@ -177,6 +233,7 @@ public sealed class SceneHost
         {
             ApplyModelVisibility(SceneLayer.VisualModels, model);
         }
+        ViewportControl.InvalidateShadowScene();
         ViewportControl.RequestNextFrameRendering();
     }
 
@@ -192,6 +249,7 @@ public sealed class SceneHost
         {
             ApplyModelVisibility(SceneLayer.VisualModels, model);
         }
+        ViewportControl.InvalidateShadowScene();
         ViewportControl.RequestNextFrameRendering();
     }
 
@@ -207,6 +265,7 @@ public sealed class SceneHost
         _modelVisibility[model] = visible;
         ApplyModelVisibility(layer, model);
         model.VerticesNeedUpdate = true;
+        ViewportControl.InvalidateShadowScene();
         ViewportControl.RequestNextFrameRendering();
     }
 
@@ -322,6 +381,7 @@ public sealed class SceneHost
             MdnSceneRenderer.ApplyTextures(ViewportControl, batch.Document, batch.Models, batch.Textures);
         }
 
+        ViewportControl.InvalidateShadowScene();
         ViewportControl.RequestNextFrameRendering();
         LayerChanged?.Invoke(SceneLayer.VisualModels);
     }
