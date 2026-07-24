@@ -1929,9 +1929,8 @@ public sealed class MapEditorViewModel : INotifyPropertyChanged, IDisposable
     }
 
     /// <summary>
-    /// Live exposure multiplier, driven by the toolbar slider. 1.41421356 is the
-    /// reference +0.5 EV; the user can tune it in decimal to match the Konami
-    /// Lighting Editor look without editing the GCX exposure command by hand.
+    /// Live exposure multiplier, driven by the toolbar slider. Tunable in
+    /// decimal without editing the GCX exposure command by hand.
     /// </summary>
     public void SetExposure(float exposureScale)
     {

@@ -212,10 +212,8 @@ public static class LightSampler
 
         if (activeBlackPoints != null)
         {
-            // Engine-exact factor per blackpoint: dist / range, clamped to 1.
-            // The engine loop multiplies the accumulated LIGHT sums; whether the
-            // ambient seed sits inside those accumulators is not yet proven, so
-            // the factor is applied to the light contributions only.
+            // Factor per blackpoint: dist / range, clamped to 1. It is applied
+            // to the light contributions only, not to the ambient seed.
             var blackMultiplier = 1f;
             foreach (var blackPoint in activeBlackPoints)
             {

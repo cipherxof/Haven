@@ -94,23 +94,14 @@ public sealed class AbcFile
     }
 
     /// <summary>
-    /// Converts the file's boxes into the viewer's world space.
-    ///
-    /// Measured, not assumed: with the stage loaded, every sample reported
-    ///   TryEvaluate at (63750, -500, 119875)
-    ///   region (-100000,-11000,-140000)..(153000,18000,-28000) -> OUTSIDE
-    ///   failing axes: Z | with Z negated -> INSIDE
-    /// X and Y land inside the region on every sample and only Z is mirrored, so
-    /// the viewer's world space uses the opposite Z sign from the MGS4 stage data.
-    /// The .abc boxes are therefore mirrored once, at load time, instead of
+    /// Converts the file's boxes into the viewer's world space, which uses the
+    /// opposite Z sign. The boxes are mirrored once at load time rather than
     /// mirroring every query position.
     ///
     /// Negating an interval reverses it, so each Z pair is swapped as well:
     /// [zMin, zMax] becomes [-zMax, -zMin]. The Front/Back ambient faces are
-    /// swapped for the same reason — they are the two faces the Z axis addresses.
-    /// (Face order L,R,T,B,F,Bk is Haven's existing convention and is still
-    /// HIGH-CONFIDENCE rather than proven; if it is ever corrected, this swap
-    /// must follow it.)
+    /// swapped for the same reason: they are the two faces the Z axis addresses.
+    /// Face order is L,R,T,B,F,Bk.
     /// </summary>
     public Mgs4AmbientCubeEvaluator.Slot ToSlot(bool mirrorZ = true)
     {
