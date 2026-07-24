@@ -433,37 +433,17 @@ namespace Avalonia3DControl.Rendering.OpenGL
             set => _shadowMapRenderer.ShadowDistance = value;
         }
 
-        private bool _outputTransformLogged;
-
         private void BindOutputTransform(int shaderProgram)
         {
             int gammaLocation = GL.GetUniformLocation(shaderProgram, "uOutputGamma");
             if (gammaLocation < 0)
             {
-                // Warn if the uniform is missing so the output transform is not
-                // silently skipped for this program.
-                if (!_outputTransformLogged)
-                {
-                    Console.WriteLine(
-                        $"[Mgs4Output] WARNING: uOutputGamma not found in program {shaderProgram} - output transform inactive for this program.");
-                    System.Diagnostics.Debug.WriteLine(
-                        $"[Mgs4Output] WARNING: uOutputGamma not found in program {shaderProgram}.");
-                }
-                _outputTransformLogged = true;
                 return;
             }
             GL.Uniform1(gammaLocation, OutputGamma);
             SetFloat(shaderProgram, "uExposureScale", ExposureScale);
             SetFloat(shaderProgram, "uContrast", Contrast);
             SetFloat(shaderProgram, "uTextureIsSrgb", TextureIsSrgb);
-            if (!_outputTransformLogged)
-            {
-                Console.WriteLine(
-                    $"[Mgs4Output] active: gamma={OutputGamma:F2} exposure={ExposureScale:F2} (program {shaderProgram})");
-                System.Diagnostics.Debug.WriteLine(
-                    $"[Mgs4Output] active: gamma={OutputGamma:F2} exposure={ExposureScale:F2} (program {shaderProgram})");
-                _outputTransformLogged = true;
-            }
         }
 
 

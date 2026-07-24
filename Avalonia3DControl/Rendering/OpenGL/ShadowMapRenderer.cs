@@ -200,7 +200,6 @@ public sealed class ShadowMapRenderer : IDisposable
     private int _cachedSourceModelCount = -1;
     private float _maximumCasterRadius;
     private bool _hasCachedMap;
-    private bool _loggedSpatialFallback;
     private long _lastUpdateTimestamp;
 
     private Vector3 _lastCameraPosition;
@@ -214,7 +213,6 @@ public sealed class ShadowMapRenderer : IDisposable
     private int _lastSubmittedTriangles;
     private double _lastCullMilliseconds;
     private double _lastDrawMilliseconds;
-    private int _updateCounter;
     private bool _lastProjectionWasTsm;
 
     public ShadowMapRenderer(
@@ -251,53 +249,6 @@ public sealed class ShadowMapRenderer : IDisposable
     public int DepthTexture => _depthTexture;
     public Matrix4 LightSpaceMatrix { get; private set; } = Matrix4.Identity;
     public Matrix4 ShadowProjection { get; private set; } = Matrix4.Identity;
-    /// <summary>Console diagnostics for the engine-aligned TSM path.</summary>
-    public static bool EnableTsmDiagnostics { get; set; } = true;
-
-    /// <summary>
-    /// File diagnostics ("HavenStudio-shadows.log" next to the executable).
-    /// Console output is invisible in a GUI build, so decisions are logged to a
-    /// file, deduplicated (only when the message changes) and hard-capped.
-    /// </summary>
-    private static class ShadowLog
-    {
-        private static readonly object Sync = new();
-        private static string? _last;
-        private static int _budget = 300;
-        private static bool _header;
-
-        public static void Log(string message)
-        {
-            if (!EnableTsmDiagnostics)
-            {
-                return;
-            }
-            lock (Sync)
-            {
-                if (message == _last || _budget <= 0)
-                {
-                    return;
-                }
-                _last = message;
-                _budget--;
-                try
-                {
-                    var path = System.IO.Path.Combine(AppContext.BaseDirectory, "HavenStudio-shadows.log");
-                    if (!_header)
-                    {
-                        _header = true;
-                        System.IO.File.AppendAllText(path,
-                            $"{Environment.NewLine}==== shadows session {DateTime.Now:yyyy-MM-dd HH:mm:ss} ===={Environment.NewLine}");
-                    }
-                    System.IO.File.AppendAllText(path, $"[{DateTime.Now:HH:mm:ss}] {message}{Environment.NewLine}");
-                }
-                catch
-                {
-                }
-            }
-        }
-    }
-
     public Matrix4 ShadowProjectionTsm { get; private set; } = Matrix4.Identity;
     public Matrix4 ShadowProjectionTsm2 { get; private set; } = Matrix4.Identity;
     public Vector4 ShadowProjectionRange { get; private set; } = Vector4.Zero;
@@ -404,19 +355,6 @@ public sealed class ShadowMapRenderer : IDisposable
             LightDirection = lightDirection;
             _sceneStateChanged = false;
             _hasCachedMap = true;
-
-            _updateCounter++;
-            if (_updateCounter == 1 || _updateCounter % 120 == 0)
-            {
-                ShadowLog.Log(
-                    $"[SHADOW] candidates {_candidateCount}/{_casters.Count} casters registered");
-                Console.WriteLine(
-                    $"[Haven Shadows] candidates {_candidateCount}/{_casters.Count}, " +
-                    $"draws {_visibleDrawCount}, {_lastSubmittedTriangles:N0} triangles, " +
-                    $"{_resolution}px, {(_lastProjectionWasTsm ? "TSM" : "ortho fallback")}, " +
-                    $"cull {_lastCullMilliseconds:0.00} ms, " +
-                    $"draw CPU {_lastDrawMilliseconds:0.00} ms.");
-            }
             return true;
         }
         catch (Exception exception)
@@ -470,7 +408,6 @@ public sealed class ShadowMapRenderer : IDisposable
         _spatialBins.Clear();
         _maximumCasterRadius = 0.0f;
         _cachedSourceModelCount = models.Count;
-        var casterAssets = new Dictionary<string, int>(StringComparer.Ordinal);
 
         for (var index = 0; index < models.Count; index++)
         {
@@ -485,11 +422,6 @@ public sealed class ShadowMapRenderer : IDisposable
             {
                 _casters.Add(entry);
                 _maximumCasterRadius = MathF.Max(_maximumCasterRadius, entry.Radius);
-                var assetName = string.IsNullOrWhiteSpace(model.SourceAssetName)
-                    ? "<standalone>"
-                    : model.SourceAssetName;
-                casterAssets.TryGetValue(assetName, out var packetCount);
-                casterAssets[assetName] = packetCount + 1;
             }
         }
 
@@ -505,15 +437,6 @@ public sealed class ShadowMapRenderer : IDisposable
         _sceneCacheDirty = false;
         _transformCacheDirty = false;
         _sceneStateChanged = true;
-        Console.WriteLine(
-            $"[Haven Shadows] Static cache: {_casters.Count} packets in {_spatialBins.Count} spatial cells.");
-        if (casterAssets.Count > 0)
-        {
-            var summary = string.Join(", ", casterAssets
-                .OrderBy(pair => pair.Key, StringComparer.Ordinal)
-                .Select(pair => $"{pair.Key} ({pair.Value})"));
-            Console.WriteLine($"[Haven Shadows] Caster assets: {summary}");
-        }
         return _casters.Count > 0;
     }
 
@@ -777,14 +700,12 @@ public sealed class ShadowMapRenderer : IDisposable
         var delta0 = focusY - receiverTop;
         if (!float.IsFinite(delta0) || delta0 <= lambda * 0.001f)
         {
-            // xi >= -0.6 territory: take the plain fit.
-            ShadowLog.Log("[TSM] plain fit: focus too shallow (xi >= -0.6 territory)");
+            // Focus too shallow: take the plain fit.
             return false;
         }
         if (delta0 >= lambda * 0.8f)
         {
-            // Engine 80% rule: focus beyond the band -> plain fit.
-            ShadowLog.Log($"[TSM] plain fit: 80% rule (delta/lambda = {delta0 / lambda:P0})");
+            // 80% rule: focus beyond the band -> plain fit.
             return false;
         }
         var etaDenominator = lambda - 2.0f * delta0 - lambda * focusImageY;
@@ -797,10 +718,6 @@ public sealed class ShadowMapRenderer : IDisposable
         {
             return false;
         }
-
-        ShadowLog.Log(
-            $"[TSM] ACTIVE lambda={lambda:F0} delta={delta0:F0} ({delta0 / lambda:P0}) " +
-            $"eta(q)={eta:F0} focus=CENTRE(0.5) casters visible={_visibleDrawCount}");
 
         var qY = receiverTop - eta;
 
@@ -1050,12 +967,6 @@ public sealed class ShadowMapRenderer : IDisposable
         if (cellCount <= 0 || cellCount > MaximumSpatialCellsPerQuery)
         {
             _candidateCasters.AddRange(_casters);
-            if (!_loggedSpatialFallback)
-            {
-                Console.WriteLine(
-                    $"[Haven Shadows] Spatial query spans {cellCount:N0} cells; using cached full list fallback.");
-                _loggedSpatialFallback = true;
-            }
             return;
         }
 
@@ -1212,8 +1123,6 @@ public sealed class ShadowMapRenderer : IDisposable
             }
 
             _initialized = true;
-            Console.WriteLine(
-                $"[Haven Shadows] Shadow map {_resolution}x{_resolution}, texture unit {ShadowTextureUnit}.");
         }
         finally
         {
@@ -1331,7 +1240,6 @@ public sealed class ShadowMapRenderer : IDisposable
         _disabledReason = reason;
         _permanentlyDisabled = true;
         _hasCachedMap = false;
-        Console.Error.WriteLine($"[Haven Shadows] {reason}");
         DeleteResources();
     }
 

@@ -262,7 +262,7 @@ public static partial class GcxFogParser
             return (fallbackMin, fallbackMax);
         }
 
-        // Confirmed engine conversion.
+        // Values are stored per-mille.
         min /= 1000f;
         max /= 1000f;
         if (!float.IsFinite(min) || !float.IsFinite(max))
