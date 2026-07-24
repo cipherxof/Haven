@@ -639,11 +639,9 @@ public sealed class ShadowMapRenderer : IDisposable
 
         if (_visibleCasters.Count > 1)
         {
-            // Diagnosed on sm_dd (v0.9.23 logs): 1547 candidates, hard cap 256,
-            // nearest-first ordering - the large far walls whose long shadows
-            // define the 2006 reference were consistently dropped in favour of
-            // nearby crates. Order by footprint first (radius descending) so
-            // architecture always casts; distance breaks ties.
+            // Order by footprint (radius descending) so large casters survive
+            // the cap instead of being dropped in favour of nearby small ones;
+            // distance breaks ties.
             _visibleCasters.Sort(static (leftEntry, rightEntry) =>
             {
                 var byRadius = rightEntry.Radius.CompareTo(leftEntry.Radius);
@@ -1247,17 +1245,11 @@ public sealed class ShadowMapRenderer : IDisposable
             return false;
         }
 
-        // POSITION-ANCHORED coverage (v0.9.37). The previous implementation fit
-        // the shadow volume to the camera's VIEW frustum, so approaching a wall
-        // or turning the camera shifted the covered window and shadows at its
-        // edge truncated ("le shadow ne reste pas complet"). Coverage is now a
-        // box centred on the camera POSITION, independent of look direction:
-        // rotating never changes the shadow map, translating only recentres it.
-        // ShadowDistance is the box DIAMETER (half-extent = 0.5x) so a given
-        // slider value keeps a texel density comparable to the old frustum fit.
-        // The vertical half-extent is capped (stage tuning, not engine-derived):
-        // sm_dd architecture spans well under 60k vertically, and not spending
-        // light-space extent on empty sky keeps lambda - and sharpness - tight.
+        // Coverage is a box centred on the camera position, independent of look
+        // direction: rotating never changes the shadow map, translating only
+        // recentres it. ShadowDistance is the box diameter (half-extent = 0.5x).
+        // The vertical half-extent is capped so light-space extent is not spent
+        // on empty sky, which keeps lambda and shadow sharpness tight.
         var halfHorizontal = MathF.Max(500.0f, _shadowDistance * 0.5f);
         var halfVertical = MathF.Min(halfHorizontal, 30000.0f);
         var center = camera.Position;
@@ -1313,13 +1305,10 @@ public sealed class ShadowMapRenderer : IDisposable
                 IsFinite(directional.Direction))
             {
                 // directional.Direction is the surface-to-light vector (points
-                // toward the sun, +Y up). The shadow camera must sit ON THE SUN
-                // SIDE looking back at the scene, so it is placed along this
-                // vector: lightEye = center + dir * distance. Verified in-game:
-                // with the raw surface-to-light vector the shadows landed on the
-                // rooftops instead of the ground - the camera was looking from
-                // below. Negating here puts the eye above and casts building
-                // shadows down onto the floor, matching the 2006 reference.
+                // The shadow camera must sit on the sun side looking back at the
+                // scene (lightEye = center + dir * distance). Negating the
+                // surface-to-light direction puts the eye above so building
+                // shadows fall down onto the floor.
                 return -Vector3.Normalize(directional.Direction);
             }
         }

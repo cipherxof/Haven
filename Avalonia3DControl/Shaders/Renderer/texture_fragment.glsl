@@ -67,7 +67,7 @@ float SampleDirectionalShadow()
     }
 
     // Derivative normal gives a stable slope-scaled bias without adding another
-    // vertex attribute. It prevents the large detached/acne bands visible in v0.4.
+    // vertex attribute, which avoids large detached shadow-acne bands.
     vec3 geometricNormal = normalize(cross(dFdx(WorldPos), dFdy(WorldPos)));
     float facing = abs(dot(geometricNormal, normalize(-uShadowLightDirection)));
     float receiverBias = mix(0.00042, 0.00008, clamp(facing, 0.0, 1.0));
@@ -119,8 +119,8 @@ void main()
 
     float outAlpha = uForceOpaqueAlpha ? 1.0 : coverage;
     vec3 lighting = mix(Color.rgb, lightingInShadow, shadowBlend);
-    // Colour space: RSX samples textures raw (no sRGB linearise); gamma applied
-    // once at output. uTextureIsSrgb=0 = engine-matching (default).
+    // uTextureIsSrgb=0 (default): sample the texel raw and apply gamma once at
+    // output. >0: linearise the texel here instead.
     vec3 albedo = textureColor.rgb;
     if (uTextureIsSrgb > 0.0 && uOutputGamma > 0.0)
     {

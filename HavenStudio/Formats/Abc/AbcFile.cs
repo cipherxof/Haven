@@ -11,7 +11,7 @@ namespace HavenStudio.Formats.Abc;
 /// consumed by the ambient-cube evaluation:
 ///
 ///   0x00  char  magic[4]      "AMBC"
-///   0x04  u16   version       (2 observed on sm_dd)
+///   0x04  u16   version       (2)
 ///   0x06  u16   reserved
 ///   0x08  u32   nodeCount
 ///   0x0C  u32   pad

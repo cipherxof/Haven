@@ -180,13 +180,11 @@ public class LitRawLight : LitLight
 }
 
 /// <summary>
-/// MGS4 LT3 type-64/320 record (160 bytes, big-endian). The debug data and the
-/// sm_dd stage prove that the real runtime flag is the 32-bit word at +0x90.
-/// The colour alpha bytes at +0x83/+0x87 are colour padding/auxiliary bytes, not
-/// the Character/Background target flags. Treating them as flags caused Haven to
-/// apply hundreds of character-only hs-amb volumes to the stage background.
+/// LT3 type-64/320 record (160 bytes, big-endian). The runtime flag is the
+/// 32-bit word at +0x90; the colour alpha bytes at +0x83/+0x87 are colour
+/// padding, not the Character/Background target flags.
 ///
-/// Confirmed layout:
+/// Layout:
 ///   +0x00 boundsMax       (FVECTOR)
 ///   +0x10 boundsMin       (FVECTOR)
 ///   +0x20 center          (FVECTOR)

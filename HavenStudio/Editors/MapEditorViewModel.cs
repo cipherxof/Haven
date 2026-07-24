@@ -1529,7 +1529,6 @@ public sealed class MapEditorViewModel : INotifyPropertyChanged, IDisposable
               ?? _lightDocuments.FirstOrDefault(session => !session.IsSkyPass)
               ?? _lightDocuments.FirstOrDefault();
         _primaryLightSelectionReason = selectionReason ?? string.Empty;
-        LogPrimaryLightDiagnostics();
         CancelManipulation();
         _history.Clear();
         RefreshLightOutline();
@@ -1539,47 +1538,6 @@ public sealed class MapEditorViewModel : INotifyPropertyChanged, IDisposable
         OnPropertyChanged(nameof(LightSummary));
         OnPropertyChanged(nameof(CanAddLightGroup));
         ApplyGameLighting();
-    }
-
-    private void LogPrimaryLightDiagnostics()
-    {
-        var session = PrimaryLightDocument;
-        if (session == null)
-        {
-            return;
-        }
-
-        var records = session.Document.Groups
-            .SelectMany(group => group.Lights)
-            .ToArray();
-        var flags = records
-            .Select(LitFlags.GetRuntimeFlag)
-            .ToArray();
-        var hemi = records.OfType<LitHemiLight>().ToArray();
-        var localParallel = records.OfType<LitParallelLight>().ToArray();
-        var parallelForceMin = localParallel.Length == 0
-            ? 0f
-            : localParallel.Min(light => light.Force);
-        var parallelForceMax = localParallel.Length == 0
-            ? 0f
-            : localParallel.Max(light => light.Force);
-        var owners = hemi
-            .Where(light => light.MetadataScopeHash != 0u)
-            .GroupBy(light => light.MetadataScopeHash)
-            .OrderByDescending(group => group.Count())
-            .Take(8)
-            .Select(group => $"{group.Key:X6}:{group.Count()}");
-
-        Console.WriteLine(
-            $"[Haven LT3] {session.DisplayName}: {records.Length} records; " +
-            $"BG={(flags.Count(flag => (flag & LitFlags.Background) != 0))}, " +
-            $"CHARA={(flags.Count(flag => (flag & LitFlags.Character) != 0))}, " +
-            $"SHADOW={(flags.Count(flag => (flag & LitFlags.Shadow) != 0))}, " +
-            $"UNTARGETED={(flags.Count(flag => (flag & (LitFlags.Background | LitFlags.Character | LitFlags.Shadow)) == 0))}, " +
-            $"DISABLED={(flags.Count(flag => (flag & LitFlags.Disable) != 0))}; " +
-            $"parallel={localParallel.Length}, force=[{parallelForceMin:0.###}..{parallelForceMax:0.###}]; " +
-            $"header ambient=({session.Document.Ambient.R}, {session.Document.Ambient.G}, {session.Document.Ambient.B}); " +
-            $"hemi={hemi.Length}; owner hashes=[{string.Join(", ", owners)}]");
     }
 
     private void RefreshLightOutline()
@@ -1907,16 +1865,6 @@ public sealed class MapEditorViewModel : INotifyPropertyChanged, IDisposable
         {
             _sceneHost.SetShadowLightDirection(
                 LightSampler.ToSurfaceLightDirection(sceneLighting.Direction));
-            Console.WriteLine(
-                $"[Haven SystemLight] rayDir=({sceneLighting.Direction.X:0.###}, " +
-                $"{sceneLighting.Direction.Y:0.###}, {sceneLighting.Direction.Z:0.###}); " +
-                $"background=({sceneLighting.BackgroundDirectionalColor.X:0.###}, " +
-                $"{sceneLighting.BackgroundDirectionalColor.Y:0.###}, " +
-                $"{sceneLighting.BackgroundDirectionalColor.Z:0.###}); " +
-                $"character=({sceneLighting.CharacterDirectionalColor.X:0.###}, " +
-                $"{sceneLighting.CharacterDirectionalColor.Y:0.###}, " +
-                $"{sceneLighting.CharacterDirectionalColor.Z:0.###}); " +
-                $"stage ambient={(sceneLighting.BackgroundAmbientCube.HasValue ? "GCX ambient cube" : "LT2/LT3 fallback")}");
         }
         else if (primary != null && primary.Document.Direction.Xyz.LengthSquared > 0.000001f)
         {

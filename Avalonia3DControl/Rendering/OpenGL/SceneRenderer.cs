@@ -415,29 +415,13 @@ namespace Avalonia3DControl.Rendering.OpenGL
             SetVector4(shaderProgram, "uFogColor", _fogColor);
         }
 
-        /// <summary>
-        /// Display encoding for the linear lighting result. The per-vertex bake
-        /// emits linear values, so the display curve is applied here. 0 disables
-        /// the transform; the default 2.2 is the standard display curve.
-        /// </summary>
+        /// <summary>Output display gamma. 0 disables the transform; default 2.2.</summary>
         public float OutputGamma { get; set; } = 2.2f;
 
-        // Exposure multiplier, neutral by default and driven live by the toolbar
-        // slider. The operative value comes from OpenGLRenderer._exposureScale.
+        // Exposure multiplier, driven live by the toolbar slider.
         public float ExposureScale { get; set; } = 1.0f;
 
-        /// <summary>
-        /// MGS4 textures are display-encoded (sRGB). The RSX linearises them at
-        /// sample time before modulating with the LINEAR preshader lighting, so
-        /// the display curve is applied exactly once, at output. Default = 1
-        /// (linearise): the standard, engine-faithful chain. The brighter
-        /// direct-modulation mode (=0) remains available for A/B but is NOT the
-        /// default - with shadows, casters and exposure now correct, the
-        /// standard chain is the reference behaviour ("remettre le contrast
-        /// normal", user request after the v0.9.30 experiment read too bright).
-        /// </summary>
-        // 0 = albedo-direct (raw sRGB texel * linear lighting, single display
-        // curve). Engine-matching; RE rationale in project notes.
+        /// <summary>0 = modulate the raw texel directly; 1 = linearise the texel before lighting. Default 0.</summary>
         public float TextureIsSrgb { get; set; } = 0.0f;
 
         /// <summary>Display contrast around mid-grey, driven by the toolbar slider. 1.0 = neutral.</summary>
@@ -456,8 +440,8 @@ namespace Avalonia3DControl.Rendering.OpenGL
             int gammaLocation = GL.GetUniformLocation(shaderProgram, "uOutputGamma");
             if (gammaLocation < 0)
             {
-                // Never fail silently again: v0.9.2 patched a shader the scene
-                // was not using and the missing uniform defaulted to 0 (= off).
+                // Warn if the uniform is missing so the output transform is not
+                // silently skipped for this program.
                 if (!_outputTransformLogged)
                 {
                     Console.WriteLine(

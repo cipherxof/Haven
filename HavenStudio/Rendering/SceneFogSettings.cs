@@ -97,8 +97,7 @@ public sealed class SceneFogSettings
 }
 
 /// <summary>
-/// Parses the nine confirmed NewFogSet options, including unresolved hash names.
-/// Command and parameter hashes come from the MGS4 debug-ELF audit.
+/// Parses the fog command options, including unresolved hash names.
 /// </summary>
 public static partial class GcxFogParser
 {

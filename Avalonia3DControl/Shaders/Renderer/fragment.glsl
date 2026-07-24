@@ -49,8 +49,7 @@ void main()
     {
         color = mix(color, uFogColor.rgb, Mgs4FogAmount(viewDepth));
     }
-    // MGS4 output transform (see material_fragment.glsl for the evidence:
-    // the preshader emits LINEAR values; the display curve lives downstream).
+    // Colour filter, then the output display transform below.
     vec3 outColor = ApplyKonamiColorFilter(color);
     if (uOutputGamma > 0.0)
     {

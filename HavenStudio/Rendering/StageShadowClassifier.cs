@@ -48,8 +48,8 @@ public static class StageShadowClassifier
 
         if (isPlacedObject)
         {
-            // Placed props/characters are not part of the static building shadow
-            // list shown by the 2006 Lighting Editor stage preview.
+            // Placed props/characters are not part of the static building
+            // shadow set.
             model.CastsShadow = false;
             return;
         }

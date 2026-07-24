@@ -56,17 +56,15 @@ public static class LightSampler
     // The record colour is multiplied by attenuation only (no extra centre
     // boost), so every in-range record sums correctly for the bake.
     private const float PointCenterBoost = 1.0f;
-    // Fraction of the LT3 header ambient applied to stage geometry. The header
-    // ambient on sm_dd is near-white; at full strength it floods the scene and
-    // kills sun/shadow contrast. 0.16 keeps a modest fill floor so shaded faces
-    // stay visible while the sun gradient and shadows still read. Raise toward
+    // Fraction of the LT3 header ambient applied to stage geometry. A near-white
+    // header at full strength floods the scene and kills sun/shadow contrast;
+    // 0.16 keeps a modest fill floor so shaded faces stay visible. Raise toward
     // 0.3 for more fill, drop toward 0 for deeper shade.
     private const float StageAmbientScale = 0.16f;
 
     // Background blackpoints darken the bake by multiplying the light by
-    // clamp01(dist/range) inside their bounds. Off by default: they produce a
-    // dark band along the street that reads as a fake shadow and does not match
-    // the 2006 Lighting Editor reference.
+    // clamp01(dist/range) inside their bounds. Off by default: they tend to
+    // produce a dark band that reads as a fake shadow.
     private const bool ApplyStageBlackPoints = false;
     // Kept for reference: "sunshine" is one of the hs-amb scope names. No longer
     // used as a filter (see AddHemi).
@@ -85,25 +83,19 @@ public static class LightSampler
 
         // NewSystemLightSet owns distinct background and character light slots.
         // TRANSPLANT (Python bench render_v3, validated visually by Snake): the LT3
-        // header ambient on sm_dd is near-white (1, 1, 0.99). Added as a uniform
-        // floor in Shade() it floods EVERY surface before sun/locals, so lit and
-        // shadowed areas both start at ~1.0 -> the flat "overcast" look with no
-        // visible sun and ghost shadows. The real stage floor (~0.3) emerges from
-        // the summed local records (BakeLights), NOT from a near-white ambient.
-        // Scale the header ambient down for stage geometry so sun + local records
-        // produce the dev-2006 contrast (deep shadows + bright sunlit ground).
+        // The header ambient can be near-white; used as a uniform floor it floods
+        // every surface before sun/locals and flattens the result. Scale it down
+        // for stage geometry so sun + local records drive the contrast.
         // Tunable: raise StageAmbientScale toward 1 if deep-shadow voids appear.
         var ambient = target == LitLightingTarget.Character
             ? sceneLighting?.CharacterAmbientFloor ?? file.Ambient.ToScaledVector3()
             : file.Ambient.ToScaledVector3() * StageAmbientScale;
         var ambientCube = sceneLighting?.AmbientCubeFor(target, ambient) ??
             AmbientCubeLighting.Uniform(ambient);
-        // NOTE: the exact MGS4 spatial ambient is applied LAST (see below), not
-        // here. Applied at this point it was immediately overwritten by Haven's
-        // speculative parallel/hemi blending: the logged sample showed all six
-        // faces collapsed to a uniform ~(1.198, 1.188, 1.125) instead of the
-        // .abc values (0.363 / 0.558 / 0.298 ...), which removed every trace of
-        // directional variation from the ambient term.
+        // The spatial ambient cube is applied LAST (see below), not here:
+        // applying it at this point lets the parallel/hemi blending overwrite it
+        // and collapse the six faces to a uniform value, losing directional
+        // variation.
         var encodedSunDirection = sceneLighting?.Direction ?? file.Direction.Xyz;
         var rawSunColor = sceneLighting?.DirectionalColorFor(target) ?? file.Color.ToScaledVector3();
         // Direction.W is a priority weight, not a colour scale, so the sun runs
@@ -437,10 +429,10 @@ public static class LightSampler
     }
 
     /// <summary>
-    /// Type-64 hs-amb records in sm_dd are all flagged 0x100 (character only).
-    /// They are therefore excluded from stage geometry by the target filter. For
-    /// character sampling, retain the two-colour hemisphere approximation while
-    /// respecting the LT3 owner/scope hash when one is known.
+    /// Type-64 hs-amb records are flagged 0x100 (character only), so they are
+    /// excluded from stage geometry by the target filter. For character sampling,
+    /// use the two-colour hemisphere approximation while respecting the LT3
+    /// owner/scope hash when one is known.
     /// </summary>
     private static void AddHemi(
         ref AmbientCubeLighting? hemiAccumulator,

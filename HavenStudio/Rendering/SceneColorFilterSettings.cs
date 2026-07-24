@@ -92,14 +92,11 @@ public static partial class GcxColorFilterParser
     private static Vector3 Clamp01(Vector3 value) => new(Clamp01(value.X), Clamp01(value.Y), Clamp01(value.Z));
     private static Vector3 ClampNonNegative(Vector3 value) => new(MathF.Max(0f, value.X), MathF.Max(0f, value.Y), MathF.Max(0f, value.Z));
 
-    // Data-driven read straight from the GCX bytecode (not the decompiled text).
-    // The color-filter command takes:
-    //   -mono, -scale (3), -bright, -contrast,
-    //   -min_color_n (3), -max_color_n (3)
-    // Each parameter is tagged in the bytecode by its strcode24 name hash; the
-    // typed values follow (01=i16, 02/03/04=u8, 08=u16). Scale is stored /128,
-    // the colour min/max and the scalars per-mille (/1000). Parameters stored as
-    // script variables (varbuf, no inline constant) keep the neutral default.
+    // Read straight from the GCX bytecode (not the decompiled text). Each
+    // parameter is tagged by its name hash, followed by typed values
+    // (01=i16, 02/03/04=u8, 08=u16). Scale is stored /128, the colour min/max
+    // and scalars per-mille (/1000). Parameters stored as script variables
+    // (no inline constant) keep the neutral default.
     private const uint ColorFilterCommandHash = 0x98CBCE;
     private const uint MonoHash = 0x384A2F;
     private const uint ScaleHash = 0x6311EC;
@@ -193,10 +190,8 @@ public static partial class GcxColorFilterParser
         return ReadTypedValues(b, idx + 3, end, unit, v) >= 3 ? new Vector3(v[0], v[1], v[2]) : fallback;
     }
 
-    // Haven's GCX decompiler writes a command at the beginning of a line as
-    // "NewColorFilterSet \\" (resolved command table) or "[98CBCE] \\".
-    // Older experimental builds searched for the literal word "command", which
-    // never appears in normal decompilation and therefore disabled the preview.
+    // A command appears at the start of a line as "NewColorFilterSet \\"
+    // (resolved name) or "[98CBCE] \\" (raw hash); match either form.
     [GeneratedRegex(@"(?im)^[ \t]*(?:NewColorFilter(?:Set)?|\[98CBCE\])[ \t]*\\[ \t]*\r?\n(?<body>.*?)(?=^[ \t]*(?:[A-Za-z_][A-Za-z0-9_]*|\[[0-9A-F]{6}\])[ \t]*\\[ \t]*$|\z)", RegexOptions.IgnoreCase | RegexOptions.Singleline | RegexOptions.CultureInvariant)]
     private static partial Regex CommandRegex();
 }
