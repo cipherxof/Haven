@@ -1885,10 +1885,9 @@ public sealed class MapEditorViewModel : INotifyPropertyChanged, IDisposable
             {
                 if (!samples.TryGetValue(placement, out var lighting))
                 {
-                    // Stage geometry is BACKGROUND, not a character. Sampling it as
-                    // Character bypassed the engine participation gate entirely
-                    // (measured: 38/41/551 records accepted instead of 0/2/23) and
-                    // pulled the character ambient floor instead of the stage one.
+                    // Stage geometry is Background, not Character: sampling it as
+                    // Character bypasses the participation gate and pulls the
+                    // character ambient floor instead of the stage one.
                     lighting = LightSampler.Sample(
                         primary.Document,
                         placement.Position ?? model.Position,

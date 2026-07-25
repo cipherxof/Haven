@@ -6,9 +6,9 @@ namespace HavenStudio.Rendering;
 /// <summary>
 /// Classifies MGS4 stage MDN assets for the projected directional shadow pass.
 ///
-/// MGS4 does not submit every visible packet to ShadowMakeObjectList. Static
-/// architectural meshes form the dominant stage casters, while terrain, distant
-/// scenery, overlay/object layers and placed gameplay props are receivers only.
+/// Not every visible packet needs to cast. Static architectural meshes form the
+/// dominant stage casters, while terrain, distant scenery, overlay/object layers
+/// and placed gameplay props are receivers only.
 /// Keeping that separation improves both fidelity and shadow-pass cost.
 /// </summary>
 public static class StageShadowClassifier

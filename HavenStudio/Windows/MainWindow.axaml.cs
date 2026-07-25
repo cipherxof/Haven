@@ -739,6 +739,48 @@ public partial class MainWindow : Window
         _findTextBox = input;
     }
 
+    internal void NavigateToGcxEffect(string displayName, params string[] searchTerms)
+    {
+        if (!_viewModel.GcxEditor.HasDocument)
+        {
+            MessageDialog.Info(displayName, "Open a scenerio.gcx file first.");
+            return;
+        }
+
+        _viewModel.SelectedTabIndex = 1;
+
+        foreach (var query in searchTerms.Where(term => !string.IsNullOrWhiteSpace(term)))
+        {
+            if (!_viewModel.GcxEditor.TryFindNextInDecompilation(
+                    query, out int index, out int length, out var matchedNode))
+            {
+                continue;
+            }
+
+            _pendingFindSelection = (index, length);
+            if (matchedNode != null && _gcxScriptTreeView != null)
+            {
+                _gcxScriptTreeView.SelectedItem = matchedNode;
+                _gcxScriptTreeView.ScrollIntoView(matchedNode);
+            }
+
+            Dispatcher.UIThread.Post(() =>
+            {
+                if (_decompilationEditor != null)
+                {
+                    HighlightDecompilationMatch(index, length);
+                    _decompilationEditor.Focus();
+                }
+            }, DispatcherPriority.Loaded);
+            return;
+        }
+
+        var searched = string.Join(", ", searchTerms.Where(term => !string.IsNullOrWhiteSpace(term)));
+        MessageDialog.Info(
+            displayName,
+            $"No recognised {displayName} command/hash was found in the currently opened GCX.\n\nSearched: {searched}");
+    }
+
     private void ExecuteFindNext()
     {
         if (_findTextBox == null)
