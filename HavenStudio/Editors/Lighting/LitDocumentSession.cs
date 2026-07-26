@@ -27,6 +27,13 @@ public sealed class LitDocumentSession
     public string DisplayName => Path.FileName;
     public bool IsSkyPass => Path.FileName.Contains("sky", StringComparison.OrdinalIgnoreCase);
 
+    /// <summary>
+    /// Konami archives can contain a tiny generic MGS4_Preview.lt3 beside the real
+    /// stage LT3. It is useful for asset preview, but must never drive stage lighting
+    /// or the projected shadow direction.
+    /// </summary>
+    public bool IsPreviewPass => Path.FileName.Contains("preview", StringComparison.OrdinalIgnoreCase);
+
     public event Action? Changed;
 
     public static LitDocumentSession Load(IWorkspaceCatalog workspace, WorkspacePath path)

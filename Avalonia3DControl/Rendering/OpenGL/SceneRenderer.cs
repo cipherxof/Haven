@@ -15,13 +15,56 @@ namespace Avalonia3DControl.Rendering.OpenGL
     /// <summary>
     /// 场景渲染器，负责管理复杂的场景渲染流程
     /// </summary>
-    public class SceneRenderer
+    public class SceneRenderer : IDisposable
     {
         private readonly ShaderManager _shaderManager;
         private readonly ModelRenderer _modelRenderer;
         private readonly GradientBar? _gradientBar;
         private readonly AxisLabelRenderer _axisLabelRenderer;
+        private readonly ShadowMapRenderer _shadowMapRenderer;
+        // Retained as an inert toggle; screen glare is not applied in the preview.
+        public bool GlareEnabled { get; set; }
         private RenderMode _currentRenderMode = RenderMode.Fill;
+
+        public bool ShadowsEnabled { get; set; } = false;
+        public float ShadowStrength { get; set; } = 1.0f;
+        public bool ColorFilterEnabled { get; set; }
+        public bool FogEnabled { get; set; }
+        private float _filterMono;
+        private Vector3 _filterScale = Vector3.One;
+        private float _filterBrightness;
+        private float _filterContrast = 1f;
+        private Vector3 _filterMinimum = Vector3.Zero;
+        private Vector3 _filterMaximum = Vector3.One;
+        private float _filterNoise;
+        private Vector4 _fogParam = new(0.0001f, 0.0f, 0.0f, 1.0f);
+        private Vector4 _fogColor = new(0.0f, 0.0f, 0.0f, 1.0f);
+
+        public void SetFog(float near, float far, Vector4 color, float limitMin, float limitMax)
+        {
+            if (!float.IsFinite(near)) near = 0.0f;
+            if (!float.IsFinite(far) || far <= near + 0.0001f) far = near + 1.0f;
+            var invRange = 1.0f / (far - near);
+            _fogParam = new Vector4(
+                invRange,
+                -near * invRange,
+                Math.Clamp(limitMin, 0.0f, 1.0f),
+                Math.Clamp(limitMax, 0.0f, 1.0f));
+            _fogColor = new Vector4(
+                Math.Clamp(color.X, 0.0f, 1.0f),
+                Math.Clamp(color.Y, 0.0f, 1.0f),
+                Math.Clamp(color.Z, 0.0f, 1.0f),
+                Math.Clamp(color.W, 0.0f, 1.0f));
+        }
+
+        public void InvalidateShadowScene() => _shadowMapRenderer.InvalidateScene();
+        public void InvalidateShadowTransforms() => _shadowMapRenderer.InvalidateTransforms();
+
+        public void SetColorFilter(float mono, Vector3 scale, float brightness, float contrast, Vector3 minimum, Vector3 maximum, float noise)
+        {
+            _filterMono = mono; _filterScale = scale; _filterBrightness = brightness; _filterContrast = contrast;
+            _filterMinimum = minimum; _filterMaximum = maximum; _filterNoise = noise;
+        }
 
         public SceneRenderer(ShaderManager shaderManager, ModelRenderer modelRenderer, GradientBar? gradientBar)
         {
@@ -29,6 +72,7 @@ namespace Avalonia3DControl.Rendering.OpenGL
             _modelRenderer = modelRenderer ?? throw new ArgumentNullException(nameof(modelRenderer));
             _gradientBar = gradientBar;
             _axisLabelRenderer = new AxisLabelRenderer();
+            _shadowMapRenderer = new ShadowMapRenderer();
         }
 
         /// <summary>
@@ -39,10 +83,19 @@ namespace Avalonia3DControl.Rendering.OpenGL
             Model3D? coordinateAxes = null, MiniAxes? miniAxes = null, BoundingBoxRenderer? boundingBoxRenderer = null, double dpiScale = 1.0)
         {
             // 更新动画
-            
+
+            // Build/update the directional depth map before the main pass:
+            // ShadowMapRenderer manages its own framebuffer and restores the
+            // previous binding when done.
+            if (ShadowsEnabled && renderMode == RenderMode.Fill)
+            {
+                int shadowProgram = _shaderManager.GetShaderProgram("shadowDepth");
+                _shadowMapRenderer.Render(camera, models, lights, _modelRenderer, shadowProgram);
+            }
+
             // 准备渲染环境
             PrepareRenderEnvironment(backgroundColor, renderMode);
-            
+
             // 获取主着色器程序
             int shaderProgram = _shaderManager.GetShaderProgram(shadingMode);
             if (shaderProgram == 0) return;
@@ -51,6 +104,13 @@ namespace Avalonia3DControl.Rendering.OpenGL
             
             // 设置相机矩阵
             SetupCameraMatrices(camera, shaderProgram);
+            BindColorFilter(shaderProgram);
+            BindFog(shaderProgram);
+            BindOutputTransform(shaderProgram);
+            _shadowMapRenderer.BindForLighting(
+                shaderProgram,
+                ShadowsEnabled && renderMode == RenderMode.Fill,
+                ShadowStrength);
             
             // 渲染坐标轴
             if (coordinateAxes != null && coordinateAxes.Visible)
@@ -75,7 +135,7 @@ namespace Avalonia3DControl.Rendering.OpenGL
             
             // 渲染UI元素（梯度条等）
             RenderUIElements(dpiScale);
-            
+
             GL.UseProgram(0);
         }
 
@@ -344,6 +404,72 @@ namespace Avalonia3DControl.Rendering.OpenGL
             {
                 GL.UniformMatrix4(location, false, ref matrix);
             }
+        }
+
+
+
+        private void BindFog(int shaderProgram)
+        {
+            SetInt(shaderProgram, "uFogEnabled", FogEnabled ? 1 : 0);
+            SetVector4(shaderProgram, "uFogParam", _fogParam);
+            SetVector4(shaderProgram, "uFogColor", _fogColor);
+        }
+
+        /// <summary>Output display gamma. 0 disables the transform; default 2.2.</summary>
+        public float OutputGamma { get; set; } = 2.2f;
+
+        // Exposure multiplier, driven live by the toolbar slider.
+        public float ExposureScale { get; set; } = 1.0f;
+
+        /// <summary>0 = modulate the raw texel directly; 1 = linearise the texel before lighting. Default 0.</summary>
+        public float TextureIsSrgb { get; set; } = 0.0f;
+
+        /// <summary>Display contrast around mid-grey, driven by the toolbar slider. 1.0 = neutral.</summary>
+        public float Contrast { get; set; } = 1.0f;
+
+        public float ShadowDistance
+        {
+            get => _shadowMapRenderer.ShadowDistance;
+            set => _shadowMapRenderer.ShadowDistance = value;
+        }
+
+        private void BindOutputTransform(int shaderProgram)
+        {
+            int gammaLocation = GL.GetUniformLocation(shaderProgram, "uOutputGamma");
+            if (gammaLocation < 0)
+            {
+                return;
+            }
+            GL.Uniform1(gammaLocation, OutputGamma);
+            SetFloat(shaderProgram, "uExposureScale", ExposureScale);
+            SetFloat(shaderProgram, "uContrast", Contrast);
+            SetFloat(shaderProgram, "uTextureIsSrgb", TextureIsSrgb);
+        }
+
+
+        private void BindColorFilter(int shaderProgram)
+        {
+            SetInt(shaderProgram, "uColorFilterEnabled", ColorFilterEnabled ? 1 : 0);
+            SetFloat(shaderProgram, "uFilterMono", _filterMono);
+            SetVector3(shaderProgram, "uFilterScale", _filterScale);
+            SetFloat(shaderProgram, "uFilterBrightness", _filterBrightness);
+            SetFloat(shaderProgram, "uFilterContrast", _filterContrast);
+            SetVector3(shaderProgram, "uFilterMinimum", _filterMinimum);
+            SetVector3(shaderProgram, "uFilterMaximum", _filterMaximum);
+            SetFloat(shaderProgram, "uFilterNoise", _filterNoise);
+        }
+
+        private static void SetInt(int program, string name, int value)
+        { var location = GL.GetUniformLocation(program, name); if (location != -1) GL.Uniform1(location, value); }
+        private static void SetFloat(int program, string name, float value)
+        { var location = GL.GetUniformLocation(program, name); if (location != -1) GL.Uniform1(location, value); }
+        private static void SetVector3(int program, string name, Vector3 value)
+        { var location = GL.GetUniformLocation(program, name); if (location != -1) GL.Uniform3(location, value); }
+        private static void SetVector4(int program, string name, Vector4 value)
+        { var location = GL.GetUniformLocation(program, name); if (location != -1) GL.Uniform4(location, value); }
+        public void Dispose()
+        {
+            _shadowMapRenderer.Dispose();
         }
     }
 }

@@ -14,6 +14,7 @@ using HavenStudio.Editors.GcxEditing;
 using HavenStudio.Rendering;
 using HavenStudio.Services;
 using HavenStudio.Formats.Geo;
+using HavenStudio.Formats.Lit;
 using HavenStudio.Editors.Lighting;
 using HavenStudio.Services.Workspace;
 using HavenStudio.Utils;
@@ -288,6 +289,8 @@ public sealed class MapEditorViewModel : INotifyPropertyChanged, IDisposable
     private string _addObjectStatus = string.Empty;
     private string _manipulationStatus = string.Empty;
     private bool _gameLightingEnabled;
+    private bool _gameFilterEnabled = false;
+    private string _primaryLightSelectionReason = string.Empty;
     private CancellationTokenSource? _lightingBakeCancellation;
     private Task _lightingUpdateTask = Task.CompletedTask;
     private int _lightingBakeVersion;
@@ -309,6 +312,7 @@ public sealed class MapEditorViewModel : INotifyPropertyChanged, IDisposable
         _collisionEditor.PropertyChanged += OnCollisionEditorPropertyChanged;
         _gcxEditor.PropertyChanged += OnGcxEditorPropertyChanged;
         RefreshOutline();
+        ApplyGameFog();
     }
 
     public ObservableCollection<MapOutlineGroup> Outline { get; }
@@ -358,7 +362,78 @@ public sealed class MapEditorViewModel : INotifyPropertyChanged, IDisposable
             OnPropertyChanged();
         }
     }
+    public bool GameFilterEnabled
+    {
+        get => _gameFilterEnabled;
+        set
+        {
+            if (_gameFilterEnabled == value) return;
+            _gameFilterEnabled = value;
+            ApplyGameFilter();
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(GameFilterSummary));
+        }
+    }
+    public bool HasGameFilter => true;
+    public string GameFilterSummary => _gcxEditor.ColorFilter is { } f
+        ? $"GCX filter: mono {f.Mono:0.###}, scale {f.Scale.X:0.###}/{f.Scale.Y:0.###}/{f.Scale.Z:0.###}, bright {f.Brightness:0.###}, contrast {f.Contrast:0.###}"
+        : "No GCX color filter detected";
+    public bool HasGameFog => _gcxEditor.Fog?.IsConfigured(0) == true;
+    public string GameFogSummary => _gcxEditor.Fog is { } fog && fog.TryGetViewport(0, out var state)
+        ? $"GCX fog: near {state.Near:0.##}, far {state.Far:0.##}, " +
+          $"RGB {state.Color.X:0.###}/{state.Color.Y:0.###}/{state.Color.Z:0.###}, " +
+          $"limits {state.LimitMin:0.###}/{state.LimitMax:0.###}"
+        : "No literal NewFogSet state was found for viewport 0; fog preview is disabled.";
+
+
+    public bool FogEnabled
+    {
+        get => _sceneHost.FogEnabled;
+        set
+        {
+            var enabled = value && HasGameFog;
+            if (_sceneHost.FogEnabled == enabled)
+            {
+                if (value != enabled)
+                {
+                    OnPropertyChanged();
+                }
+                return;
+            }
+            _sceneHost.SetFogEnabled(enabled);
+            OnPropertyChanged();
+        }
+    }
+
     public Task LightingUpdateTask => _lightingUpdateTask;
+
+    public bool ShadowsEnabled
+    {
+        get => _sceneHost.ShadowsEnabled;
+        set
+        {
+            if (_sceneHost.ShadowsEnabled == value)
+            {
+                return;
+            }
+            _sceneHost.SetShadowsEnabled(value);
+            OnPropertyChanged();
+        }
+    }
+
+    public bool GlareEnabled
+    {
+        get => _sceneHost.GlareEnabled;
+        set
+        {
+            if (_sceneHost.GlareEnabled == value)
+            {
+                return;
+            }
+            _sceneHost.SetGlareEnabled(value);
+            OnPropertyChanged();
+        }
+    }
 
     public object? SelectedOutlineItem
     {
@@ -433,7 +508,11 @@ public sealed class MapEditorViewModel : INotifyPropertyChanged, IDisposable
     public bool HasLights => _lightDocuments.Count > 0;
     public string LightSummary => _lightDocuments.Count == 0
         ? "No stage lights loaded"
-        : $"{_lightDocuments.Count} light file(s), {_lightEntities.Count(entity => !entity.IsGlobal)} light record(s)";
+        : $"{_lightDocuments.Count} light file(s), {_lightEntities.Count(entity => !entity.IsGlobal)} light record(s), " +
+          $"active {PrimaryLightDocument?.DisplayName ?? "none"}" +
+          (string.IsNullOrWhiteSpace(_primaryLightSelectionReason)
+              ? string.Empty
+              : $" ({_primaryLightSelectionReason})");
     public bool CanAddLightGroup => PrimaryLightDocument != null;
     public bool CanEditSelectedLightStructure => _selectedEntity is LightEntity { IsGlobal: false };
     public string LightBoundsWarning => _selectedEntity is LightEntity { IsOutsideGroupBounds: true }
@@ -482,7 +561,18 @@ public sealed class MapEditorViewModel : INotifyPropertyChanged, IDisposable
             }
         }, cancellationToken);
 
-        ReplaceLightDocuments(loaded);
+        var selection = StageLightResolver.Resolve(
+            workspace,
+            loaded,
+            normalizedStage,
+            cancellationToken);
+        ReplaceLightDocuments(loaded, selection.Primary, selection.Reason);
+        // Register any ".abc" ambient-cube files shipped in the stage cache.
+        var abcStatus = Mgs4AmbientCubeLoader.RegisterFromWorkspace(workspace, snapshot);
+        if (!string.IsNullOrEmpty(abcStatus))
+        {
+            SetManipulationStatus(abcStatus);
+        }
         SetManipulationStatus(errors.Count == 0
             ? string.Empty
             : $"Some light files could not be loaded: {string.Join("; ", errors)}");
@@ -500,7 +590,7 @@ public sealed class MapEditorViewModel : INotifyPropertyChanged, IDisposable
             .Where(candidate => candidate.Path != path)
             .ToList();
         documents.Insert(0, session);
-        ReplaceLightDocuments(documents);
+        ReplaceLightDocuments(documents, session, "selected manually");
         SelectLight(_lightEntities.First(entity => ReferenceEquals(entity.Session, session)));
     }
 
@@ -1038,6 +1128,7 @@ public sealed class MapEditorViewModel : INotifyPropertyChanged, IDisposable
         {
             throw new InvalidOperationException(error ?? "The map edit could not be applied.");
         }
+        _sceneHost.InvalidateShadowTransforms();
     }
 
     private static Vector3? GetEntityPosition(MapEntity entity)
@@ -1355,6 +1446,7 @@ public sealed class MapEditorViewModel : INotifyPropertyChanged, IDisposable
         }
 
         var after = placement.Position.Value;
+        _sceneHost.InvalidateShadowTransforms();
         _history.RecordApplied(
             "move placement",
             () => ApplyPlacementHistoryPosition(placement, before.Value),
@@ -1393,6 +1485,7 @@ public sealed class MapEditorViewModel : INotifyPropertyChanged, IDisposable
         {
             entity.RefreshPositionFromSource();
         }
+        _sceneHost.InvalidateShadowTransforms();
     }
 
     private static string ResolveGeoReferenceName(uint hash)
@@ -1406,7 +1499,10 @@ public sealed class MapEditorViewModel : INotifyPropertyChanged, IDisposable
                 : resolved;
     }
 
-    private void ReplaceLightDocuments(IEnumerable<LitDocumentSession> documents)
+    private void ReplaceLightDocuments(
+        IEnumerable<LitDocumentSession> documents,
+        LitDocumentSession? resolvedPrimary = null,
+        string? selectionReason = null)
     {
         if (_selectedEntity is LightEntity)
         {
@@ -1424,8 +1520,15 @@ public sealed class MapEditorViewModel : INotifyPropertyChanged, IDisposable
             session.Changed += OnLightDocumentChanged;
         }
 
-        PrimaryLightDocument = _lightDocuments.FirstOrDefault(session => !session.IsSkyPass)
-            ?? _lightDocuments.FirstOrDefault();
+        // Selection is resolved from direct name/hash evidence, model-family
+        // correspondence, document structure, and only then file size. This avoids
+        // both alphabetical selection and a fragile "largest file always wins" rule.
+        PrimaryLightDocument = resolvedPrimary != null && _lightDocuments.Contains(resolvedPrimary)
+            ? resolvedPrimary
+            : _lightDocuments.FirstOrDefault(session => !session.IsSkyPass && !session.IsPreviewPass)
+              ?? _lightDocuments.FirstOrDefault(session => !session.IsSkyPass)
+              ?? _lightDocuments.FirstOrDefault();
+        _primaryLightSelectionReason = selectionReason ?? string.Empty;
         CancelManipulation();
         _history.Clear();
         RefreshLightOutline();
@@ -1598,27 +1701,16 @@ public sealed class MapEditorViewModel : INotifyPropertyChanged, IDisposable
 
     private static int LightDiscoveryRank(string fileName, string normalizedStage)
     {
-        var stem = NormalizeStageStem(Path.GetFileNameWithoutExtension(fileName));
+        var stem = StageLightResolver.NormalizeStem(Path.GetFileNameWithoutExtension(fileName));
         var matchesStage = normalizedStage.Length > 0 &&
             (stem.StartsWith(normalizedStage, StringComparison.OrdinalIgnoreCase) ||
              normalizedStage.StartsWith(stem, StringComparison.OrdinalIgnoreCase));
         var sky = fileName.Contains("sky", StringComparison.OrdinalIgnoreCase);
-        return (matchesStage ? 0 : 2) + (sky ? 1 : 0);
+        var preview = fileName.Contains("preview", StringComparison.OrdinalIgnoreCase);
+        return (matchesStage ? 0 : 2) + (sky ? 1 : 0) + (preview ? 100 : 0);
     }
 
-    private static string NormalizeStageStem(string? stem)
-    {
-        var normalized = (stem ?? string.Empty).Trim().ToLowerInvariant();
-        string[] suffixes = ["_sky_d", "_sky", "_d"];
-        foreach (var suffix in suffixes)
-        {
-            if (normalized.EndsWith(suffix, StringComparison.Ordinal))
-            {
-                return normalized[..^suffix.Length];
-            }
-        }
-        return normalized;
-    }
+    private static string NormalizeStageStem(string? stem) => StageLightResolver.NormalizeStem(stem);
 
     private static void ReplaceChildren(MapOutlineGroup group, IEnumerable<object> children)
     {
@@ -1664,6 +1756,20 @@ public sealed class MapEditorViewModel : INotifyPropertyChanged, IDisposable
 
     private void OnGcxEditorPropertyChanged(object? sender, PropertyChangedEventArgs eventArgs)
     {
+        if (eventArgs.PropertyName == nameof(GcxEditorViewModel.Fog))
+        {
+            ApplyGameFog();
+            OnPropertyChanged(nameof(HasGameFog));
+            OnPropertyChanged(nameof(GameFogSummary));
+            return;
+        }
+        if (eventArgs.PropertyName == nameof(GcxEditorViewModel.ColorFilter))
+        {
+            ApplyGameFilter();
+            OnPropertyChanged(nameof(HasGameFilter));
+            OnPropertyChanged(nameof(GameFilterSummary));
+            return;
+        }
         if (eventArgs.PropertyName == nameof(GcxEditorViewModel.SystemLighting))
         {
             ApplyGameLighting();
@@ -1677,6 +1783,51 @@ public sealed class MapEditorViewModel : INotifyPropertyChanged, IDisposable
         CancelManipulation();
         _history.Clear();
         ApplyGameLighting();
+        ApplyGameFilter();
+        ApplyGameFog();
+        OnPropertyChanged(nameof(HasGameFog));
+        OnPropertyChanged(nameof(GameFogSummary));
+    }
+
+    private void ApplyGameFog()
+    {
+        // Haven renders viewport 0. Never substitute the engine's black command-local
+        // defaults when the GCX command could not be decoded: that was the cause of
+        // entire stages becoming black at normal MGS4 world scales.
+        if (_gcxEditor.Fog is { } fog && fog.TryGetViewport(0, out var state))
+        {
+            _sceneHost.SetFog(state);
+            return;
+        }
+
+        if (_sceneHost.FogEnabled)
+        {
+            _sceneHost.SetFogEnabled(false);
+            OnPropertyChanged(nameof(FogEnabled));
+        }
+    }
+
+    private void ApplyGameFilter()
+    {
+        var settings = _gcxEditor.ColorFilter;
+        if (settings == null)
+        {
+            // Useful viewport fallback when the stage's hashed GCX command has not
+            // been decoded yet.  This never changes the GCX file.
+            _sceneHost.SetColorFilter(new SceneColorFilterSettings(
+                0.06f,
+                new Vector3(1.10f, 1.04f, 0.78f),
+                -0.015f,
+                1.08f,
+                Vector3.Zero,
+                Vector3.One,
+                0f));
+        }
+        else
+        {
+            _sceneHost.SetColorFilter(settings);
+        }
+        _sceneHost.SetColorFilterEnabled(_gameFilterEnabled);
     }
 
     private void SetLayerVisible(SceneLayer layer, bool visible)
@@ -1710,8 +1861,18 @@ public sealed class MapEditorViewModel : INotifyPropertyChanged, IDisposable
         CancelLightingBake();
         var primary = PrimaryLightDocument;
         var sceneLighting = _gcxEditor.SystemLighting;
+        if (sceneLighting != null)
+        {
+            _sceneHost.SetShadowLightDirection(
+                LightSampler.ToSurfaceLightDirection(sceneLighting.Direction));
+        }
+        else if (primary != null && primary.Document.Direction.Xyz.LengthSquared > 0.000001f)
+        {
+            _sceneHost.SetShadowLightDirection(
+                LightSampler.ToSurfaceLightDirection(primary.Document.Direction.Xyz));
+        }
         var samples = new Dictionary<PlacedModelReference, SampledLighting>(ReferenceEqualityComparer.Instance);
-        var stageModels = new List<(Model3D Model, LightVertexBaker.SpatialBakeInput Input)>();
+        var stageModels = new List<(Model3D Model, LightVertexBaker.SpatialBakeInput Input, uint ScopeHash)>();
         foreach (var model in _sceneHost.GetLayerModels(SceneLayer.VisualModels))
         {
             if (!_gameLightingEnabled || primary == null)
@@ -1724,10 +1885,15 @@ public sealed class MapEditorViewModel : INotifyPropertyChanged, IDisposable
             {
                 if (!samples.TryGetValue(placement, out var lighting))
                 {
+                    // Stage geometry is Background, not Character: sampling it as
+                    // Character bypasses the participation gate and pulls the
+                    // character ambient floor instead of the stage one.
                     lighting = LightSampler.Sample(
                         primary.Document,
                         placement.Position ?? model.Position,
-                        sceneLighting);
+                        sceneLighting,
+                        HavenStudio.Formats.Lit.LitLightingTarget.Background,
+                        ResolveLightingScopeHash(model.SourceAssetName));
                     samples[placement] = lighting;
                 }
                 LightVertexBaker.Apply(model, lighting);
@@ -1736,7 +1902,7 @@ public sealed class MapEditorViewModel : INotifyPropertyChanged, IDisposable
 
             if (LightVertexBaker.CaptureSpatialBake(model) is { } input)
             {
-                stageModels.Add((model, input));
+                stageModels.Add((model, input, ResolveLightingScopeHash(model.SourceAssetName)));
             }
         }
 
@@ -1761,8 +1927,29 @@ public sealed class MapEditorViewModel : INotifyPropertyChanged, IDisposable
         _sceneHost.ViewportControl.RequestNextFrameRendering();
     }
 
+    /// <summary>
+    /// Live exposure multiplier, driven by the toolbar slider. Tunable in
+    /// decimal without editing the GCX exposure command by hand.
+    /// </summary>
+    public void SetExposure(float exposureScale)
+    {
+        _sceneHost.ViewportControl.ExposureScale = exposureScale;
+    }
+
+    /// <summary>Live shadow coverage range from the toolbar slider (world units).</summary>
+    public void SetShadowRange(float shadowRange)
+    {
+        _sceneHost.ViewportControl.ShadowRange = shadowRange;
+    }
+
+    /// <summary>Live display contrast from the toolbar slider (1.0 = neutral).</summary>
+    public void SetContrast(float contrast)
+    {
+        _sceneHost.ViewportControl.Contrast = contrast;
+    }
+
     private async Task BakeStageLightingAsync(
-        IReadOnlyList<(Model3D Model, LightVertexBaker.SpatialBakeInput Input)> stageModels,
+        IReadOnlyList<(Model3D Model, LightVertexBaker.SpatialBakeInput Input, uint ScopeHash)> stageModels,
         HavenStudio.Formats.Lit.LitFile lighting,
         SceneLightSettings? sceneLighting,
         int version,
@@ -1773,12 +1960,15 @@ public sealed class MapEditorViewModel : INotifyPropertyChanged, IDisposable
             var results = await Task.Run(() =>
             {
                 var token = cancellation.Token;
-                var samples = new Dictionary<Vector3, SampledLighting>();
-                var baked = new List<(Model3D Model, float[] Colors)>(stageModels.Count);
-                foreach (var (model, input) in stageModels)
+                // Exact floating-point vertex positions are effectively unique and made
+                // the old preview retain one SampledLighting object per vertex. Quantized
+                // cells preserve smooth vertex interpolation while bounding RAM/CPU usage.
+                var samples = new Dictionary<LightingSampleKey, SampledLighting>();
+                var baked = new List<(Model3D Model, LightVertexBaker.BakedLighting Lighting)>(stageModels.Count);
+                foreach (var (model, input, scopeHash) in stageModels)
                 {
                     token.ThrowIfCancellationRequested();
-                    var colors = LightVertexBaker.BakeSpatialColors(
+                    var bakedLighting = LightVertexBaker.BakeSpatialLighting(
                         input.Positions,
                         input.Normals,
                         input.BaseColors,
@@ -1786,16 +1976,22 @@ public sealed class MapEditorViewModel : INotifyPropertyChanged, IDisposable
                         input.ModelMatrix,
                         position =>
                         {
-                            if (!samples.TryGetValue(position, out var sample))
+                            var key = LightingSampleKey.FromWorld(position, scopeHash);
+                            if (!samples.TryGetValue(key, out var sample))
                             {
-                                sample = LightSampler.Sample(lighting, position, sceneLighting);
-                                samples[position] = sample;
+                                sample = LightSampler.Sample(
+                                    lighting,
+                                    position,
+                                    sceneLighting,
+                                    HavenStudio.Formats.Lit.LitLightingTarget.Background,
+                                    scopeHash);
+                                samples[key] = sample;
                             }
                             return sample;
                         },
                         modulateBaseColor: true,
                         token);
-                    baked.Add((model, colors));
+                    baked.Add((model, bakedLighting));
                 }
                 return baked;
             }, cancellation.Token);
@@ -1808,9 +2004,9 @@ public sealed class MapEditorViewModel : INotifyPropertyChanged, IDisposable
                 return;
             }
 
-            foreach (var (model, colors) in results)
+            foreach (var (model, bakedLighting) in results)
             {
-                LightVertexBaker.ApplyBakedColors(model, colors);
+                LightVertexBaker.ApplyBakedLighting(model, bakedLighting);
             }
             _sceneHost.ViewportControl.RequestNextFrameRendering();
         }
@@ -1854,7 +2050,9 @@ public sealed class MapEditorViewModel : INotifyPropertyChanged, IDisposable
                 LightSampler.Sample(
                     PrimaryLightDocument.Document,
                     model.Position,
-                    _gcxEditor.SystemLighting));
+                    _gcxEditor.SystemLighting,
+                    HavenStudio.Formats.Lit.LitLightingTarget.Background,
+                    ResolveLightingScopeHash(model.SourceAssetName)));
         }
         _sceneHost.ViewportControl.RequestNextFrameRendering();
     }
@@ -1877,6 +2075,52 @@ public sealed class MapEditorViewModel : INotifyPropertyChanged, IDisposable
         var size = max - min;
         var radius = MathF.Max(size.X, MathF.Max(size.Y, size.Z)) * 0.5f;
         _sceneHost.ViewportControl.FocusOnBounds(center, radius <= 0.001f ? 1.0f : radius, 1.5f);
+    }
+
+    private static uint ResolveLightingScopeHash(string? sourceAssetName)
+    {
+        var stem = Path.GetFileNameWithoutExtension(sourceAssetName ?? string.Empty)
+            .Trim()
+            .ToLowerInvariant();
+
+        // Stage assets use a seven-character lighting owner prefix, for example
+        // s01a13a_ground -> s01a13a. The LT3 type-64 metadata stores exactly the
+        // Konami 24-bit hash of this owner.
+        if (stem.Length >= 7 &&
+            char.IsLetter(stem[0]) &&
+            char.IsDigit(stem[1]) &&
+            char.IsDigit(stem[2]) &&
+            char.IsLetter(stem[3]) &&
+            char.IsDigit(stem[4]) &&
+            char.IsDigit(stem[5]) &&
+            char.IsLetter(stem[6]))
+        {
+            return HavenStudio.Utils.String.HashString(stem[..7]);
+        }
+
+        return 0u;
+    }
+
+    private readonly record struct LightingSampleKey(int X, int Y, int Z, uint ScopeHash)
+    {
+        // 250 MGS4 world units is below the scale of the stage illumination volumes
+        // while reducing a million unique vertex keys to a few thousand cells.
+        private const float CellSize = 250.0f;
+
+        public static LightingSampleKey FromWorld(Vector3 position, uint scopeHash) => new(
+            Quantize(position.X),
+            Quantize(position.Y),
+            Quantize(position.Z),
+            scopeHash);
+
+        private static int Quantize(float value)
+        {
+            if (!float.IsFinite(value)) return 0;
+            var cell = MathF.Floor(value / CellSize);
+            if (cell <= int.MinValue) return int.MinValue;
+            if (cell >= int.MaxValue) return int.MaxValue;
+            return (int)cell;
+        }
     }
 
     private void OnPropertyChanged([CallerMemberName] string? propertyName = null)

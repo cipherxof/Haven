@@ -96,7 +96,9 @@ public static class MdnSceneBuilder
                     IndexCount = indices.Length,
                     Color = new Vector3(1.0f, 1.0f, 1.0f),
                     Alpha = 1.0f,
-                    MaterialIndex = -1
+                    MaterialIndex = -1,
+                    CastsShadow = true,
+                    ReceivesShadow = true
                 };
                 models.Add(model);
                 LightVertexBaker.Register(model, normalData, colorData);
@@ -118,7 +120,9 @@ public static class MdnSceneBuilder
                     IndexCount = indices.Length,
                     Color = new Vector3(1.0f, 1.0f, 1.0f),
                     Alpha = 1.0f,
-                    MaterialIndex = batch.Group
+                    MaterialIndex = batch.Group,
+                    CastsShadow = true,
+                    ReceivesShadow = true
                 };
                 ApplyPacketFlag(model, batch.Flag);
                 models.Add(model);
@@ -142,7 +146,7 @@ public static class MdnSceneBuilder
         public List<uint> Indices { get; } = new();
     }
 
-    // MDN packet flag bits, decoded from DG_ChainModel / _DG_DrawModelStage / DG_SetBlendMode.
+    // MDN packet flag bits.
     private const int FlagBlendEnable  = 0x10;   // bits 0-3 select the blend equation
     private const int FlagNoDepthWrite = 0x200;  // terrain/decal blend layers
     private const int FlagAlphaTest50  = 0x400;  // foliage cutout
@@ -225,11 +229,16 @@ public static class MdnSceneBuilder
                 }
                 for (var index = 0; index < vertexCount; index++)
                 {
-                    var packed = data[index];
+                    // DEC3N: big-endian u32, signed 11-11-10 bits (x, y, z),
+                    // normalized by 1023, 1023, 511.
+                    uint packed = (uint)data[index];
                     var target = index * 3;
-                    normals[target] = SignExtend10(packed) / 511f;
-                    normals[target + 1] = SignExtend10(packed >> 10) / 511f;
-                    normals[target + 2] = SignExtend10(packed >> 20) / 511f;
+                    uint xr = packed & 0x7FFu;
+                    uint yr = (packed >> 11) & 0x7FFu;
+                    uint zr = (packed >> 22) & 0x3FFu;
+                    normals[target] = (xr <= 1023u ? (int)xr : (int)xr - 2048) / 1023f;
+                    normals[target + 1] = (yr <= 1023u ? (int)yr : (int)yr - 2048) / 1023f;
+                    normals[target + 2] = (zr <= 511u ? (int)zr : (int)zr - 1024) / 511f;
                 }
                 break;
             }
@@ -268,12 +277,6 @@ public static class MdnSceneBuilder
             }
         }
         return normals;
-
-        static int SignExtend10(int value)
-        {
-            value &= 0x3FF;
-            return (value & 0x200) != 0 ? value - 0x400 : value;
-        }
     }
 
     private static float[] BuildColors(MdnVertexBuffer vb, int vertexCount)

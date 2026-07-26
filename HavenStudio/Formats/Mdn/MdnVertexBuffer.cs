@@ -55,8 +55,26 @@ namespace HavenStudio.Formats.Mdn;
             TypeTextureCoords4 => _tex4,
             TypeTextureCoords5 => _tex5,
             TypeTangents => _tangents,
-            _ => throw new InvalidDataException($"Unknown vertex element type: 0x{type:X}")
+            _ => GetOrCreateExtraElement(type)
         };
+
+        /// <summary>
+        /// Vertex element types that are not mapped to a named stream are kept
+        /// here instead of throwing, so unusual buffers still load.
+        /// </summary>
+        private readonly Dictionary<int, MdnVertexElement> _extraElements = new();
+
+        public IReadOnlyDictionary<int, MdnVertexElement> ExtraElements => _extraElements;
+
+        private MdnVertexElement GetOrCreateExtraElement(int type)
+        {
+            if (!_extraElements.TryGetValue(type, out var element))
+            {
+                element = new MdnVertexElement(type);
+                _extraElements[type] = element;
+            }
+            return element;
+        }
         
         public static MdnVertexBuffer ReadDefinitionFrom(EndianBinaryReader r)
         {
