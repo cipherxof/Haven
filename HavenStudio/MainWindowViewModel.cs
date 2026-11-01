@@ -215,6 +215,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
 
         var stageStem = Path.GetFileNameWithoutExtension(geomPath?.FileName ?? gcxPath?.FileName);
         await MapEditor.DiscoverLightsAsync(catalog, stageStem);
+        await MapEditor.DiscoverOctocamoAsync(catalog);
 
         _ = LoadMinimapAsync(catalog, loadGeneration);
     }

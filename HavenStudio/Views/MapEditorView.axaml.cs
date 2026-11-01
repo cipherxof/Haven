@@ -16,6 +16,22 @@ public partial class MapEditorView : UserControl
 
     private MainWindowViewModel? ViewModel => DataContext as MainWindowViewModel;
 
+    private void OnClearOctocamoFaceBox(object? sender, RoutedEventArgs eventArgs) =>
+        ViewModel?.MapEditor.ClearOctocamoFaceBox();
+
+    private void OnSelectAllFilteredOctocamoFaces(object? sender, RoutedEventArgs eventArgs) =>
+        ViewModel?.MapEditor.SelectAllFilteredOctocamoFaces();
+
+    private void OnClearOctocamoBatchSelection(object? sender, RoutedEventArgs eventArgs) =>
+        ViewModel?.MapEditor.ClearOctocamoBatchSelection();
+
+    private async void OnEditOctocamoBatch(object? sender, RoutedEventArgs eventArgs)
+    {
+        if (ViewModel is not { } viewModel || TopLevel.GetTopLevel(this) is not Window owner) return;
+        try { await new OctocamoBatchEditWindow(viewModel.MapEditor.CreateOctocamoBatchEditor()).ShowDialog(owner); }
+        catch (Exception exception) { HavenStudio.Utils.MessageDialog.Error("OctoCamo Batch Edit", exception.Message); }
+    }
+
     private async void OnSaveCollision(object? sender, RoutedEventArgs eventArgs)
     {
         if (ViewModel is not { } viewModel)

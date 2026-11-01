@@ -55,6 +55,17 @@ namespace Avalonia3DControl.Core.Models
 
         /// <summary>Force output alpha to 1.0 (opaque and alpha-tested cutout packets).</summary>
         public bool ForceOpaqueAlpha { get; set; } = false;
+
+        /// <summary>
+        /// Draw this editor helper after transparent/decal geometry while retaining normal
+        /// depth testing. This lets markers win against surface overlays without showing
+        /// through the opaque surface itself.
+        /// </summary>
+        public bool RenderAfterTransparent { get; set; } = false;
+        /// <summary>Draw an editor outline over all scene geometry, ignoring depth.</summary>
+        public bool RenderOnTop { get; set; } = false;
+        /// <summary>Order within the depth-independent editor outline pass.</summary>
+        public int RenderOnTopOrder { get; set; } = 0;
         // 几何数据
         public float[] Vertices { get; set; } = Array.Empty<float>();
         public float[] Positions { get; set; } = Array.Empty<float>();

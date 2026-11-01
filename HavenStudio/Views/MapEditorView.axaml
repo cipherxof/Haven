@@ -82,7 +82,7 @@
                         BorderBrush="{DynamicResource PanelBorderBrush}"
                         BorderThickness="1"
                         Padding="6">
-                    <Grid RowDefinitions="Auto,Auto,Auto,Auto,*" RowSpacing="6">
+                    <Grid RowDefinitions="Auto,Auto,Auto,Auto,Auto,*" RowSpacing="6">
                         <TextBlock FontWeight="SemiBold" Text="Map Outline"/>
                         <WrapPanel Grid.Row="1" Orientation="Horizontal">
                             <Button Content="Show All" Click="OnShowAll"/>
@@ -110,7 +110,50 @@
                                        IsVisible="{Binding MapEditor.HasManipulationStatus}"
                                        Text="{Binding MapEditor.ManipulationStatus}"/>
                         </StackPanel>
-                        <TreeView Grid.Row="4"
+                        <Grid Grid.Row="4" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto" RowSpacing="4"
+                              IsVisible="{Binding MapEditor.OctocamoViewEnabled}">
+                            <DockPanel>
+                                <Button DockPanel.Dock="Right" Content="Clear list" Click="OnClearOctocamoFaceBox"/>
+                                <TextBlock FontWeight="SemiBold" Text="OctoCamo faces in box" VerticalAlignment="Center"/>
+                            </DockPanel>
+                            <TextBlock Grid.Row="1" Text="{Binding MapEditor.OctocamoBoxSummary}" TextWrapping="Wrap"
+                                       Foreground="{DynamicResource MutedTextBrush}"/>
+                            <TextBox Grid.Row="2" Watermark="Filter address / material / block"
+                                     Text="{Binding MapEditor.OctocamoFaceFilter}"/>
+                            <WrapPanel Grid.Row="3">
+                                <Button Content="Select all filtered" Click="OnSelectAllFilteredOctocamoFaces"/>
+                                <Button Content="Clear selection" Click="OnClearOctocamoBatchSelection"/>
+                                <Button Content="Edit selected camo…" IsEnabled="{Binding MapEditor.CanEditOctocamoBatch}"
+                                        Click="OnEditOctocamoBatch"/>
+                            </WrapPanel>
+                            <TextBlock Grid.Row="4" Text="{Binding MapEditor.OctocamoBatchSummary}" TextWrapping="Wrap"
+                                       Foreground="{DynamicResource MutedTextBrush}"/>
+                            <ListBox Grid.Row="5" MaxHeight="260"
+                                     ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                                     ItemsSource="{Binding MapEditor.FilteredOctocamoBoxFaces}"
+                                     SelectedItem="{Binding MapEditor.SelectedOctocamoFace, Mode=TwoWay}">
+                                <ListBox.Styles>
+                                    <Style Selector="ListBoxItem">
+                                        <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+                                    </Style>
+                                </ListBox.Styles>
+                                <ListBox.ItemTemplate>
+                                    <DataTemplate x:DataType="editors:OctocamoFaceCandidate">
+                                        <Grid ColumnDefinitions="Auto,*" ColumnSpacing="6" ToolTip.Tip="{Binding ScopeText}">
+                                            <CheckBox IsChecked="{Binding IsBatchSelected, Mode=TwoWay}" VerticalAlignment="Top"
+                                                      ToolTip.Tip="Include this face in the batch edit"/>
+                                            <StackPanel Grid.Column="1" Spacing="2">
+                                            <TextBlock Text="{Binding AddressText}" FontWeight="SemiBold"/>
+                                            <TextBlock Text="{Binding MaterialText}" TextWrapping="Wrap"/>
+                                            <TextBlock Text="{Binding DetailsText}" TextWrapping="Wrap"
+                                                       Foreground="{DynamicResource MutedTextBrush}"/>
+                                            </StackPanel>
+                                        </Grid>
+                                    </DataTemplate>
+                                </ListBox.ItemTemplate>
+                            </ListBox>
+                        </Grid>
+                        <TreeView Grid.Row="5"
                                   Name="MapOutlineTreeView"
                                   ItemsSource="{Binding MapEditor.Outline}"
                                   SelectedItem="{Binding MapEditor.SelectedOutlineItem}"
@@ -175,8 +218,20 @@
                         Background="{DynamicResource PanelBackgroundBrush}"
                         BorderBrush="{DynamicResource PanelBorderBrush}"
                         BorderThickness="1"
-                        ToolTip.Tip="Click to select. Drag to move; hold Shift to adjust height only, or hold X, Y, or Z to constrain an axis.">
-                    <ContentControl Content="{Binding ViewportControl}"/>
+                        ToolTip.Tip="Click to select. In OctoCamo view, Shift + left-drag or enable Box-select faces to list overlapping contact faces.">
+                    <Grid>
+                        <ContentControl Content="{Binding ViewportControl}"/>
+                        <Canvas IsHitTestVisible="False">
+                            <Border Canvas.Left="{Binding MapEditor.SelectionBoxLeft}"
+                                    Canvas.Top="{Binding MapEditor.SelectionBoxTop}"
+                                    Width="{Binding MapEditor.SelectionBoxWidth}"
+                                    Height="{Binding MapEditor.SelectionBoxHeight}"
+                                    IsVisible="{Binding MapEditor.SelectionBoxVisible}"
+                                    Background="#333B82F6"
+                                    BorderBrush="#FF60A5FA"
+                                    BorderThickness="1"/>
+                        </Canvas>
+                    </Grid>
                 </Border>
 
                 <Border Grid.Column="4"
@@ -412,6 +467,46 @@
                                                     <TextBlock Text="Attribute"/>
                                                     <TextBox Grid.Column="1" Text="{Binding GeoPrim.AttributeText, UpdateSourceTrigger=LostFocus}"/>
                                                 </Grid>
+                                            </StackPanel>
+                                            <StackPanel Spacing="6" IsVisible="{Binding HasOctocamo}">
+                                                <TextBlock FontWeight="SemiBold" Text="OctoCamo contact"/>
+                                                <TextBlock Text="Contact material / muscle-suit pattern"/>
+                                                <ComboBox ItemsSource="{Binding Octocamo.Materials}"
+                                                          IsEnabled="{Binding Octocamo.CanEdit}"
+                                                          SelectedItem="{Binding Octocamo.SelectedMaterial, Mode=TwoWay}">
+                                                    <ComboBox.ItemTemplate>
+                                                        <DataTemplate x:DataType="editors:OctocamoMaterialOption">
+                                                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                                                <Image Source="{Binding Preview}" Width="40" Height="32" Stretch="UniformToFill"/>
+                                                                <TextBlock Text="{Binding DisplayName}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center"/>
+                                                            </StackPanel>
+                                                        </DataTemplate>
+                                                    </ComboBox.ItemTemplate>
+                                                </ComboBox>
+                                                <TextBlock Text="{Binding Octocamo.PatternText}" TextWrapping="Wrap"/>
+                                                <Image Source="{Binding Octocamo.PatternPreview}" Width="160" Height="160" Stretch="Uniform" HorizontalAlignment="Left"/>
+                                                <TextBlock Text="Cloth colour"/>
+                                                <ComboBox ItemsSource="{Binding Octocamo.Colours}"
+                                                          IsEnabled="{Binding Octocamo.CanEdit}"
+                                                          SelectedItem="{Binding Octocamo.SelectedColour, Mode=TwoWay}">
+                                                    <ComboBox.ItemTemplate>
+                                                        <DataTemplate x:DataType="editors:OctocamoColourOption">
+                                                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                                                <Border Width="20" Height="16" Background="{Binding Preview}"/>
+                                                                <TextBlock Text="{Binding DisplayName}" TextTrimming="CharacterEllipsis"/>
+                                                            </StackPanel>
+                                                        </DataTemplate>
+                                                    </ComboBox.ItemTemplate>
+                                                </ComboBox>
+                                                <StackPanel Orientation="Horizontal" Spacing="6">
+                                                    <Border Width="36" Height="24" Background="{Binding Octocamo.ClothPreview}"/>
+                                                    <TextBlock Text="{Binding Octocamo.ClothText}" VerticalAlignment="Center"/>
+                                                </StackPanel>
+                                                <TextBlock Text="{Binding Octocamo.Status}" TextWrapping="Wrap"/>
+                                                <TextBlock Text="{Binding Octocamo.ScopeText}" TextWrapping="Wrap"/>
+                                                <TextBlock Foreground="{DynamicResource MutedTextBrush}"
+                                                           Text="{Binding Octocamo.PreviewExplanation}"
+                                                           TextWrapping="Wrap"/>
                                             </StackPanel>
                                         </StackPanel>
                                     </DataTemplate>

@@ -1,0 +1,55 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:editors="clr-namespace:HavenStudio.Editors"
+        x:Class="HavenStudio.Windows.OctocamoBatchEditWindow"
+        x:DataType="editors:OctocamoBatchEditViewModel"
+        Title="Edit selected OctoCamo faces" Width="720" Height="680" MinWidth="560" MinHeight="500"
+        WindowStartupLocation="CenterOwner"
+        Background="{DynamicResource PanelBackgroundBrush}" Foreground="{DynamicResource AppTextBrush}">
+    <Grid Margin="20" RowDefinitions="*,Auto" RowSpacing="12">
+        <ScrollViewer VerticalScrollBarVisibility="Auto">
+            <StackPanel Spacing="12">
+                <TextBlock Text="Edit selected OctoCamo faces" FontSize="22" FontWeight="SemiBold"/>
+                <TextBlock Text="{Binding Summary}" TextWrapping="Wrap"/>
+                <TextBlock Text="{Binding Scope}" TextWrapping="Wrap"/>
+                <DockPanel>
+                    <Button DockPanel.Dock="Right" Content="Leave unchanged" Click="OnKeepMaterial"/>
+                    <TextBlock Text="Contact material / muscle-suit pattern" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                </DockPanel>
+                <TextBlock Text="{Binding CurrentMaterial, StringFormat='Currently: {0}'}" TextWrapping="Wrap"/>
+                <ComboBox ItemsSource="{Binding Materials}" SelectedItem="{Binding SelectedMaterial, Mode=TwoWay}"
+                          PlaceholderText="Leave material unchanged" HorizontalAlignment="Stretch">
+                    <ComboBox.ItemTemplate>
+                        <DataTemplate x:DataType="editors:OctocamoBatchMaterial">
+                            <TextBlock Text="{Binding DisplayName}" TextWrapping="Wrap"/>
+                        </DataTemplate>
+                    </ComboBox.ItemTemplate>
+                </ComboBox>
+                <Image Source="{Binding PatternPreview}" Width="140" Height="140" Stretch="Uniform" HorizontalAlignment="Left"/>
+                <DockPanel>
+                    <Button DockPanel.Dock="Right" Content="Leave unchanged" Click="OnKeepColour"/>
+                    <TextBlock Text="Cloth colour" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                </DockPanel>
+                <TextBlock Text="{Binding CurrentColour, StringFormat='Currently: {0}'}" TextWrapping="Wrap"/>
+                <ComboBox ItemsSource="{Binding Colours}" SelectedItem="{Binding SelectedColour, Mode=TwoWay}"
+                          PlaceholderText="Leave cloth colour unchanged" HorizontalAlignment="Stretch">
+                    <ComboBox.ItemTemplate>
+                        <DataTemplate x:DataType="editors:OctocamoBatchColour">
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <Border Width="24" Height="24" Background="{Binding Preview}"/>
+                                <TextBlock Text="{Binding DisplayName}" VerticalAlignment="Center"/>
+                            </StackPanel>
+                        </DataTemplate>
+                    </ComboBox.ItemTemplate>
+                </ComboBox>
+                <TextBlock Text="Only options compatible with every selected face and its shared aliases are listed. Contact material also determines physical surface behaviour; this is not a stage-wide texture remap."
+                           TextWrapping="Wrap"/>
+                <TextBlock Text="{Binding Status}" TextWrapping="Wrap"/>
+            </StackPanel>
+        </ScrollViewer>
+        <StackPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8">
+            <Button Content="Cancel" Click="OnCancel"/>
+            <Button Content="Apply changes" IsEnabled="{Binding CanApply}" Click="OnApply"/>
+        </StackPanel>
+    </Grid>
+</Window>

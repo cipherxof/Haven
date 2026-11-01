@@ -17,6 +17,8 @@ public enum SceneLayer
 {
     VisualModels,
     Collision,
+    OctocamoSelection,
+    OctocamoFocus,
     Effects,
     Lights,
     Grid,

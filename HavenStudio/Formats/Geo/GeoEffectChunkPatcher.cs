@@ -38,7 +38,7 @@ public static class GeoEffectChunkPatcher
 
             var rotationOffset = GeoEffectLayout.GetRotationOffset(effect);
             EnsureRange(chunk, rotationOffset, 6, effect);
-            WriteInt16(chunk, rotationOffset, EncodeAngle(effect.RotationX), endianness);
+            WriteInt16(chunk, rotationOffset, EncodeRotationX(effect.RotationX), endianness);
             WriteInt16(chunk, rotationOffset + 2, EncodeAngle(effect.RotationY), endianness);
             WriteInt16(chunk, rotationOffset + 4, EncodeAngle(effect.RotationZ), endianness);
         }
@@ -48,6 +48,14 @@ public static class GeoEffectChunkPatcher
     {
         return value * MathF.PI / 32768f;
     }
+
+    // GEOM's X game-angle turns in the opposite direction from the X axis used
+    // by Haven's OpenTK scene. Keep GeoEffect rotations in editor/visual space
+    // and convert only at the binary boundary. Y and Z use the same sign.
+    public static float DecodeRotationX(short value) => -DecodeAngle(value);
+
+    public static short EncodeRotationX(float value) => EncodeAngle(-value);
+
 
     public static short EncodeAngle(float value)
     {

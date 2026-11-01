@@ -2,6 +2,7 @@ using OpenTK.Graphics.OpenGL4;
 using OpenTK.Mathematics;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using Avalonia3DControl.Core;
 using Avalonia3DControl.Core.Models;
 using Avalonia3DControl.Core.Lighting;
@@ -59,7 +60,7 @@ namespace Avalonia3DControl.Rendering.OpenGL
             }
             
             // 渲染所有模型
-            RenderModels(models, shaderProgram);
+            RenderModels(models, camera, shaderProgram);
             
             // 渲染包围盒
             if (boundingBoxRenderer != null && boundingBoxRenderer.Visible)
@@ -144,19 +145,70 @@ namespace Avalonia3DControl.Rendering.OpenGL
         /// <summary>
         /// 渲染所有模型
         /// </summary>
-        private void RenderModels(List<Model3D> models, int shaderProgram)
+        private void RenderModels(List<Model3D> models, Camera camera, int shaderProgram)
         {
             // Draw opaque geometry first so translucent overlays remain visible regardless
             // of the order in which scene layers were loaded or replaced.
-            RenderModels(models, shaderProgram, transparent: false);
-            RenderModels(models, shaderProgram, transparent: true);
+            RenderModels(models, shaderProgram, transparent: false, renderAfterTransparent: false);
+            RenderModels(models, shaderProgram, transparent: true, renderAfterTransparent: false);
+
+            // Selected editor markers need to remain legible where floor decals and terrain
+            // layers intersect them. Draw them after those layers, but retain normal depth
+            // testing so the opaque floor still hides the portion placed beneath it.
+            RenderModels(models, shaderProgram, transparent: false, renderAfterTransparent: true);
+            RenderModels(models, shaderProgram, transparent: true, renderAfterTransparent: true);
+            RenderOnTopModels(models, camera, shaderProgram);
         }
 
-        private void RenderModels(List<Model3D> models, int shaderProgram, bool transparent)
+        private void RenderOnTopModels(List<Model3D> models, Camera camera, int mainShaderProgram)
+        {
+            if (!models.Exists(model => model.Visible && model.RenderOnTop)) return;
+            int outlineShader = _shaderManager.GetShaderProgram(ShadingMode.Vertex);
+            if (outlineShader == 0) return;
+
+            GL.UseProgram(outlineShader);
+            SetupCameraMatrices(camera, outlineShader);
+            GL.Disable(EnableCap.DepthTest);
+            GL.DepthMask(false);
+            GL.LineWidth(2f);
+            try
+            {
+                foreach (var model in models.Where(model => model.Visible && model.RenderOnTop)
+                    .OrderBy(model => model.RenderOnTopOrder))
+                {
+                    if (model.VerticesNeedUpdate)
+                    {
+                        _modelRenderer.UpdateModelVertexBuffer(model);
+                        model.VerticesNeedUpdate = false;
+                    }
+                    if (model.IndicesNeedUpdate)
+                    {
+                        _modelRenderer.UpdateModelIndexBuffer(model);
+                        model.IndicesNeedUpdate = false;
+                    }
+                    _modelRenderer.RenderModel(model, outlineShader, model.RenderModeOverride ?? RenderMode.Line);
+                }
+            }
+            finally
+            {
+                GL.LineWidth(1f);
+                GL.DepthMask(true);
+                GL.Enable(EnableCap.DepthTest);
+                GL.UseProgram(mainShaderProgram);
+            }
+        }
+
+        private void RenderModels(
+            List<Model3D> models,
+            int shaderProgram,
+            bool transparent,
+            bool renderAfterTransparent)
         {
             foreach (var model in models)
             {
-                if (model.Visible && ModelRenderer.IsTransparent(model) == transparent)
+                if (model.Visible && !model.RenderOnTop &&
+                    model.RenderAfterTransparent == renderAfterTransparent &&
+                    ModelRenderer.IsTransparent(model) == transparent)
                 {
                     // 如果顶点需要更新，更新顶点缓冲区
                     if (model.VerticesNeedUpdate)

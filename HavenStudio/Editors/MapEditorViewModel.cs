@@ -8,6 +8,7 @@ using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 using Avalonia;
+using Avalonia.Controls;
 using Avalonia3DControl;
 using Avalonia3DControl.Core.Models;
 using HavenStudio.Editors.GcxEditing;
@@ -247,6 +248,8 @@ public sealed record PrimEntity(
     : MapEntity(GeoPrim?.DisplayName ?? Prim.DisplayName)
 {
     public bool HasGeoPrim => GeoPrim != null;
+    public OctocamoSelection? Octocamo { get; init; }
+    public bool HasOctocamo => Octocamo != null;
 }
 
 public sealed record EffectEntity(CollisionEffectViewModel Effect)
@@ -264,7 +267,7 @@ public sealed class MapOutlineGroup
     public ObservableCollection<object> Children { get; } = [];
 }
 
-public sealed class MapEditorViewModel : INotifyPropertyChanged, IDisposable
+public sealed partial class MapEditorViewModel : INotifyPropertyChanged, IDisposable
 {
     private readonly SceneHost _sceneHost;
     private readonly CollisionEditorViewModel _collisionEditor;
@@ -612,14 +615,33 @@ public sealed class MapEditorViewModel : INotifyPropertyChanged, IDisposable
         SelectEntity(entity);
     }
 
-    public void PointerPressed(Point point, OpenGL3DControl control)
+    public void PointerPressed(Point point, OpenGL3DControl control, bool boxSelectionModifier = false)
     {
+        if (_octocamoViewEnabled && (boxSelectionModifier || BoxSelectOctocamoFaces))
+        {
+            _manipulationController.Cancel();
+            _selectionBoxStart = ClampToViewport(point, control);
+            UpdateSelectionBox(_selectionBoxStart.Value, _selectionBoxStart.Value, visible: false);
+            return;
+        }
         var entity = PickEntityAt(point, control);
         _manipulationController.PointerPressed(point, CreateManipulationTarget(entity));
     }
 
     public void PointerMoved(Point point, OpenGL3DControl control, bool heightOnly)
     {
+        if (_selectionBoxStart is { } selectionStart)
+        {
+            var current = ClampToViewport(point, control);
+            var dx = current.X - selectionStart.X;
+            var dy = current.Y - selectionStart.Y;
+            var scaling = TopLevel.GetTopLevel(control)?.RenderScaling ?? 1.0;
+            var visible = _selectionBoxVisible ||
+                (dx * dx + dy * dy) * scaling * scaling >=
+                MapManipulationController.DragThreshold * MapManipulationController.DragThreshold;
+            UpdateSelectionBox(selectionStart, current, visible);
+            return;
+        }
         if (_manipulationController.TryUpdate(point, control, heightOnly, out var update))
         {
             ProcessDragUpdate(update);
@@ -632,6 +654,15 @@ public sealed class MapEditorViewModel : INotifyPropertyChanged, IDisposable
 
     public void PointerReleased(Point point, OpenGL3DControl control, bool heightOnly)
     {
+        if (_selectionBoxStart is { } selectionStart)
+        {
+            var wasSelecting = _selectionBoxVisible;
+            var current = ClampToViewport(point, control);
+            var rectangle = NormalizeSelectionRectangle(selectionStart, current);
+            ResetSelectionBox();
+            if (wasSelecting) CompleteOctocamoBoxSelection(rectangle, control);
+            return;
+        }
         if (_manipulationController.TryUpdate(point, control, heightOnly, out var update))
         {
             ProcessDragUpdate(update);
@@ -673,6 +704,7 @@ public sealed class MapEditorViewModel : INotifyPropertyChanged, IDisposable
 
     public void CancelManipulation()
     {
+        ResetSelectionBox();
         _manipulationController.Cancel();
         _history.CancelCoalesced();
     }
@@ -728,6 +760,7 @@ public sealed class MapEditorViewModel : INotifyPropertyChanged, IDisposable
         {
             await _collisionEditor.SaveAsync(cancellationToken);
         }
+        await SaveOctocamoMappingAsync(cancellationToken);
         foreach (var session in _lightDocuments.Where(session => session.IsDirty))
         {
             cancellationToken.ThrowIfCancellationRequested();
@@ -937,6 +970,7 @@ public sealed class MapEditorViewModel : INotifyPropertyChanged, IDisposable
         }
         CancelLightingBake();
         CancelManipulation();
+        _octocamoCatalog?.Dispose();
     }
 
     private void ProcessDragUpdate(MapDragUpdate update)
@@ -1182,6 +1216,8 @@ public sealed class MapEditorViewModel : INotifyPropertyChanged, IDisposable
 
     private void OnCollisionSelectionChanged()
     {
+        SynchronizeOctocamoBoxSelection();
+        RefreshOctocamoFocusWireframe();
         if (_collisionEditor.SelectedEffect is { } effect)
         {
             SetSelectedEntity(new EffectEntity(effect), effect);
@@ -1190,7 +1226,14 @@ public sealed class MapEditorViewModel : INotifyPropertyChanged, IDisposable
         if (_collisionEditor.SelectedPrim is { } prim)
         {
             var geoPrim = _collisionEditor.SelectedGeoPrim;
-            SetSelectedEntity(new PrimEntity(prim, geoPrim), (object?)geoPrim ?? prim);
+            var octocamo = _octocamoViewEnabled && geoPrim?.Poly != null &&
+                prim.ParentBlock is { } primBlock && _octocamoCatalog != null
+                ? new OctocamoSelection(geoPrim, primBlock.Block, _octocamoCatalog,
+                    OnOctocamoEdited, _collisionEditor.SetPolygonAttributeWithAliases,
+                    muscle => OctocamoMusclePatternView = muscle)
+                : null;
+            SetSelectedEntity(new PrimEntity(prim, geoPrim) { Octocamo = octocamo },
+                (object?)geoPrim ?? prim);
             return;
         }
         if (_collisionEditor.SelectedBlock is { } block)

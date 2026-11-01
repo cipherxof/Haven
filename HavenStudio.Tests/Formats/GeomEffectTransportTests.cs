@@ -6,6 +6,198 @@ namespace HavenStudio.Tests.Formats;
 
 public sealed class GeomEffectTransportTests
 {
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void Surgical_save_keeps_an_edited_alias_and_synchronizes_repeated_saves(bool editLastAlias)
+    {
+        var original = BuildGeomFixture();
+        var geometry = new GeomFile(new MemoryStream(original, writable: false), Endianness.Big);
+        var aliasGeometry = new GeomFile(new MemoryStream(original, writable: false), Endianness.Big);
+        try
+        {
+            var first = Assert.Single(geometry.GeomBlocks);
+            var alias = Assert.Single(aliasGeometry.GeomBlocks);
+            geometry.GeomBlocks.Add(alias);
+            geometry.BlockFaceData.Add(alias, aliasGeometry.BlockFaceData[alias]);
+            var firstPrimitive = Assert.Single(geometry.BlockFaceData[first]);
+            var aliasPrimitive = Assert.Single(geometry.BlockFaceData[alias]);
+            var selected = editLastAlias ? aliasPrimitive : firstPrimitive;
+            selected.Poly![0].Attribute = 0x12C0;
+            using var output = new MemoryStream();
+            geometry.SaveSurgicalEdits(original, output, Endianness.Big);
+            var saved = output.ToArray();
+            Assert.Equal((ushort)0x12C0,
+                BinaryPrimitives.ReadUInt16BigEndian(saved.AsSpan(selected.Offset + 0x26, 2)));
+            Assert.Equal((ushort)0x12C0, firstPrimitive.Poly![0].Attribute);
+            Assert.Equal((ushort)0x12C0, aliasPrimitive.Poly![0].Attribute);
+            Assert.All(original.Select((value, index) => (value, index))
+                .Where(item => item.value != saved[item.index]),
+                item => Assert.InRange(item.index, selected.Offset + 0x26, selected.Offset + 0x27));
+            using var secondOutput = new MemoryStream();
+            geometry.SaveSurgicalEdits(saved, secondOutput, Endianness.Big);
+            Assert.Equal(saved, secondOutput.ToArray());
+            var crypto = new HavenStudio.CryptoService();
+            Assert.Equal(saved, crypto.Decrypt(crypto.Encrypt(saved, "stage/n023a"), "stage/n023a"));
+        }
+        finally { geometry.CloseStream(); aliasGeometry.CloseStream(); }
+    }
+
+    [Fact]
+    public void Surgical_save_rejects_conflicting_edited_aliases()
+    {
+        var original = BuildGeomFixture();
+        var geometry = new GeomFile(new MemoryStream(original, writable: false), Endianness.Big);
+        var aliasGeometry = new GeomFile(new MemoryStream(original, writable: false), Endianness.Big);
+        try
+        {
+            var first = Assert.Single(geometry.GeomBlocks);
+            var alias = Assert.Single(aliasGeometry.GeomBlocks);
+            geometry.GeomBlocks.Add(alias);
+            geometry.BlockFaceData.Add(alias, aliasGeometry.BlockFaceData[alias]);
+            Assert.Single(geometry.BlockFaceData[first]).Poly![0].Attribute = 0x12C0;
+            Assert.Single(geometry.BlockFaceData[alias]).Poly![0].Attribute = 0x6300;
+            using var output = new MemoryStream();
+            Assert.Throws<InvalidDataException>(() => geometry.SaveSurgicalEdits(original, output, Endianness.Big));
+            Assert.Equal(0, output.Length);
+        }
+        finally { geometry.CloseStream(); aliasGeometry.CloseStream(); }
+    }
+
+    [Fact]
+    public void Surgical_edit_save_patches_collision_attributes_without_rebuilding_geom()
+    {
+        var original = BuildGeomFixture();
+        var geometry = new GeomFile(new MemoryStream(original, writable: false), Endianness.Big);
+        var block = Assert.Single(geometry.GeomBlocks);
+        var primitive = Assert.Single(geometry.BlockFaceData[block]);
+        var polygon = Assert.Single(primitive.Poly!);
+        block.Attribute = 0x1122334455667788;
+        primitive.Attribute = 0x8877665544332211;
+        polygon.Attribute = 0x03C0;
+
+        using var output = new MemoryStream();
+        geometry.SaveSurgicalEdits(original, output, Endianness.Big);
+        geometry.CloseStream();
+        var patched = output.ToArray();
+
+        Assert.Equal(original.Length, patched.Length);
+        var permitted = new HashSet<int>(
+            Enumerable.Range(block.Offset + 0x18, sizeof(ulong))
+                .Concat(Enumerable.Range(primitive.Offset + 0x18, sizeof(ulong)))
+                .Concat(Enumerable.Range(primitive.Offset + 0x20 + 6, sizeof(ushort))));
+        Assert.All(
+            original.Select((value, index) => (value, index))
+                .Where(item => item.value != patched[item.index]),
+            item => Assert.Contains(item.index, permitted));
+
+        var reloaded = new GeomFile(new MemoryStream(patched, writable: false), Endianness.Big);
+        var reloadedBlock = Assert.Single(reloaded.GeomBlocks);
+        var reloadedPrimitive = Assert.Single(reloaded.BlockFaceData[reloadedBlock]);
+        Assert.Equal(0x1122334455667788UL, reloadedBlock.Attribute);
+        Assert.Equal(0x8877665544332211UL, reloadedPrimitive.Attribute);
+        Assert.Equal((ushort)0x03C0, Assert.Single(reloadedPrimitive.Poly!).Attribute);
+        reloaded.CloseStream();
+    }
+
+    [Fact]
+    public void Surgical_effect_save_preserves_every_byte_outside_chunk_6()
+    {
+        var source = LoadGeom();
+        source.GeomChunk6 = BuildPositionedEffectChunk(name: 0x11223344, x: 1, y: 2, z: 3);
+        source.GeoEffects.Clear();
+        source.GeoEffects.Add(new GeoEffect
+        {
+            Name = 0x11223344,
+            Index = 2,
+            ChunkOffset = 0,
+            X = 1,
+            Y = 2,
+            Z = 3,
+            W = 1
+        });
+        var target = LoadGeom();
+        target.TransportEffectsFrom(source);
+        using var canonicalOutput = new MemoryStream();
+        target.Save(canonicalOutput, Endianness.Big);
+        target.CloseStream();
+        var canonical = canonicalOutput.ToArray();
+
+        using var canonicalSource = new MemoryStream(canonical, writable: false);
+        var geometry = new GeomFile(canonicalSource, Endianness.Big);
+        var effect = Assert.Single(geometry.GeoEffects);
+        effect.X = 100;
+        effect.Y = 200;
+        effect.Z = 300;
+        geometry.CloseStream();
+        using var patchedOutput = new MemoryStream();
+        geometry.SaveEffectTransforms(canonical, patchedOutput, Endianness.Big);
+        var patched = patchedOutput.ToArray();
+
+        Assert.Equal(canonical.Length, patched.Length);
+        using var patchedSource = new MemoryStream(patched, writable: false);
+        var reloaded = new GeomFile(patchedSource, Endianness.Big);
+        var props = reloaded.GetChunkFromType(GeoChunkType.PROPS)!;
+        Assert.Equal(canonical.AsSpan(0, props.DataOffset).ToArray(), patched.AsSpan(0, props.DataOffset).ToArray());
+        var propsEnd = props.DataOffset + props.Size;
+        Assert.Equal(canonical.AsSpan(propsEnd).ToArray(), patched.AsSpan(propsEnd).ToArray());
+        var moved = Assert.Single(reloaded.GeoEffects);
+        Assert.Equal(100f, moved.X);
+        Assert.Equal(200f, moved.Y);
+        Assert.Equal(300f, moved.Z);
+        reloaded.CloseStream();
+    }
+
+    [Fact]
+    public void Surgical_effect_save_can_add_rotation_storage_without_rewriting_earlier_chunks()
+    {
+        var geometry = LoadGeom();
+        geometry.GeomChunk6 = BuildPositionedEffectChunk(name: 0x11223344, x: 1, y: 2, z: 3);
+        geometry.GeoEffects.Clear();
+        geometry.GeoEffects.Add(new GeoEffect
+        {
+            Name = 0x11223344,
+            Index = 2,
+            ChunkOffset = 0,
+            X = 1,
+            Y = 2,
+            Z = 3,
+            W = 1
+        });
+        using var canonicalOutput = new MemoryStream();
+        geometry.Save(canonicalOutput, Endianness.Big);
+        geometry.CloseStream();
+        var canonical = canonicalOutput.ToArray();
+
+        var loaded = new GeomFile(new MemoryStream(canonical, writable: false), Endianness.Big);
+        var groups = loaded.GetChunkFromType(GeoChunkType.GROUPS)!;
+        var references = loaded.GetChunkFromType(GeoChunkType.REFS)!;
+        var layout = GeoEffectChunkBuilder.Capture(loaded.GeomChunk6, loaded.GeoEffects, Endianness.Big);
+        var effect = Assert.Single(loaded.GeoEffects);
+        effect.Index |= 4 << 10;
+        effect.RotationY = MathF.PI / 2f;
+        loaded.GeomChunk6 = layout.Rebuild(loaded.GeoEffects);
+        loaded.CloseStream();
+
+        using var patchedOutput = new MemoryStream();
+        loaded.SaveEffectTransforms(canonical, patchedOutput, Endianness.Big);
+        var patched = patchedOutput.ToArray();
+        Assert.Equal(canonical.Length + 16, patched.Length);
+        Assert.Equal(
+            canonical.AsSpan(groups.DataOffset, groups.Size).ToArray(),
+            patched.AsSpan(groups.DataOffset, groups.Size).ToArray());
+        Assert.Equal(
+            canonical.AsSpan(references.DataOffset, references.Size).ToArray(),
+            patched.AsSpan(references.DataOffset, references.Size).ToArray());
+
+        var reloaded = new GeomFile(new MemoryStream(patched, writable: false), Endianness.Big);
+        Assert.All(reloaded.Header.Chunks, chunk => Assert.Equal(0, chunk.DataOffset & 0x0F));
+        var rotated = Assert.Single(reloaded.GeoEffects);
+        Assert.Equal(4, GeoEffectLayout.GetRotationSlot(rotated.Index));
+        Assert.Equal(MathF.PI / 2f, rotated.RotationY, 4);
+        reloaded.CloseStream();
+    }
+
     [Fact]
     public void TransportEffectsFrom_deep_copies_the_source_effects_and_chunk()
     {
@@ -88,6 +280,18 @@ public sealed class GeomEffectTransportTests
         BinaryPrimitives.WriteInt32BigEndian(chunk.AsSpan(4), 0); // child
         BinaryPrimitives.WriteInt32BigEndian(chunk.AsSpan(8), name);
         BinaryPrimitives.WriteInt32BigEndian(chunk.AsSpan(12), 0); // index (no position/rotation slots)
+        return chunk;
+    }
+
+    private static byte[] BuildPositionedEffectChunk(int name, float x, float y, float z)
+    {
+        var chunk = new byte[0x20];
+        BinaryPrimitives.WriteInt32BigEndian(chunk.AsSpan(8), name);
+        BinaryPrimitives.WriteInt32BigEndian(chunk.AsSpan(12), 2);
+        BinaryPrimitives.WriteInt32BigEndian(chunk.AsSpan(16), BitConverter.SingleToInt32Bits(x));
+        BinaryPrimitives.WriteInt32BigEndian(chunk.AsSpan(20), BitConverter.SingleToInt32Bits(y));
+        BinaryPrimitives.WriteInt32BigEndian(chunk.AsSpan(24), BitConverter.SingleToInt32Bits(z));
+        BinaryPrimitives.WriteInt32BigEndian(chunk.AsSpan(28), BitConverter.SingleToInt32Bits(1));
         return chunk;
     }
 

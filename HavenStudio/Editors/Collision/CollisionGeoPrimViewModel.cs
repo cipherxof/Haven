@@ -55,7 +55,7 @@ public sealed class CollisionGeoPrimViewModel : INotifyPropertyChanged
             {
                 Poly.Attribute = parsed;
                 _attributeText = $"0x{Poly.Attribute:X}";
-                ParentPrim.NotifyChanged();
+                ParentPrim.NotifyAttributeChanged();
                 OnPropertyChanged(nameof(DisplayName));
             }
             else

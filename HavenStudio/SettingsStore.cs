@@ -24,6 +24,7 @@ public sealed class SettingsStore : INotifyPropertyChanged
     private bool _loadSceneFromGcx = true;
     private GameType _selectedGame = GameType.MetalGearSolid4;
     private bool _autoLoadGeomWhenOpeningStage;
+    private string _octocamoSlotPath = string.Empty;
     private bool _isLoaded;
 
     private SettingsStore()
@@ -91,6 +92,20 @@ public sealed class SettingsStore : INotifyPropertyChanged
         }
     }
 
+    /// <summary>Last successfully loaded OctoCamo preview SLOT in this user's game installation.</summary>
+    public string OctocamoSlotPath
+    {
+        get => _octocamoSlotPath;
+        set
+        {
+            var path = value ?? string.Empty;
+            if (string.Equals(_octocamoSlotPath, path, StringComparison.Ordinal)) return;
+            _octocamoSlotPath = path;
+            OnPropertyChanged();
+            Save();
+        }
+    }
+
     public bool IsMgs3 => SelectedGame == GameType.MetalGearSolid3GcxOnly;
 
     public event PropertyChangedEventHandler? PropertyChanged;
@@ -118,6 +133,7 @@ public sealed class SettingsStore : INotifyPropertyChanged
                 _loadSceneFromGcx = dto.LoadSceneFromGcx;
                 _autoLoadGeomWhenOpeningStage = dto.AutoLoadGeomWhenOpeningStage;
                 _selectedGame = dto.SelectedGame;
+                _octocamoSlotPath = dto.OctocamoSlotPath ?? string.Empty;
             }
         }
         catch (Exception ex)
@@ -136,7 +152,8 @@ public sealed class SettingsStore : INotifyPropertyChanged
             {
                 LoadSceneFromGcx = _loadSceneFromGcx,
                 AutoLoadGeomWhenOpeningStage = _autoLoadGeomWhenOpeningStage,
-                SelectedGame = _selectedGame
+                SelectedGame = _selectedGame,
+                OctocamoSlotPath = _octocamoSlotPath
             };
             var json = JsonSerializer.Serialize(dto, new JsonSerializerOptions { WriteIndented = true });
             File.WriteAllText(path, json);
@@ -163,5 +180,6 @@ public sealed class SettingsStore : INotifyPropertyChanged
         public bool LoadSceneFromGcx { get; set; } = true;
         public bool AutoLoadGeomWhenOpeningStage { get; set; }
         public GameType SelectedGame { get; set; } = GameType.MetalGearSolid4;
+        public string OctocamoSlotPath { get; set; } = string.Empty;
     }
 }

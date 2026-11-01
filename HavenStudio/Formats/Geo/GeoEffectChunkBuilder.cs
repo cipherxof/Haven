@@ -38,6 +38,15 @@ public sealed class GeoEffectChunkLayout
         }
     }
 
+    public void RegisterNewRecord(GeoEffect effect)
+    {
+        ArgumentNullException.ThrowIfNull(effect);
+        if (!_recordData.TryAdd(effect, Array.Empty<byte>()))
+        {
+            throw new InvalidOperationException("The GEOM effect already has chunk-6 record data.");
+        }
+    }
+
     public byte[] Rebuild(IReadOnlyList<GeoEffect> effects)
     {
         ArgumentNullException.ThrowIfNull(effects);
@@ -107,7 +116,11 @@ public sealed class GeoEffectChunkLayout
         {
             length = Math.Max(length, checked(scaleSlot * 8 + 0x10));
         }
-        return checked((length + 7) & ~7);
+        // Chunk-6 effect records in the shipped MGO2 files begin on 16-byte
+        // boundaries.  A rotation payload only needs six bytes, but rounding a
+        // promoted record to eight bytes moves every following effect off that
+        // boundary and the game no longer walks the property tree correctly.
+        return checked((length + 0x0F) & ~0x0F);
     }
 
     private void WriteInt32(Span<byte> destination, int value)

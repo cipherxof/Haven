@@ -10,6 +10,7 @@ namespace HavenStudio.Editors;
 public sealed class CollisionEffectViewModel : INotifyPropertyChanged
 {
     private readonly Action _onChanged;
+    private readonly Action _onStructureChanged;
     private readonly Action<CollisionEffectViewModel> _onEffectChanged;
     private bool _isVisible;
     private bool _renderAsFlag;
@@ -94,7 +95,7 @@ public sealed class CollisionEffectViewModel : INotifyPropertyChanged
             {
                 Effect.Name = (int)parsed;
                 _nameText = FormatHex((ulong)Effect.Name);
-                _onChanged();
+                _onStructureChanged();
                 OnPropertyChanged(nameof(DisplayName));
             }
             else
@@ -120,7 +121,7 @@ public sealed class CollisionEffectViewModel : INotifyPropertyChanged
             {
                 Effect.Index = (int)parsed;
                 _indexText = FormatHex((ulong)Effect.Index);
-                _onChanged();
+                _onStructureChanged();
                 OnPropertyChanged(nameof(DisplayName));
             }
             else
@@ -237,10 +238,30 @@ public sealed class CollisionEffectViewModel : INotifyPropertyChanged
         set => SetRotation(ref _rotationZ, value, axis: 2);
     }
 
-    public CollisionEffectViewModel(GeoEffect effect, Action onChanged, Action<CollisionEffectViewModel> onEffectChanged)
+    public void SetRotation(float x, float y, float z)
+    {
+        _rotationX = x;
+        _rotationY = y;
+        _rotationZ = z;
+        Effect.RotationX = x;
+        Effect.RotationY = y;
+        Effect.RotationZ = z;
+        _onChanged();
+        _onEffectChanged(this);
+        OnPropertyChanged(nameof(RotationX));
+        OnPropertyChanged(nameof(RotationY));
+        OnPropertyChanged(nameof(RotationZ));
+    }
+
+    public CollisionEffectViewModel(
+        GeoEffect effect,
+        Action onChanged,
+        Action onStructureChanged,
+        Action<CollisionEffectViewModel> onEffectChanged)
     {
         Effect = effect;
         _onChanged = onChanged;
+        _onStructureChanged = onStructureChanged;
         _onEffectChanged = onEffectChanged;
         _isVisible = true;
         _renderAsFlag = false;

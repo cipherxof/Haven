@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using Avalonia3DControl.Core.Models;
+using HavenStudio.Editors;
 using HavenStudio.Formats.Geo;
 using OpenTK.Mathematics;
 
@@ -363,6 +364,103 @@ public static class GeomSceneBuilder
         }
 
         return colors;
+    }
+
+    /// <summary>Colour collision triangles by the OCTT cloth RGB selected by each polygon.</summary>
+    public static float[] BuildOctocamoVertexColors(
+        float[] positions, uint[] indices,
+        IReadOnlyList<int> trianglePrimitiveIndices,
+        IReadOnlyList<int> trianglePolygonIndices,
+        IReadOnlyList<Geom> faces,
+        GeoBlock block,
+        OctocamoSurfaceCatalog catalog)
+    {
+        var colors = new float[positions.Length / 3 * 4];
+        for (var triangle = 0; triangle < indices.Length / 3; triangle++)
+        {
+            var primIndex = triangle < trianglePrimitiveIndices.Count ? trianglePrimitiveIndices[triangle] : -1;
+            var polyIndex = triangle < trianglePolygonIndices.Count ? trianglePolygonIndices[triangle] : -1;
+            var face = primIndex >= 0 && primIndex < faces.Count ? faces[primIndex] : null;
+            var poly = face?.Poly != null && polyIndex >= 0 && polyIndex < face.Poly.Length
+                ? face.Poly[polyIndex] : null;
+            var colour = face == null || (face.Attribute & GeoCollisionAttributes.Player) == 0
+                ? new Vector3(0.20f, 0.22f, 0.25f)
+                : poly == null ? new Vector3(0.95f, 0.12f, 0.68f)
+                : catalog.Resolve(block, poly.Attribute).ClothColour;
+            var start = triangle * 3;
+            for (var corner = 0; corner < 3; corner++)
+            {
+                var vertex = (int)indices[start + corner];
+                if (vertex < 0 || vertex >= positions.Length / 3) continue;
+                var destination = vertex * 4;
+                colors[destination] = colour.X;
+                colors[destination + 1] = colour.Y;
+                colors[destination + 2] = colour.Z;
+                colors[destination + 3] = 1f;
+            }
+        }
+        return colors;
+    }
+
+    /// <summary>Project one real diffuse swatch onto each contact polygon, without editing GEOM vertices.</summary>
+    public static float[] BuildOctocamoTextureUvs(float[] positions, uint[] indices,
+        IReadOnlyList<int> primitiveIndices, IReadOnlyList<int> polygonIndices,
+        IReadOnlyList<Geom> faces, GeoBlock block, OctocamoSurfaceCatalog catalog)
+    {
+        var uvs = new float[positions.Length / 3 * 2];
+        if (catalog.PatternAtlas is not { } atlas) return uvs;
+        var projections = new Dictionary<(int Prim, int Poly), (int Axis, Vector2 Min, Vector2 Max)>();
+        Vector3 Point(int triangle, int corner)
+        {
+            var offset = (int)indices[triangle * 3 + corner] * 3;
+            return new Vector3(positions[offset], positions[offset + 1], positions[offset + 2]);
+        }
+        Vector2 Project(Vector3 point, int axis) => axis switch
+        {
+            0 => new Vector2(point.Z, point.Y),
+            1 => new Vector2(point.X, point.Z),
+            _ => new Vector2(point.X, point.Y)
+        };
+        var count = Math.Min(indices.Length / 3, Math.Min(primitiveIndices.Count, polygonIndices.Count));
+        for (var triangle = 0; triangle < count; triangle++)
+        {
+            var key = (primitiveIndices[triangle], polygonIndices[triangle]);
+            if (!projections.TryGetValue(key, out var projection))
+            {
+                var normal = Vector3.Abs(Vector3.Cross(Point(triangle, 1) - Point(triangle, 0), Point(triangle, 2) - Point(triangle, 0)));
+                var axis = normal.X >= normal.Y && normal.X >= normal.Z ? 0 : normal.Y >= normal.Z ? 1 : 2;
+                var point = Project(Point(triangle, 0), axis);
+                projection = (axis, point, point);
+            }
+            for (var corner = 0; corner < 3; corner++)
+            {
+                var point = Project(Point(triangle, corner), projection.Axis);
+                projection.Min = Vector2.ComponentMin(projection.Min, point);
+                projection.Max = Vector2.ComponentMax(projection.Max, point);
+            }
+            projections[key] = projection;
+        }
+        for (var triangle = 0; triangle < count; triangle++)
+        {
+            var primitive = primitiveIndices[triangle];
+            var polygon = polygonIndices[triangle];
+            var face = primitive >= 0 && primitive < faces.Count ? faces[primitive] : null;
+            var poly = face?.Poly != null && polygon >= 0 && polygon < face.Poly.Length ? face.Poly[polygon] : null;
+            var surface = catalog.Resolve(block, poly?.Attribute ?? 0);
+            var bounds = atlas.Bounds(poly != null && surface.HasPatternMapping ? surface.PatternHash : 0);
+            var projection = projections[(primitive, polygon)];
+            var size = projection.Max - projection.Min;
+            for (var corner = 0; corner < 3; corner++)
+            {
+                var point = Project(Point(triangle, corner), projection.Axis) - projection.Min;
+                var u = size.X > 0.001f ? point.X / size.X : 0.5f;
+                var v = size.Y > 0.001f ? point.Y / size.Y : 0.5f;
+                var vertex = (int)indices[triangle * 3 + corner];
+                uvs[vertex * 2] = bounds.U0 + u * (bounds.U1 - bounds.U0);
+                uvs[vertex * 2 + 1] = bounds.V1 - v * (bounds.V1 - bounds.V0);
+            }
+        }
+        return uvs;
     }
 
     public static Vector3 GetCollisionAttributeColor(ulong attributes)

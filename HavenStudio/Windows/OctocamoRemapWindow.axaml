@@ -1,0 +1,62 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:editors="clr-namespace:HavenStudio.Editors"
+        x:Class="HavenStudio.Windows.OctocamoRemapWindow"
+        x:DataType="editors:OctocamoRemapViewModel"
+        Width="1150" Height="820" MinWidth="850" MinHeight="600"
+        Title="Stage-wide OctoCamo material remapping" WindowStartupLocation="CenterOwner"
+        Background="{DynamicResource PanelBackgroundBrush}" Foreground="{DynamicResource AppTextBrush}">
+    <Grid Margin="16" RowDefinitions="Auto,*,Auto,Auto" RowSpacing="12">
+        <StackPanel Spacing="4">
+            <TextBlock Text="OctoCamo-only mappings — entire stage" FontSize="19" FontWeight="SemiBold"/>
+            <TextBlock Text="{Binding Summary}"/>
+            <TextBlock Text="Choose a GEOM material, compare its current pattern with a SLOT pattern, then apply. Unassigned materials are included."
+                       TextWrapping="Wrap"/>
+        </StackPanel>
+        <Grid Grid.Row="1" ColumnDefinitions="340,*,250" ColumnSpacing="12">
+            <Grid RowDefinitions="Auto,*" RowSpacing="8">
+                <TextBlock Text="GEOM materials" FontWeight="SemiBold"/>
+                <ListBox Grid.Row="1" ItemsSource="{Binding Materials}" SelectedItem="{Binding SelectedMaterial}">
+                    <ListBox.ItemTemplate>
+                        <DataTemplate x:DataType="editors:OctocamoRemapMaterial">
+                            <TextBlock Text="{Binding DisplayName}" TextWrapping="Wrap" Margin="4,8"/>
+                        </DataTemplate>
+                    </ListBox.ItemTemplate>
+                </ListBox>
+            </Grid>
+            <Grid Grid.Column="1" RowDefinitions="Auto,Auto,*" RowSpacing="8">
+                <TextBlock Text="All decoded textures from slot_oct_list_online.slot" FontWeight="SemiBold" TextWrapping="Wrap"/>
+                <TextBox Grid.Row="1" Text="{Binding Search}" Watermark="Search name or hex hash"/>
+                <ListBox Grid.Row="2" ItemsSource="{Binding Patterns}" SelectedItem="{Binding SelectedPattern}">
+                    <ListBox.ItemTemplate>
+                        <DataTemplate x:DataType="editors:OctocamoPatternOption">
+                            <Grid ColumnDefinitions="64,*" ColumnSpacing="8" Margin="4">
+                                <Image Source="{Binding Preview}" Width="64" Height="64" Stretch="UniformToFill"/>
+                                <TextBlock Grid.Column="1" Text="{Binding DisplayName}" TextWrapping="Wrap" VerticalAlignment="Center"/>
+                            </Grid>
+                        </DataTemplate>
+                    </ListBox.ItemTemplate>
+                </ListBox>
+            </Grid>
+            <ScrollViewer Grid.Column="2">
+                <StackPanel Spacing="10">
+                    <TextBlock Text="Current mapping" FontWeight="SemiBold"/>
+                    <TextBlock Text="{Binding CurrentPatternText}" TextWrapping="Wrap"/>
+                    <Image Source="{Binding CurrentPreview}" Width="230" Height="230" Stretch="Uniform"/>
+                    <TextBlock Text="Proposed replacement" FontWeight="SemiBold"/>
+                    <TextBlock Text="{Binding SelectedPattern.DisplayName}" TextWrapping="Wrap"/>
+                    <Image Source="{Binding SelectedPattern.Preview}" Width="230" Height="230" Stretch="Uniform"/>
+                    <TextBlock Text="Normal textures, footsteps/impact materials and polygon selectors remain unchanged. Cloth colour remains separate."
+                               TextWrapping="Wrap" Foreground="{DynamicResource MutedTextBrush}"/>
+                </StackPanel>
+            </ScrollViewer>
+        </Grid>
+        <TextBlock Grid.Row="2" Text="{Binding Status}" TextWrapping="Wrap"/>
+        <WrapPanel Grid.Row="3" HorizontalAlignment="Right">
+            <Button Margin="4" Content="Revert all unsaved remaps" IsEnabled="{Binding CanReset}" Click="OnReset"/>
+            <Button Margin="4" Content="Apply stage-wide remap" IsEnabled="{Binding CanApply}" Click="OnApply"/>
+            <Button Margin="4" Content="Apply selected &amp; Done" Click="OnDone"
+                    ToolTip.Tip="Applies the currently selected replacement before closing. Save Map then writes it to cache.dar."/>
+        </WrapPanel>
+    </Grid>
+</Window>

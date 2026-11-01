@@ -113,6 +113,13 @@ namespace HavenStudio.Formats.Geo;
 
         private GeomRefRegionLink GeomRefRegionLinks = new GeomRefRegionLink();
 
+        private sealed record GeoBlockAllocationAlias(
+            GeoBlock Owner,
+            int FaceDelta,
+            int VertexDelta);
+
+        private readonly Dictionary<GeoBlock, GeoBlockAllocationAlias> BlockAllocationAliases = new();
+
         // temp
         public List<GeoBlock> GeomBlocksUnk = new List<GeoBlock>();
         public byte[] GeomChunk5 = new byte[0];
@@ -201,19 +208,19 @@ namespace HavenStudio.Formats.Geo;
 
         private void ReadBlockData(GeoBlock block)
         {
-            if (block.VertexOffset > Stream.Length)
+            if (block.VertexOffset < 0 || block.VertexOffset > Stream.Length)
             {
                 // Log.Error("Invalid block vertex offset {offset}!", block.VertexOffset);
                 return;
             }
 
-            if (block.FaceOffset > Stream.Length)
+            if (block.FaceOffset < 0 || block.FaceOffset > Stream.Length)
             {
                 // Log.Error("Invalid block face offset {offset}!", block.FaceOffset);
                 return;
             }
 
-            if (block.FaceOffset > Stream.Length)
+            if (block.MaterialOffset < 0 || block.MaterialOffset > Stream.Length)
             {
                 // Log.Error("Invalid block material offset {offset}!", block.MaterialOffset);
                 return;
@@ -235,10 +242,18 @@ namespace HavenStudio.Formats.Geo;
 
             if (block.VertexOffset > 0)
             {
-                Stream.Seek(block.VertexOffset, SeekOrigin.Begin);
-
-                var vert = new GeoVertexHeader(Reader);
-                BlockVertexData[block] = vert;
+                if (BlockAllocationAliases.TryGetValue(block, out var alias))
+                {
+                    var aliasedVertices = ReadAliasedVertexData(alias);
+                    if (aliasedVertices != null)
+                    {
+                        BlockVertexData[block] = aliasedVertices;
+                    }
+                }
+                else if (TryReadVertexHeader(block.VertexOffset, out var vert))
+                {
+                    BlockVertexData[block] = vert;
+                }
             }
 
             if (block.MaterialOffset > 0)
@@ -246,6 +261,108 @@ namespace HavenStudio.Formats.Geo;
                 Stream.Seek(block.MaterialOffset, SeekOrigin.Begin);
                 BlockMaterialData[block] = new GeoMaterialHeader(Reader);
             }
+        }
+
+        private bool TryReadVertexHeader(int offset, out GeoVertexHeader header)
+        {
+            header = null!;
+            if (offset < 0 || offset > Stream.Length - 0x10)
+            {
+                return false;
+            }
+
+            Stream.Seek(offset, SeekOrigin.Begin);
+            var length = Reader.ReadInt32();
+            var byteLength = 0x10L + (long)length * 0x10;
+            if (length < 0 || byteLength > Stream.Length - offset)
+            {
+                return false;
+            }
+
+            Stream.Seek(offset, SeekOrigin.Begin);
+            header = new GeoVertexHeader(Reader);
+            return true;
+        }
+
+        private GeoVertexHeader? ReadAliasedVertexData(GeoBlockAllocationAlias alias)
+        {
+            if (!BlockVertexData.TryGetValue(alias.Owner, out var ownerHeader))
+            {
+                return ReadRawAliasedVertexData(alias);
+            }
+
+            var relativeToHeaderData = alias.VertexDelta -
+                (alias.Owner.VertexOffset - alias.Owner.FaceOffset) - 0x10;
+            if (relativeToHeaderData < 0 || relativeToHeaderData % 0x10 != 0)
+            {
+                return ReadRawAliasedVertexData(alias);
+            }
+
+            var firstVector = relativeToHeaderData / 0x10;
+            if (firstVector < 0 || firstVector >= ownerHeader.Data.Length)
+            {
+                return ReadRawAliasedVertexData(alias);
+            }
+
+            var data = new Vector4[ownerHeader.Data.Length - firstVector + 1];
+            data[0] = ownerHeader.Data[ownerHeader.PositionStart];
+            Array.Copy(ownerHeader.Data, firstVector, data, 1, data.Length - 1);
+            return new GeoVertexHeader(data, vertexStart: 1, faceStart: 0, positionStart: 0);
+        }
+
+        private GeoVertexHeader? ReadRawAliasedVertexData(GeoBlockAllocationAlias alias)
+        {
+            var allocationEnd = (long)alias.Owner.FaceOffset + alias.Owner.Size;
+            var vertexOffset = (long)alias.Owner.FaceOffset + alias.VertexDelta;
+            var byteLength = allocationEnd - vertexOffset;
+            if (vertexOffset < 0 || byteLength <= 0 || byteLength % 0x10 != 0 ||
+                allocationEnd > Stream.Length)
+            {
+                return null;
+            }
+
+            Stream.Seek(vertexOffset, SeekOrigin.Begin);
+            var data = new Vector4[checked((int)(byteLength / 0x10))];
+            for (var i = 0; i < data.Length; i++)
+            {
+                data[i] = new Vector4(
+                    Reader.ReadSingle(),
+                    Reader.ReadSingle(),
+                    Reader.ReadSingle(),
+                    Reader.ReadSingle());
+            }
+
+            return new GeoVertexHeader(data, vertexStart: 1, faceStart: 0, positionStart: 0);
+        }
+
+        private bool TryRegisterGroupAllocationAlias(GeoBlock block)
+        {
+            foreach (var groupBlocks in GeomGroupBlocks.Values)
+            {
+                foreach (var owner in groupBlocks)
+                {
+                    if (owner.FaceOffset <= 0 || owner.Size == 0)
+                    {
+                        continue;
+                    }
+
+                    var allocationStart = (long)owner.FaceOffset;
+                    var allocationEnd = allocationStart + owner.Size;
+                    if (block.FaceOffset < allocationStart || block.FaceOffset >= allocationEnd ||
+                        block.VertexOffset < allocationStart || block.VertexOffset >= allocationEnd)
+                    {
+                        continue;
+                    }
+
+                    BlockAllocationAliases[block] = new GeoBlockAllocationAlias(
+                        owner,
+                        checked((int)(block.FaceOffset - allocationStart)),
+                        checked((int)(block.VertexOffset - allocationStart)));
+                    return true;
+                }
+            }
+
+            return false;
         }
 
         private void LoadGroups()
@@ -362,7 +479,7 @@ namespace HavenStudio.Formats.Geo;
             if (rotationSlot != 0 && rotationOffset >= 0 && rotationOffset <= GeomChunk6.Length - 6)
             {
                 var rotationData = GeomChunk6.AsSpan(rotationOffset, 6);
-                effect.RotationX = GeoEffectChunkPatcher.DecodeAngle(
+                effect.RotationX = GeoEffectChunkPatcher.DecodeRotationX(
                     ReadEffectAngle(rotationData));
                 effect.RotationY = GeoEffectChunkPatcher.DecodeAngle(
                     ReadEffectAngle(rotationData[2..]));
@@ -467,11 +584,11 @@ namespace HavenStudio.Formats.Geo;
                 Reader,
                 checked((int)(regionLinkLength / sizeof(uint))));
 
-            List<GeoBlock> ObjectBlocks = new List<GeoBlock>();
-
             for (int i = 0; i < GeomRefs.Count; i++)
             {
                 GeoPrimRef obj = GeomRefs[i];
+
+                List<GeoBlock> ObjectBlocks = new List<GeoBlock>();
 
                 Stream.Seek(obj.BlockOffset, SeekOrigin.Begin);
 
@@ -488,6 +605,8 @@ namespace HavenStudio.Formats.Geo;
                     GeomBlocks.Add(block);
                     ObjectBlocks.Add(block);
                     GeomRefBlocks[obj].Add(block);
+
+                    TryRegisterGroupAllocationAlias(block);
 
                 }
 
@@ -543,14 +662,36 @@ namespace HavenStudio.Formats.Geo;
 
             if (block.VertexOffset > 0)
             {
+                if (!BlockVertexData.TryGetValue(block, out var vertexData))
+                {
+                    return;
+                }
+
                 pos = writer.BaseStream.Position;
                 writer.BaseStream.Seek(block.Offset, SeekOrigin.Begin);
                 block.VertexOffset = (int)pos;
                 WriteBlock(block, writer);
                 writer.BaseStream.Seek(pos, SeekOrigin.Begin);
 
-                BlockVertexData[block].WriteTo(writer);
+                vertexData.WriteTo(writer);
             }
+        }
+
+        private void RebaseGroupAllocationAliases()
+        {
+            foreach (var pair in BlockAllocationAliases)
+            {
+                var block = pair.Key;
+                var alias = pair.Value;
+                block.FaceOffset = checked(alias.Owner.FaceOffset + alias.FaceDelta);
+                block.VertexOffset = checked(alias.Owner.FaceOffset + alias.VertexDelta);
+            }
+        }
+
+        public void DetachBlockAllocationAlias(GeoBlock block)
+        {
+            ArgumentNullException.ThrowIfNull(block);
+            BlockAllocationAliases.Remove(block);
         }
 
         private void WriteBlock(GeoBlock block, EndianBinaryWriter writer)
@@ -848,6 +989,203 @@ namespace HavenStudio.Formats.Geo;
             Save(stream, endianness ?? Reader.Endianness);
         }
 
+        public void SaveEffectTransforms(Stream output, Endianness endianness)
+        {
+            if (!Stream.CanRead || !Stream.CanSeek)
+                throw new InvalidOperationException("The original GEOM stream is no longer available.");
+
+            var originalPosition = Stream.Position;
+            try
+            {
+                Stream.Position = 0;
+                using var original = new MemoryStream();
+                Stream.CopyTo(original);
+                SaveEffectTransforms(original.GetBuffer().AsSpan(0, checked((int)original.Length)), output, endianness);
+            }
+            finally
+            {
+                Stream.Position = originalPosition;
+            }
+        }
+
+        public void SaveEffectTransforms(ReadOnlySpan<byte> originalBytes, Stream output, Endianness endianness)
+        {
+            ArgumentNullException.ThrowIfNull(output);
+            if (!output.CanWrite || !output.CanSeek)
+                throw new ArgumentException("Surgical GEOM saving requires a writable, seekable stream.", nameof(output));
+
+            var propsChunk = GetRequiredChunk(GeoChunkType.PROPS);
+            if (propsChunk.Size != GeomChunk6.Length && (GeomChunk6.Length & 0x0F) != 0)
+            {
+                // GEOM chunks are 16-byte aligned in the game files. Keep the
+                // following chunk aligned when an effect record gains payload.
+                Array.Resize(ref GeomChunk6, checked((GeomChunk6.Length + 0x0F) & ~0x0F));
+            }
+            var propsEnd = checked(propsChunk.DataOffset + propsChunk.Size);
+            if (propsChunk.DataOffset < 0 || propsEnd > originalBytes.Length)
+                throw new InvalidDataException("The original GEOM bytes do not contain the complete chunk 6 payload.");
+
+            GeoEffectChunkPatcher.Patch(GeomChunk6, GeoEffects, endianness);
+            output.SetLength(0);
+            output.Position = 0;
+            if (propsChunk.Size == GeomChunk6.Length)
+            {
+                output.Write(originalBytes);
+                output.Position = propsChunk.DataOffset;
+                output.Write(GeomChunk6);
+            }
+            else
+            {
+                var delta = checked(GeomChunk6.Length - propsChunk.Size);
+                var rewritten = new byte[checked(originalBytes.Length + delta)];
+                originalBytes[..propsChunk.DataOffset].CopyTo(rewritten);
+                GeomChunk6.CopyTo(rewritten, propsChunk.DataOffset);
+                originalBytes[propsEnd..].CopyTo(rewritten.AsSpan(propsChunk.DataOffset + GeomChunk6.Length));
+
+                WriteUInt32(rewritten.AsSpan(4, 4), checked((uint)rewritten.Length), endianness);
+                for (var index = 0; index < Header.Chunks.Count; index++)
+                {
+                    var chunk = Header.Chunks[index];
+                    var descriptorOffset = checked(0x20 + index * 0x0C);
+                    if (ReferenceEquals(chunk, propsChunk))
+                    {
+                        WriteInt32(rewritten.AsSpan(descriptorOffset + 4, 4), GeomChunk6.Length, endianness);
+                        chunk.Size = GeomChunk6.Length;
+                    }
+                    else if (chunk.DataOffset > propsChunk.DataOffset)
+                    {
+                        chunk.DataOffset = checked(chunk.DataOffset + delta);
+                        WriteInt32(rewritten.AsSpan(descriptorOffset + 8, 4), chunk.DataOffset, endianness);
+                    }
+                }
+                Header.FileSize = checked((uint)rewritten.Length);
+                output.Write(rewritten);
+            }
+            output.Position = output.Length;
+        }
+
+        /// <summary>
+        /// Saves effect transforms and fixed-width collision attributes without rebuilding
+        /// the opaque GROUPS/REFS data. Some shipped GEOM variants cannot be reproduced by
+        /// the general serializer, so editor-only attribute changes must remain surgical.
+        /// </summary>
+        public void SaveSurgicalEdits(ReadOnlySpan<byte> originalBytes, Stream output, Endianness endianness)
+        {
+            ArgumentNullException.ThrowIfNull(output);
+            using var patchedEffects = new MemoryStream();
+            SaveEffectTransforms(originalBytes, patchedEffects, endianness);
+            var bytes = patchedEffects.ToArray();
+            var edits = new Dictionary<int, (ulong Value, int Width, string Label)>();
+
+            void CollectAttribute(int offset, ulong value, int width, string label)
+            {
+                if (offset < 0 || offset > bytes.Length - width)
+                    throw new InvalidDataException($"The {label} lies outside the original GEOM bytes.");
+                var source = bytes.AsSpan(offset, width);
+                var previous = width == 2
+                    ? (endianness == Endianness.Big
+                        ? System.Buffers.Binary.BinaryPrimitives.ReadUInt16BigEndian(source)
+                        : System.Buffers.Binary.BinaryPrimitives.ReadUInt16LittleEndian(source))
+                    : (endianness == Endianness.Big
+                        ? System.Buffers.Binary.BinaryPrimitives.ReadUInt64BigEndian(source)
+                        : System.Buffers.Binary.BinaryPrimitives.ReadUInt64LittleEndian(source));
+                // GROUPS/REFS can parse the same allocation into multiple objects.
+                // An untouched alias must never overwrite the edited alias.
+                if (value == previous) return;
+                if (edits.TryGetValue(offset, out var edit) && (edit.Value != value || edit.Width != width))
+                    throw new InvalidDataException($"Conflicting collision alias edits at 0x{offset:X}. Reload and edit the shared surface together.");
+                edits[offset] = (value, width, label);
+            }
+
+            foreach (var block in GeomBlocks)
+            {
+                CollectAttribute(checked(block.Offset + 0x18), block.Attribute, 8, "block collision attribute");
+                if (!BlockFaceData.TryGetValue(block, out var primitives))
+                {
+                    continue;
+                }
+
+                foreach (var primitive in primitives)
+                {
+                    CollectAttribute(checked(primitive.Offset + 0x18), primitive.Attribute, 8, "primitive collision attribute");
+                    if (primitive.Poly == null)
+                    {
+                        continue;
+                    }
+
+                    for (var polygonIndex = 0; polygonIndex < primitive.Poly.Length; polygonIndex++)
+                    {
+                        CollectAttribute(
+                            checked(primitive.Offset + 0x20 + polygonIndex * 8 + 6),
+                            primitive.Poly[polygonIndex].Attribute,
+                            2,
+                            "polygon collision attribute");
+                    }
+                }
+            }
+
+            foreach (var (offset, edit) in edits)
+                if (edit.Width == 2)
+                    WriteUInt16At(bytes, offset, (ushort)edit.Value, endianness, edit.Label);
+                else
+                    WriteUInt64At(bytes, offset, edit.Value, endianness, edit.Label);
+
+            output.SetLength(0);
+            output.Position = 0;
+            output.Write(bytes);
+            output.Position = output.Length;
+
+            // Keep the in-memory aliases consistent with the committed bytes, so a
+            // second save cannot mistake their old values for a new reverse edit.
+            foreach (var block in GeomBlocks)
+            {
+                if (edits.TryGetValue(block.Offset + 0x18, out var blockEdit)) block.Attribute = blockEdit.Value;
+                foreach (var primitive in BlockFaceData.GetValueOrDefault(block) ?? [])
+                {
+                    if (edits.TryGetValue(primitive.Offset + 0x18, out var primitiveEdit)) primitive.Attribute = primitiveEdit.Value;
+                    for (var index = 0; index < (primitive.Poly?.Length ?? 0); index++)
+                        if (edits.TryGetValue(primitive.Offset + 0x20 + index * 8 + 6, out var polygonEdit))
+                            primitive.Poly![index].Attribute = (ushort)polygonEdit.Value;
+                }
+            }
+        }
+
+        private static void WriteUInt64At(byte[] bytes, int offset, ulong value, Endianness endianness, string label)
+        {
+            if (offset < 0 || offset > bytes.Length - sizeof(ulong))
+                throw new InvalidDataException($"The {label} lies outside the original GEOM bytes.");
+            if (endianness == Endianness.Big)
+                System.Buffers.Binary.BinaryPrimitives.WriteUInt64BigEndian(bytes.AsSpan(offset, sizeof(ulong)), value);
+            else
+                System.Buffers.Binary.BinaryPrimitives.WriteUInt64LittleEndian(bytes.AsSpan(offset, sizeof(ulong)), value);
+        }
+
+        private static void WriteUInt16At(byte[] bytes, int offset, ushort value, Endianness endianness, string label)
+        {
+            if (offset < 0 || offset > bytes.Length - sizeof(ushort))
+                throw new InvalidDataException($"The {label} lies outside the original GEOM bytes.");
+            if (endianness == Endianness.Big)
+                System.Buffers.Binary.BinaryPrimitives.WriteUInt16BigEndian(bytes.AsSpan(offset, sizeof(ushort)), value);
+            else
+                System.Buffers.Binary.BinaryPrimitives.WriteUInt16LittleEndian(bytes.AsSpan(offset, sizeof(ushort)), value);
+        }
+
+        private static void WriteInt32(Span<byte> destination, int value, Endianness endianness)
+        {
+            if (endianness == Endianness.Big)
+                System.Buffers.Binary.BinaryPrimitives.WriteInt32BigEndian(destination, value);
+            else
+                System.Buffers.Binary.BinaryPrimitives.WriteInt32LittleEndian(destination, value);
+        }
+
+        private static void WriteUInt32(Span<byte> destination, uint value, Endianness endianness)
+        {
+            if (endianness == Endianness.Big)
+                System.Buffers.Binary.BinaryPrimitives.WriteUInt32BigEndian(destination, value);
+            else
+                System.Buffers.Binary.BinaryPrimitives.WriteUInt32LittleEndian(destination, value);
+        }
+
         public void Save(Stream stream, Endianness endianness)
         {
             if (stream is null) throw new ArgumentNullException(nameof(stream));
@@ -880,6 +1218,7 @@ namespace HavenStudio.Formats.Geo;
             chunk.Size = (int)stream.Position - chunk.DataOffset;
 
             // chunk 1
+            RebaseGroupAllocationAliases();
             chunk = GetRequiredChunk(GeoChunkType.REFS);
             var oldOffset = chunk.DataOffset;
             chunk.DataOffset = (int)stream.Position;
@@ -918,6 +1257,11 @@ namespace HavenStudio.Formats.Geo;
                     }
 
                     WriteBlock(block, writer);
+
+                    if (BlockAllocationAliases.ContainsKey(block))
+                    {
+                        continue;
+                    }
 
                     var blockData = FindBlockFromOffsets(blocks, block.VertexOffset, block.FaceOffset);
 

@@ -248,6 +248,39 @@ public partial class MainWindow : Window
     {
         PreferencesWindow.ShowSingleton(this);
     }
+    private async void OnRemapOctocamo(object? sender, RoutedEventArgs e)
+    {
+        try { await new OctocamoRemapWindow(_viewModel.MapEditor.CreateOctocamoRemapper()).ShowDialog(this); }
+        catch (Exception exception) { MessageDialog.Error("OctoCamo Remapping", exception.Message); }
+    }
+
+    private async void OnLoadOctocamoPatterns(object? sender, RoutedEventArgs e)
+    {
+        try
+        {
+            var savedPath = SettingsStore.Current.OctocamoSlotPath;
+            var savedDirectory = Path.GetDirectoryName(savedPath);
+            var startFolder = !string.IsNullOrWhiteSpace(savedDirectory) && Directory.Exists(savedDirectory)
+                ? await StorageProvider.TryGetFolderFromPathAsync(savedDirectory)
+                : null;
+            var files = await StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
+            {
+                Title = "Select slot_oct_list_online.slot for OctoCamo previews",
+                AllowMultiple = false,
+                SuggestedStartLocation = startFolder,
+                FileTypeFilter = new[] { new FilePickerFileType("OctoCamo SLOT") { Patterns = new[] { "*.slot" } } }
+            });
+            if (files.Count > 0 && files[0].TryGetLocalPath() is { } path)
+            {
+                await _viewModel.MapEditor.LoadOctocamoPatternSlotAsync(path);
+                SettingsStore.Current.OctocamoSlotPath = Path.GetFullPath(path);
+            }
+        }
+        catch (Exception exception)
+        {
+            MessageDialog.Error("OctoCamo Preview Error", exception.Message);
+        }
+    }
 
     private void OnMinimapDoubleTapped(object? sender, TappedEventArgs e)
     {
@@ -480,7 +513,8 @@ public partial class MainWindow : Window
         _lastViewportPointerPosition = e.GetPosition(viewport);
         viewport.Focus();
         e.Pointer.Capture(viewport);
-        _viewModel.MapEditor.PointerPressed(_lastViewportPointerPosition.Value, viewport);
+        _viewModel.MapEditor.PointerPressed(_lastViewportPointerPosition.Value, viewport,
+            e.KeyModifiers.HasFlag(KeyModifiers.Shift));
     }
 
     private void OnViewportPointerReleased(object? sender, PointerReleasedEventArgs e)

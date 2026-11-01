@@ -62,6 +62,7 @@ namespace Avalonia3DControl
 
         // 渲染状态
         private ShadingMode _currentShadingMode = ShadingMode.Vertex;
+        public ShadingMode CurrentShadingMode => _currentShadingMode;
         private RenderMode _currentRenderMode = RenderMode.Fill;
         private bool _isOpenGLInitialized = false;
         #endregion
@@ -176,6 +177,38 @@ namespace Avalonia3DControl
             });
         }
 
+        private readonly System.Collections.Generic.Dictionary<string, (int Id, byte[] Data)> _sharedPreviewTextures = new();
+
+        public void ApplySharedPreviewTexture(string key, Core.Models.Model3D[] models, int width, int height, byte[]? rgba)
+        {
+            if (rgba != null && rgba.Length != checked(width * height * 4))
+                throw new ArgumentException("RGBA preview size mismatch.", nameof(rgba));
+            EnqueueGlAction(() =>
+            {
+                var textureId = 0;
+                if (rgba != null)
+                {
+                    if (!_sharedPreviewTextures.TryGetValue(key, out var cached) || !ReferenceEquals(cached.Data, rgba))
+                    {
+                        if (cached.Id != 0) GL.DeleteTexture(cached.Id);
+                        textureId = GL.GenTexture();
+                        GL.BindTexture(TextureTarget.Texture2D, textureId);
+                        GL.TexImage2D(TextureTarget.Texture2D, 0, PixelInternalFormat.Rgba,
+                            width, height, 0, OpenTK.Graphics.OpenGL4.PixelFormat.Rgba, PixelType.UnsignedByte, rgba);
+                        GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMinFilter, (int)TextureMinFilter.Linear);
+                        GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMagFilter, (int)TextureMagFilter.Linear);
+                        GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureWrapS, (int)TextureWrapMode.ClampToEdge);
+                        GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureWrapT, (int)TextureWrapMode.ClampToEdge);
+                        GL.BindTexture(TextureTarget.Texture2D, 0);
+                        _sharedPreviewTextures[key] = (textureId, rgba);
+                    }
+                    else textureId = cached.Id;
+                }
+                foreach (var model in models) model.TextureId = textureId;
+                RequestNextFrameRendering();
+            });
+        }
+
         private readonly System.Collections.Concurrent.ConcurrentQueue<Action> _glActions = new();
 
         private void EnqueueGlAction(Action action)
@@ -254,6 +287,8 @@ namespace Avalonia3DControl
 
         protected override void OnOpenGlDeinit(GlInterface gl)
         {
+            foreach (var texture in _sharedPreviewTextures.Values) GL.DeleteTexture(texture.Id);
+            _sharedPreviewTextures.Clear();
             _inputHandler?.Dispose();
             _editorInputHandler?.Dispose();
             _renderer?.Dispose();

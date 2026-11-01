@@ -10,7 +10,8 @@ namespace HavenStudio.Editors;
 
 public sealed class CollisionPrimViewModel : INotifyPropertyChanged
 {
-    private readonly Action _onChanged;
+    private readonly Action _onAttributeChanged;
+    private readonly Action _onStructuralChanged;
     private string _lengthText;
     private string _typeText;
     private string _field002Text;
@@ -80,7 +81,7 @@ public sealed class CollisionPrimViewModel : INotifyPropertyChanged
                 Prim.Flag = (uint)parsed;
                 _flagText = FormatHex(Prim.Flag);
                 SyncHeaderFromFlag();
-                _onChanged();
+                _onStructuralChanged();
                 OnPropertyChanged(nameof(DisplayName));
             }
             else
@@ -104,7 +105,7 @@ public sealed class CollisionPrimViewModel : INotifyPropertyChanged
             {
                 Prim.Attribute = parsed;
                 _attributeText = FormatHex(Prim.Attribute);
-                _onChanged();
+                _onAttributeChanged();
             }
             else
             {
@@ -127,7 +128,7 @@ public sealed class CollisionPrimViewModel : INotifyPropertyChanged
             {
                 Prim.Name = (uint)parsed;
                 _nameText = FormatHex(Prim.Name);
-                _onChanged();
+                _onStructuralChanged();
                 OnPropertyChanged(nameof(DisplayName));
             }
             else
@@ -152,7 +153,7 @@ public sealed class CollisionPrimViewModel : INotifyPropertyChanged
                 Prim.Length = parsed;
                 _lengthText = FormatHex(parsed);
                 SyncFlagFromHeader();
-                _onChanged();
+                _onStructuralChanged();
             }
             else
             {
@@ -176,7 +177,7 @@ public sealed class CollisionPrimViewModel : INotifyPropertyChanged
                 Prim.Type = parsed;
                 _typeText = FormatHex(parsed);
                 SyncFlagFromHeader();
-                _onChanged();
+                _onStructuralChanged();
             }
             else
             {
@@ -200,7 +201,7 @@ public sealed class CollisionPrimViewModel : INotifyPropertyChanged
                 Prim.Field002 = parsed;
                 _field002Text = FormatHex(parsed);
                 SyncFlagFromHeader();
-                _onChanged();
+                _onStructuralChanged();
             }
             else
             {
@@ -224,7 +225,7 @@ public sealed class CollisionPrimViewModel : INotifyPropertyChanged
                 Prim.Field003 = parsed;
                 _field003Text = FormatHex(parsed);
                 SyncFlagFromHeader();
-                _onChanged();
+                _onStructuralChanged();
             }
             else
             {
@@ -247,7 +248,7 @@ public sealed class CollisionPrimViewModel : INotifyPropertyChanged
             {
                 Prim.Next = parsed;
                 _nextText = FormatHex((uint)parsed);
-                _onChanged();
+                _onStructuralChanged();
             }
             else
             {
@@ -270,7 +271,7 @@ public sealed class CollisionPrimViewModel : INotifyPropertyChanged
             {
                 Prim.Prev = parsed;
                 _prevText = FormatHex((uint)parsed);
-                _onChanged();
+                _onStructuralChanged();
             }
             else
             {
@@ -293,7 +294,7 @@ public sealed class CollisionPrimViewModel : INotifyPropertyChanged
             {
                 Prim.Child = parsed;
                 _childText = FormatHex((uint)parsed);
-                _onChanged();
+                _onStructuralChanged();
             }
             else
             {
@@ -316,7 +317,7 @@ public sealed class CollisionPrimViewModel : INotifyPropertyChanged
             {
                 Prim.Field014 = parsed;
                 _field014Text = FormatHex((uint)parsed);
-                _onChanged();
+                _onStructuralChanged();
             }
             else
             {
@@ -339,7 +340,7 @@ public sealed class CollisionPrimViewModel : INotifyPropertyChanged
             {
                 Prim.Data = parsed;
                 _dataText = FormatByteArray(parsed);
-                _onChanged();
+                _onStructuralChanged();
             }
             else
             {
@@ -349,11 +350,12 @@ public sealed class CollisionPrimViewModel : INotifyPropertyChanged
         }
     }
 
-    public CollisionPrimViewModel(Geom prim, int index, Action onChanged)
+    public CollisionPrimViewModel(Geom prim, int index, Action onAttributeChanged, Action onStructuralChanged)
     {
         Prim = prim;
         Index = index;
-        _onChanged = onChanged;
+        _onAttributeChanged = onAttributeChanged;
+        _onStructuralChanged = onStructuralChanged;
         _lengthText = FormatHex(prim.Length);
         _typeText = FormatHex(prim.Type);
         _field002Text = FormatHex(prim.Field002);
@@ -399,7 +401,7 @@ public sealed class CollisionPrimViewModel : INotifyPropertyChanged
         OnPropertyChanged(nameof(IsVisible));
     }
 
-    internal void NotifyChanged() => _onChanged();
+    internal void NotifyAttributeChanged() => _onAttributeChanged();
 
     private void BuildChildren()
     {
