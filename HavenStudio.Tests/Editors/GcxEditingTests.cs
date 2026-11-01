@@ -15,6 +15,133 @@ namespace HavenStudio.Tests.Editors;
 public sealed class GcxEditingTests
 {
     [Fact]
+    public void Race_goal_scanner_intersects_foreach_registration_data_with_known_goals()
+    {
+        const string script = """
+            [082BC9] [542B2D] \
+                -a[325543] 5 \
+                -r[89A17E] 12 \
+                -d[3392E1] [31E379] [A64A2E] [8FB28D] [06B63B] [8FB28E] [07363B]
+            """;
+
+        var goals = GcxRaceGoalScanner.FindRegisteredGoals(
+            [script],
+            [0x8FB28Du, 0x8FB28Eu, 0x8FB28Fu]);
+
+        Assert.Equal([0x8FB28Du, 0x8FB28Eu], goals.OrderBy(hash => hash));
+    }
+
+    [Fact]
+    public void Race_goal_scanner_recovers_known_goal_from_split_pretty_printing()
+    {
+        const string script = """
+            [082BC9] [542B2D]
+                -d[3392E1]
+                    [8FB28D]
+            """;
+
+        var goal = Assert.Single(GcxRaceGoalScanner.FindRegisteredGoals(
+            [script],
+            [0x8FB28Du, 0x8FB28Eu]));
+
+        Assert.Equal(0x8FB28Du, goal);
+    }
+
+    [Fact]
+    public void Race_goal_scanner_maps_numeric_links_through_registration_order()
+    {
+        const string registration = """
+            [082BC9] [542B2D] \
+                -a[325543] 5 \
+                -r[89A17E] 3 \
+                -d[3392E1] [100001] [200001] [200002] [200003] [200004] [100002] [210001] [210002] [210003] [210004] [100003] [220001] [220002] [220003] [220004]
+            """;
+        const string links = """
+            [082BC9] [A52C7F] \
+                -b[3292C5] 1 \
+                -l[37B22B] 0 2
+            """;
+
+        var graph = GcxRaceGoalScanner.FindGoalLinks(
+            [registration, links],
+            [0x100001u, 0x100002u, 0x100003u]);
+
+        Assert.Equal([0x100001u, 0x100003u], graph[0x100002u].OrderBy(hash => hash));
+    }
+
+    [Fact]
+    public void Race_goal_scanner_accepts_resolved_parameter_names_used_by_haven()
+    {
+        const string registration = """
+            command [542b2d] \
+                -argc 5 \
+                -repeat 2 \
+                -data [100001] [200001] [200002] [200003] [200004] [100002] [210001] [210002] [210003] [210004]
+            """;
+        const string links = """
+            command [a52c7f] \
+                -base 0 \
+                -link 1
+            """;
+
+        var graph = GcxRaceGoalScanner.FindGoalLinks(
+            [registration, links],
+            [0x100001u, 0x100002u]);
+
+        Assert.Equal([0x100002u], graph[0x100001u]);
+    }
+
+    [Fact]
+    public void Race_goal_scanner_uses_each_maps_links_when_goal_hashes_are_shared()
+    {
+        const string registration = """
+            [082BC9] [542B2D] \
+                -d[3392E1] [31E379] [100001] [100002] [100003] [100004] [31E37A] [110001] [110002] [110003] [110004] [8FB28D] [120001] [120002] [120003] [120004]
+            """;
+        const string mapOneLinks = """
+            [082BC9] [A52C7F] \
+                -b[3292C5] 2 \
+                -l[37B22B] 0
+            """;
+        const string mapTwoLinks = """
+            [082BC9] [A52C7F] \
+                -b[3292C5] 2 \
+                -l[37B22B] 1
+            """;
+        uint[] sharedGoals = [0x31E379u, 0x31E37Au, 0x8FB28Du];
+
+        var mapOne = GcxRaceGoalScanner.FindGoalLinks(
+            [registration, mapOneLinks], sharedGoals);
+        var mapTwo = GcxRaceGoalScanner.FindGoalLinks(
+            [registration, mapTwoLinks], sharedGoals);
+
+        Assert.Equal([0x31E379u], mapOne[0x8FB28Du]);
+        Assert.Equal([0x31E37Au], mapTwo[0x8FB28Du]);
+    }
+
+    [Fact]
+    public void Race_goal_scanner_recovers_shared_index_schema_without_registration_text()
+    {
+        const string links = """
+            [082BC9] [A52C7F] \
+                -b[3292C5] 4 \
+                -l[37B22B] 0 2 5 10
+            """;
+        uint[] goals =
+        [
+            0x31E379, 0x31E37A,
+            0x8FB28D, 0x8FB28E, 0x8FB28F, 0x8FB290, 0x8FB291,
+            0x8FB292, 0x8FB293, 0x8FB294, 0x8FB295, 0x8FB2AC
+        ];
+
+        var graph = GcxRaceGoalScanner.FindGoalLinks([links], goals);
+
+        Assert.Equal(
+            [0x31E379u, 0x8FB28Du, 0x8FB290u, 0x8FB295u],
+            graph[0x8FB28Fu].OrderBy(hash => hash));
+    }
+
+    [Fact]
     public async Task Document_session_loads_and_saves_physical_documents_through_streams()
     {
         using var temp = new TempDirectory();

@@ -3,6 +3,7 @@ in vec4 Color;
 in vec2 TexCoord;
 
 uniform bool hasTexture;
+uniform bool uEditorVertexOnly;
 uniform sampler2D texture0;
 uniform float materialAlpha;
 
@@ -18,6 +19,8 @@ void main()
 
     if (hasTexture) {
         textureColor = texture(texture0, TexCoord);
+    } else if (uEditorVertexOnly) {
+        textureColor = vec4(1.0);
     } else {
         float scale = 8.0;
         vec2 scaledCoord = TexCoord * scale;

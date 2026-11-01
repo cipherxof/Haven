@@ -68,14 +68,10 @@ public sealed class GcxPlacementWriterTests
             ["model"] = 0x123456u,
             ["eft"] = 0x112233u
         });
-        // The command builder emits the numeric 0x09 form. Real scripts also use the
-        // direct string-code 0x06 form, which is the size-preserving writable variant.
-        var effectCode = Array.FindLastIndex(command, value => value == 0x09);
-        Assert.True(effectCode >= 0);
-        command[effectCode] = 0x06;
         var script = WrapProcedure(command);
         var site = RecordSingleSite(script);
         var effectSite = Assert.IsType<GcxStringCodeSite>(site.Effect);
+        Assert.Equal(0x112233u, site.EffectHash);
 
         var result = GcxPlacementWriter.WriteEffectHash(script, site, 0x654321u);
 
@@ -120,7 +116,6 @@ public sealed class GcxPlacementWriterTests
             ["model"] = 0x111111u,
             ["eft"] = 0x222222u
         });
-        command[Array.FindLastIndex(command, value => value == 0x09)] = 0x06;
         var script = WrapProcedure(command);
         var source = RecordSingleSite(script);
 
@@ -168,6 +163,59 @@ public sealed class GcxPlacementWriterTests
         Assert.Equal([0, 1, 2], rewrittenReferences.PlacedModels
             .Select(placement => placement.Binding!.ForeachRowIndex));
         Assert.Equal(result.Bytes.Length - 3, result.Bytes[1] | result.Bytes[2] << 8);
+    }
+
+    [Fact]
+    public void Delete_writer_removes_only_the_selected_foreach_row_and_decrements_repeat()
+    {
+        var script = WrapProcedure(BuildForeachNewPutObjectCommand(
+            (0x111111u, 0xAAAAAAu),
+            (0x222222u, 0xBBBBBBu),
+            (0x333333u, 0xCCCCCCu)));
+        var document = new Gcx { MainScript = new GcxScript(script) };
+        var references = new GcxModelReferenceScanner().Scan(document, geometry: null, isMgs3: false);
+        var source = references.PlacedModels[1];
+
+        var result = GcxPlacementWriter.DeletePlacement(
+            script,
+            source.Binding!.Site,
+            source.Binding.ForeachRowIndex);
+
+        var rewrittenDocument = new Gcx { MainScript = new GcxScript(result.Bytes) };
+        var rewritten = new GcxModelReferenceScanner().Scan(
+            rewrittenDocument,
+            geometry: null,
+            isMgs3: false);
+        Assert.Equal([0x111111u, 0x333333u], rewritten.PlacedModels.Select(item => item.ModelHash));
+        Assert.Equal([0xAAAAAAu, 0xCCCCCCu], rewritten.PlacedModels.Select(item => item.CollisionReferenceHash));
+        var rewrittenSite = Assert.Single(RecordSites(result.Bytes));
+        Assert.Equal(2, rewrittenSite.ForeachRowCount);
+        Assert.Equal(2, rewrittenSite.Foreach!.Repeat.Value);
+        Assert.Equal(result.Bytes.Length - 3, result.Bytes[1] | result.Bytes[2] << 8);
+    }
+
+    [Fact]
+    public void Foreach_resize_preserves_bytes_beyond_the_declared_procedure_boundary()
+    {
+        var procedure = WrapProcedure(BuildForeachNewPutObjectCommand(
+            (0x111111u, 0xAAAAAAu),
+            (0x222222u, 0xBBBBBBu)));
+        var trailing = new byte[] { 0xDE, 0xAD, 0xBE, 0xEF };
+        var script = procedure.Concat(trailing).ToArray();
+        var document = new Gcx { MainScript = new GcxScript(script) };
+        var source = new GcxModelReferenceScanner()
+            .Scan(document, geometry: null, isMgs3: false)
+            .PlacedModels[0];
+
+        var result = GcxPlacementWriter.DuplicatePlacement(
+            script,
+            source.Binding!.Site,
+            source.Binding.ForeachRowIndex);
+
+        Assert.Equal(trailing, result.Bytes[^trailing.Length..]);
+        Assert.Equal(
+            result.Bytes.Length - 3 - trailing.Length,
+            result.Bytes[1] | result.Bytes[2] << 8);
     }
 
     [Fact]
@@ -371,6 +419,60 @@ public sealed class GcxPlacementWriterTests
         Assert.True(site.IsNested);
         Assert.False(site.Editable);
         Assert.Contains("read-only", site.ReadOnlyReason);
+    }
+
+    [Fact]
+    public void Duplicate_writer_rebuilds_nested_containers_around_a_direct_new_put_object()
+    {
+        var inner = GcxCommandBuilder.BuildNewPutObject(new Dictionary<string, object>
+        {
+            ["model"] = 0xCD59D9u,
+            ["eft"] = 0x24C6B6u,
+            ["collision"] = 0xB74615u,
+            ["x"] = -108000,
+            ["z"] = -280000,
+            ["y"] = 3800
+        });
+        var script = WrapProcedure(BuildNestedDirectCommand(inner));
+        var source = RecordSingleSite(script);
+
+        Assert.True(source.IsNested);
+        Assert.NotEmpty(source.EnclosingBlocks);
+
+        var result = GcxPlacementWriter.DuplicatePlacement(
+            script,
+            source,
+            transformSourceSite: source.Effect,
+            replacementTransformHash: 0x24C6BAu);
+
+        var rewritten = RecordSites(result.Bytes);
+        Assert.Equal(2, rewritten.Count);
+        Assert.All(rewritten, site => Assert.True(site.IsNested));
+        Assert.Equal([0xCD59D9u, 0xCD59D9u], rewritten.Select(site => site.ModelHash));
+        Assert.Equal([0x24C6B6u, 0x24C6BAu], rewritten.Select(site => site.EffectHash));
+        Assert.Equal(result.Bytes.Length - 3, result.Bytes[1] | result.Bytes[2] << 8);
+    }
+
+    [Fact]
+    public void Collision_reference_writer_adds_and_removes_a_nested_new_put_object_reference()
+    {
+        var inner = GcxCommandBuilder.BuildNewPutObject(new Dictionary<string, object>
+        {
+            ["model"] = 0x2C5486u,
+            ["eft"] = 0x24C6D5u
+        });
+        var script = WrapProcedure(BuildNestedDirectCommand(inner));
+        var source = RecordSingleSite(script);
+
+        Assert.True(source.IsNested);
+        Assert.True(source.CollisionReferenceEditable);
+        var added = GcxPlacementWriter.WriteCollisionReference(script, source, 0x4290F5u);
+        var addedSite = RecordSingleSite(added.Bytes);
+        Assert.Equal(0x4290F5u, addedSite.CollisionReferenceHash);
+        Assert.Equal(added.Bytes.Length - 3, added.Bytes[1] | added.Bytes[2] << 8);
+
+        var removed = GcxPlacementWriter.WriteCollisionReference(added.Bytes, addedSite, null);
+        Assert.Equal(script, removed.Bytes);
     }
 
     [Fact]
@@ -637,6 +739,26 @@ public sealed class GcxPlacementWriterTests
         var execPayload = new List<byte> { (byte)'e', 0x03, 0x6D, 0x34 };
         execPayload.AddRange(execProc);
         outerPayload.AddRange(GcxCommandBuilder.WrapTaggedPayload(0x50, execPayload.ToArray()));
+        outerPayload.Add(0x00);
+        return GcxCommandBuilder.WrapTaggedPayload(0x60, outerPayload.ToArray());
+    }
+
+    private static byte[] BuildNestedDirectCommand(byte[] inner)
+    {
+        var nestedPayload = new byte[4 + inner.Length];
+        nestedPayload[0] = (byte)'x';
+        nestedPayload[1] = 0x01;
+        nestedPayload[2] = 0x02;
+        nestedPayload[3] = 0x03;
+        inner.CopyTo(nestedPayload, 4);
+        var parameter = GcxCommandBuilder.WrapTaggedPayload(0x50, nestedPayload);
+        var outerPayload = new List<byte>
+        {
+            0xA7, 0x92, 0x65,
+            0x04,
+            0x06, 0x2D, 0x2B, 0x54
+        };
+        outerPayload.AddRange(parameter);
         outerPayload.Add(0x00);
         return GcxCommandBuilder.WrapTaggedPayload(0x60, outerPayload.ToArray());
     }

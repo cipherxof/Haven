@@ -13,14 +13,15 @@ public static class GcxDecompiler
         byte[] bytes,
         string procName,
         bool isMgs3 = false,
-        ICollection<GcxPlacementSite>? placementSites = null)
+        ICollection<GcxPlacementSite>? placementSites = null,
+        ICollection<GcxCameraTableSite>? cameraSites = null)
     {
         if (bytes == null || bytes.Length == 0)
         {
             return string.Empty;
         }
 
-        var decompiler = new GcxDecompilerCore(bytes, procName, isMgs3, placementSites);
+        var decompiler = new GcxDecompilerCore(bytes, procName, isMgs3, placementSites, cameraSites);
         return decompiler.Decompile();
     }
 
@@ -32,7 +33,9 @@ public static class GcxDecompiler
         private readonly string _procName;
         private readonly bool _isMgs3;
         private readonly ICollection<GcxPlacementSite>? _placementSites;
+        private readonly ICollection<GcxCameraTableSite>? _cameraSites;
         private readonly Stack<CommandSiteBuilder> _commandSites = new();
+        private readonly Stack<GcxTaggedBlockSite> _taggedBlocks = new();
         private StringBuilder _activeBuilder;
         private ParameterSiteBuilder? _activeParameterSite;
         private uint? _capturedHeaderCommandHash;
@@ -47,12 +50,14 @@ public static class GcxDecompiler
             byte[] bytes,
             string procName,
             bool isMgs3,
-            ICollection<GcxPlacementSite>? placementSites)
+            ICollection<GcxPlacementSite>? placementSites,
+            ICollection<GcxCameraTableSite>? cameraSites)
         {
             _buffer = bytes;
             _procName = procName;
             _isMgs3 = isMgs3;
             _placementSites = placementSites;
+            _cameraSites = cameraSites;
             _activeBuilder = _mainBuilder;
         }
 
@@ -452,36 +457,63 @@ public static class GcxDecompiler
 
         private void ReadProc()
         {
+            int blockOffset = _ptr;
             int size = GetSize();
             int start = _ptr;
-
-            if (!_isInline)
+            var block = CreateTaggedBlockSite(blockOffset, start, size);
+            var isRootProcedure = blockOffset == 0;
+            if (!isRootProcedure)
             {
-                _indentation.WriteIndent(_activeBuilder);
+                _taggedBlocks.Push(block);
             }
 
-            _activeBuilder.Append("proc ");
-            PrintProcSig();
-            OpenBrace();
-            ProcessFor(start, size);
-            CloseBrace();
-            PrintNewLine();
+            try
+            {
+                if (!_isInline)
+                {
+                    _indentation.WriteIndent(_activeBuilder);
+                }
+
+                _activeBuilder.Append("proc ");
+                PrintProcSig();
+                OpenBrace();
+                ProcessFor(start, size);
+                CloseBrace();
+                PrintNewLine();
+            }
+            finally
+            {
+                if (!isRootProcedure)
+                {
+                    PopTaggedBlock(block);
+                }
+            }
         }
 
         private void ReadEval()
         {
+            int blockOffset = _ptr;
             int size = GetSize();
             int start = _ptr;
+            var block = CreateTaggedBlockSite(blockOffset, start, size);
+            _taggedBlocks.Push(block);
 
-            if (!_isInline)
+            try
             {
-                _indentation.WriteIndent(_activeBuilder);
-            }
+                if (!_isInline)
+                {
+                    _indentation.WriteIndent(_activeBuilder);
+                }
 
-            _activeBuilder.Append("@proc");
-            ReadShort();
-            ProcessFor(start, size);
-            PrintNewLine();
+                _activeBuilder.Append("@proc");
+                ReadShort();
+                ProcessFor(start, size);
+                PrintNewLine();
+            }
+            finally
+            {
+                PopTaggedBlock(block);
+            }
         }
 
         private void ReadCmd()
@@ -489,54 +521,66 @@ public static class GcxDecompiler
             int commandOffset = _ptr;
             int size = GetSize();
             int start = _ptr;
+            var enclosingBlocks = _taggedBlocks.Reverse().ToArray();
+            var block = CreateTaggedBlockSite(commandOffset, start, size);
+            _taggedBlocks.Push(block);
 
-            if (!_isInline)
+            try
             {
-                _indentation.WriteIndent(_activeBuilder);
-            }
-
-            uint strcode = ReadStrCode();
-            if (strcode == 0xD86)
-            {
-                ReadIf(start, size);
-            }
-            else
-            {
-                CommandSiteBuilder? commandSite = null;
-                if (_placementSites != null && !_isMgs3)
+                if (!_isInline)
                 {
-                    commandSite = new CommandSiteBuilder(
-                        commandOffset,
-                        Math.Max(0, Math.Min(_buffer.Length, start + size) - commandOffset),
-                        isNested: _commandSites.Count > 0);
-                    _commandSites.Push(commandSite);
+                    _indentation.WriteIndent(_activeBuilder);
                 }
 
-                try
+                uint strcode = ReadStrCode();
+                if (strcode == 0xD86)
                 {
-                    ReadCmdHeader();
-                    if (commandSite != null)
+                    ReadIf(start, size);
+                }
+                else
+                {
+                    CommandSiteBuilder? commandSite = null;
+                    if ((_placementSites != null || _cameraSites != null) && !_isMgs3)
                     {
-                        commandSite.CommandHash = _capturedHeaderCommandHash;
+                        commandSite = new CommandSiteBuilder(
+                            commandOffset,
+                            Math.Max(0, Math.Min(_buffer.Length, start + size) - commandOffset),
+                            isNested: _commandSites.Count > 0,
+                            enclosingBlocks);
+                        _commandSites.Push(commandSite);
                     }
-                    _indentation.Indent();
-                    ProcessFor(start, size);
-                    _indentation.Unindent();
-                }
-                finally
-                {
-                    if (commandSite != null)
+
+                    try
                     {
-                        if (_commandSites.Count > 0 && ReferenceEquals(_commandSites.Peek(), commandSite))
+                        ReadCmdHeader();
+                        if (commandSite != null)
                         {
-                            _commandSites.Pop();
+                            commandSite.CommandHash = _capturedHeaderCommandHash;
                         }
-                        PublishPlacementSite(commandSite);
+                        _indentation.Indent();
+                        ProcessFor(start, size);
+                        _indentation.Unindent();
+                    }
+                    finally
+                    {
+                        if (commandSite != null)
+                        {
+                            if (_commandSites.Count > 0 && ReferenceEquals(_commandSites.Peek(), commandSite))
+                            {
+                                _commandSites.Pop();
+                            }
+                            PublishPlacementSite(commandSite);
+                            PublishCameraSite(commandSite);
+                        }
                     }
                 }
-            }
 
-            PrintNewLine();
+                PrintNewLine();
+            }
+            finally
+            {
+                PopTaggedBlock(block);
+            }
         }
 
         private void Mgs3Param()
@@ -553,6 +597,8 @@ public static class GcxDecompiler
             int parameterOffset = _ptr;
             int size = GetSize();
             int start = _ptr;
+            var block = CreateTaggedBlockSite(parameterOffset, start, size);
+            _taggedBlocks.Push(block);
 
             uint strcode = ReadStrCode(true);
             var previousParameterSite = _activeParameterSite;
@@ -586,6 +632,7 @@ public static class GcxDecompiler
             finally
             {
                 _activeParameterSite = previousParameterSite;
+                PopTaggedBlock(block);
             }
         }
 
@@ -643,29 +690,54 @@ public static class GcxDecompiler
 
         private void ReadExpr()
         {
+            int blockOffset = _ptr;
             int size = GetSize();
             int start = _ptr;
             int length = start + size;
             var exprStack = new List<string>();
+            var block = CreateTaggedBlockSite(blockOffset, start, size);
+            _taggedBlocks.Push(block);
 
-            _isInline = true;
-            while (_ptr < length && _ptr < _buffer.Length)
+            try
             {
-                byte type = _buffer.Span[_ptr];
-                if ((type & 0xE0) != 0xA0)
+                _isInline = true;
+                while (_ptr < length && _ptr < _buffer.Length)
                 {
-                    CaptureValues(exprStack);
+                    byte type = _buffer.Span[_ptr];
+                    if ((type & 0xE0) != 0xA0)
+                    {
+                        CaptureValues(exprStack);
+                    }
+                    else
+                    {
+                        CalcExpr(exprStack);
+                    }
                 }
-                else
+
+                _isInline = false;
+                if (exprStack.Count > 0)
                 {
-                    CalcExpr(exprStack);
+                    _activeBuilder.Append(exprStack[0]);
                 }
             }
-
-            _isInline = false;
-            if (exprStack.Count > 0)
+            finally
             {
-                _activeBuilder.Append(exprStack[0]);
+                PopTaggedBlock(block);
+            }
+        }
+
+        private GcxTaggedBlockSite CreateTaggedBlockSite(int offset, int payloadOffset, int payloadLength)
+        {
+            return new GcxTaggedBlockSite(
+                offset,
+                Math.Max(0, Math.Min(_buffer.Length, payloadOffset + payloadLength) - offset));
+        }
+
+        private void PopTaggedBlock(GcxTaggedBlockSite block)
+        {
+            if (_taggedBlocks.Count > 0 && ReferenceEquals(_taggedBlocks.Peek(), block))
+            {
+                _taggedBlocks.Pop();
             }
         }
 
@@ -998,6 +1070,18 @@ public static class GcxDecompiler
             _activeParameterSite?.ValueTokens.Add(default);
         }
 
+        private void PublishCameraSite(CommandSiteBuilder builder)
+        {
+            if (_cameraSites == null || builder.CommandHash != 0xC2C7A0 || builder.IsNested || builder.Parameters.Count != 1)
+                return;
+            foreach (var parameter in builder.Parameters.Where(p => p.Hash == 0x2647DA && p.Letter == (byte)'p'))
+            {
+                var site = GcxCameraTableSite.Read(_buffer.ToArray(), builder.CommandOffset, builder.CommandLength,
+                    parameter.ParameterOffset, parameter.ParameterLength, parameter.ParameterPayloadOffset);
+                if (site != null) _cameraSites.Add(site);
+            }
+        }
+
         private void PublishPlacementSite(CommandSiteBuilder builder)
         {
             if (_placementSites == null ||
@@ -1037,6 +1121,15 @@ public static class GcxDecompiler
                     : null);
             var propertyPositionHash = propertyPosition?.Value;
             var hasEffectParameter = builder.HasParameter((byte)'e', 0x01A134);
+            var vegetationModelHash = commandHash == 0x1E20BF
+                ? builder.GetStringCode((byte)'m', 0x01C0EC)
+                : null;
+            var vegetationPdlHash = commandHash == 0x1E20BF
+                ? builder.GetStringCode((byte)'p', 0x01CCEC)
+                : null;
+            var vegetationScaleValues = commandHash == 0x1E20BF
+                ? builder.GetLiteralValues((byte)'s', 0x6311EC)
+                : [];
             var transformArgument = hasEffectParameter ? effectArgument : propertyArgument;
             var foreachContext = GetForeachContext(
                 modelArgument,
@@ -1045,7 +1138,9 @@ public static class GcxDecompiler
             if (!definition.IsModelPlacement &&
                 position == null &&
                 direction == null &&
-                !hasEffectParameter)
+                !hasEffectParameter &&
+                vegetationModelHash == null &&
+                vegetationPdlHash == null)
             {
                 return;
             }
@@ -1075,6 +1170,9 @@ public static class GcxDecompiler
                 EffectHash = effectHash,
                 CollisionReferenceHash = collisionReference?.Value,
                 PropertyPositionHash = propertyPositionHash,
+                VegetationModelHash = vegetationModelHash,
+                VegetationPdlHash = vegetationPdlHash,
+                VegetationScaleValues = vegetationScaleValues,
                 Position = position,
                 Direction = direction,
                 Model = model,
@@ -1086,13 +1184,16 @@ public static class GcxDecompiler
                 ForeachRowCount = foreachContext.RowCount,
                 Foreach = foreachContext.Site,
                 CollisionReference = collisionReference,
+                EnclosingBlocks = builder.EnclosingBlocks,
                 IsNested = builder.IsNested,
                 IsModelPlacement = definition.IsModelPlacement,
                 Editable = editable,
                 ModelHashEditable = definition.IsModelPlacement && model != null,
                 CollisionReferenceEditable = definition.IsModelPlacement &&
                     (collisionReference != null ||
-                     definition.SupportsCommandReencoding && !builder.IsNested),
+                     definition.SupportsCommandReencoding &&
+                     (!builder.IsNested ||
+                      definition.Hash == 0x07A516 && builder.EnclosingBlocks.Count > 0)),
                 ReadOnlyReason = readOnlyReason
             });
         }
@@ -1195,16 +1296,22 @@ public static class GcxDecompiler
 
         private sealed class CommandSiteBuilder
         {
-            public CommandSiteBuilder(int commandOffset, int commandLength, bool isNested)
+            public CommandSiteBuilder(
+                int commandOffset,
+                int commandLength,
+                bool isNested,
+                IReadOnlyList<GcxTaggedBlockSite> enclosingBlocks)
             {
                 CommandOffset = commandOffset;
                 CommandLength = commandLength;
                 IsNested = isNested;
+                EnclosingBlocks = enclosingBlocks;
             }
 
             public int CommandOffset { get; }
             public int CommandLength { get; }
             public bool IsNested { get; }
+            public IReadOnlyList<GcxTaggedBlockSite> EnclosingBlocks { get; }
             public uint? CommandHash { get; set; }
             public List<ParameterSiteBuilder> Parameters { get; } = [];
 
@@ -1310,6 +1417,12 @@ public static class GcxDecompiler
             public bool HasParameter(byte letter, uint hash)
             {
                 return Parameters.Any(item => item.Letter == letter && item.Hash == hash);
+            }
+
+            public IReadOnlyList<int> GetLiteralValues(byte letter, uint hash)
+            {
+                var parameter = Parameters.FirstOrDefault(item => item.Letter == letter && item.Hash == hash);
+                return parameter?.Literals.Select(literal => literal.Value).ToArray() ?? [];
             }
         }
 

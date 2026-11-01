@@ -107,6 +107,38 @@ public static class SelectionRaycaster
         return true;
     }
 
+    public static bool TryPickPoint(
+        Vector3 origin,
+        Vector3 direction,
+        IEnumerable<Model3D> models,
+        out Vector3 hitPoint)
+    {
+        hitPoint = Vector3.Zero;
+        if (direction.LengthSquared < 0.000001f)
+        {
+            return false;
+        }
+
+        direction = Vector3.Normalize(direction);
+        var bestDistance = float.MaxValue;
+        foreach (var model in models)
+        {
+            if (RayIntersectsModel(origin, direction, model, out var distance) &&
+                distance >= 0 && distance < bestDistance)
+            {
+                bestDistance = distance;
+            }
+        }
+
+        if (bestDistance == float.MaxValue)
+        {
+            return false;
+        }
+
+        hitPoint = origin + direction * bestDistance;
+        return true;
+    }
+
     public static bool TryGetPickRay(Point point, OpenGL3DControl control, out Vector3 origin, out Vector3 direction)
     {
         origin = Vector3.Zero;
@@ -137,6 +169,57 @@ public static class SelectionRaycaster
 
         origin = nearWorld;
         direction = Vector3.Normalize(farWorld - nearWorld);
+        return true;
+    }
+
+    public static bool TryProjectToScreen(
+        Vector3 worldPosition,
+        OpenGL3DControl control,
+        out Point screenPosition)
+    {
+        ArgumentNullException.ThrowIfNull(control);
+        return TryProjectToViewport(
+            worldPosition,
+            control.Scene.Camera.GetViewMatrix(),
+            control.Scene.Camera.GetProjectionMatrix(),
+            control.Bounds.Width,
+            control.Bounds.Height,
+            out screenPosition);
+    }
+
+    public static bool TryProjectToViewport(
+        Vector3 worldPosition,
+        Matrix4 view,
+        Matrix4 projection,
+        double viewportWidth,
+        double viewportHeight,
+        out Point screenPosition)
+    {
+        screenPosition = default;
+        if (viewportWidth <= 1 || viewportHeight <= 1)
+        {
+            return false;
+        }
+
+        var viewPosition = Vector4.TransformRow(new Vector4(worldPosition, 1.0f), view);
+        var clipPosition = Vector4.TransformRow(viewPosition, projection);
+        if (!float.IsFinite(clipPosition.W) || clipPosition.W <= 0.000001f)
+        {
+            return false;
+        }
+
+        var ndc = clipPosition.Xyz / clipPosition.W;
+        if (!float.IsFinite(ndc.X) || !float.IsFinite(ndc.Y) || !float.IsFinite(ndc.Z) ||
+            ndc.X < -1.0f || ndc.X > 1.0f ||
+            ndc.Y < -1.0f || ndc.Y > 1.0f ||
+            ndc.Z < -1.0f || ndc.Z > 1.0f)
+        {
+            return false;
+        }
+
+        screenPosition = new Point(
+            (ndc.X + 1.0f) * 0.5f * viewportWidth,
+            (1.0f - ndc.Y) * 0.5f * viewportHeight);
         return true;
     }
 

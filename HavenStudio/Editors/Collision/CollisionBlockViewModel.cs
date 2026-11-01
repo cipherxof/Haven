@@ -11,7 +11,8 @@ namespace HavenStudio.Editors;
 
 public sealed class CollisionBlockViewModel : INotifyPropertyChanged
 {
-    private readonly Action _onChanged;
+    private readonly Action _onAttributeChanged;
+    private readonly Action _onStructuralChanged;
     private readonly Action<CollisionBlockViewModel> _onVisibilityChanged;
     private string _flagText;
     private string _attributeText;
@@ -67,7 +68,7 @@ public sealed class CollisionBlockViewModel : INotifyPropertyChanged
             {
                 Block.Flag = (byte)parsed;
                 _flagText = FormatHex(Block.Flag);
-                _onChanged();
+                _onStructuralChanged();
             }
             else
             {
@@ -92,7 +93,7 @@ public sealed class CollisionBlockViewModel : INotifyPropertyChanged
             {
                 Block.Attribute = parsed;
                 _attributeText = FormatHex(Block.Attribute);
-                _onChanged();
+                _onAttributeChanged();
             }
             else
             {
@@ -123,12 +124,19 @@ public sealed class CollisionBlockViewModel : INotifyPropertyChanged
         }
     }
 
-    public CollisionBlockViewModel(GeoBlock block, int index, IReadOnlyList<CollisionPrimViewModel> prims, Action onChanged, Action<CollisionBlockViewModel> onVisibilityChanged)
+    public CollisionBlockViewModel(
+        GeoBlock block,
+        int index,
+        IReadOnlyList<CollisionPrimViewModel> prims,
+        Action onAttributeChanged,
+        Action onStructuralChanged,
+        Action<CollisionBlockViewModel> onVisibilityChanged)
     {
         Block = block;
         Index = index;
         Prims = prims;
-        _onChanged = onChanged;
+        _onAttributeChanged = onAttributeChanged;
+        _onStructuralChanged = onStructuralChanged;
         _onVisibilityChanged = onVisibilityChanged;
         _flagText = FormatHex(block.Flag);
         _attributeText = FormatHex(block.Attribute);

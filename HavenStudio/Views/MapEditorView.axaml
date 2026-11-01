@@ -2,6 +2,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:local="clr-namespace:HavenStudio"
         xmlns:editors="clr-namespace:HavenStudio.Editors"
+        xmlns:vegetation="clr-namespace:HavenStudio.Editors.Vegetation"
         x:Class="HavenStudio.Views.MapEditorView"
         x:DataType="local:MainWindowViewModel">
     <Border Background="{DynamicResource PanelBackgroundBrush}"
@@ -16,20 +17,27 @@
                     BorderThickness="0,0,0,1"
                     Padding="10,8"
                     Margin="-10,-10,-10,0">
-                <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="16">
+                <Grid RowDefinitions="Auto,Auto" ColumnDefinitions="Auto,*" ColumnSpacing="16" RowSpacing="6">
                     <StackPanel Spacing="2">
                         <TextBlock FontSize="14" FontWeight="SemiBold" Text="Map Editor"/>
                         <TextBlock Foreground="{DynamicResource MutedTextBrush}"
                                    Text="{Binding CollisionEditor.GeomFileName}"/>
                     </StackPanel>
-                    <StackPanel Grid.Column="1"
+                    <WrapPanel Grid.Row="1" Grid.ColumnSpan="2"
                                 Orientation="Horizontal"
-                                HorizontalAlignment="Center"
                                 VerticalAlignment="Center"
-                                Spacing="12">
+                                >
+                        <WrapPanel.Styles>
+                            <Style Selector="CheckBox">
+                                <Setter Property="Margin" Value="0,4,12,4"/>
+                            </Style>
+                        </WrapPanel.Styles>
                         <CheckBox Content="Models" IsChecked="{Binding MapEditor.VisualModelsVisible}"/>
                         <CheckBox Content="Placements" IsChecked="{Binding MapEditor.PlacementsVisible}"/>
                         <CheckBox Content="Collision" IsChecked="{Binding MapEditor.CollisionVisible}"/>
+                        <CheckBox Content="Placement collision"
+                                  IsChecked="{Binding MapEditor.PlacementCollisionVisible}"
+                                  ToolTip.Tip="Preview each placed object's referenced GEOM collision using its position and rotation."/>
                         <CheckBox Content="Effects" IsChecked="{Binding MapEditor.EffectsVisible}"/>
                         <CheckBox Content="Lights" IsChecked="{Binding MapEditor.LightsVisible}"/>
                         <CheckBox Content="Game lighting"
@@ -47,8 +55,8 @@
                                 </DataTemplate>
                             </ComboBox.ItemTemplate>
                         </ComboBox>
-                    </StackPanel>
-                    <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8">
+                    </WrapPanel>
+                    <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right">
                         <Button Content="Undo"
                                 IsEnabled="{Binding MapEditor.CanUndo}"
                                 ToolTip.Tip="{Binding MapEditor.UndoToolTip}"
@@ -82,7 +90,7 @@
                         BorderBrush="{DynamicResource PanelBorderBrush}"
                         BorderThickness="1"
                         Padding="6">
-                    <Grid RowDefinitions="Auto,Auto,Auto,Auto,*" RowSpacing="6">
+                    <Grid RowDefinitions="Auto,Auto,Auto,Auto,Auto,*" RowSpacing="6">
                         <TextBlock FontWeight="SemiBold" Text="Map Outline"/>
                         <WrapPanel Grid.Row="1" Orientation="Horizontal">
                             <Button Content="Show All" Click="OnShowAll"/>
@@ -99,6 +107,9 @@
                             <TextBlock Foreground="{DynamicResource MutedTextBrush}"
                                        TextTrimming="CharacterEllipsis"
                                        Text="{Binding MapEditor.LightSummary}"/>
+                            <TextBlock Foreground="{DynamicResource MutedTextBrush}"
+                                       TextTrimming="CharacterEllipsis"
+                                       Text="{Binding MapEditor.VegetationSummary}"/>
                         </StackPanel>
                         <StackPanel Grid.Row="3" Spacing="3">
                             <TextBlock Foreground="{DynamicResource MutedTextBrush}"
@@ -109,8 +120,55 @@
                                        TextWrapping="Wrap"
                                        IsVisible="{Binding MapEditor.HasManipulationStatus}"
                                        Text="{Binding MapEditor.ManipulationStatus}"/>
+                            <TextBlock Foreground="{DynamicResource MutedTextBrush}"
+                                       TextWrapping="Wrap"
+                                       IsVisible="{Binding MapEditor.HasMapSaveStatus}"
+                                       Text="{Binding MapEditor.MapSaveStatus}"/>
                         </StackPanel>
-                        <TreeView Grid.Row="4"
+                        <Grid Grid.Row="4" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto" RowSpacing="4"
+                              IsVisible="{Binding MapEditor.OctocamoViewEnabled}">
+                            <DockPanel>
+                                <Button DockPanel.Dock="Right" Content="Clear list" Click="OnClearOctocamoFaceBox"/>
+                                <TextBlock FontWeight="SemiBold" Text="OctoCamo faces in box" VerticalAlignment="Center"/>
+                            </DockPanel>
+                            <TextBlock Grid.Row="1" Text="{Binding MapEditor.OctocamoBoxSummary}" TextWrapping="Wrap"
+                                       Foreground="{DynamicResource MutedTextBrush}"/>
+                            <TextBox Grid.Row="2" Watermark="Filter address / material / block"
+                                     Text="{Binding MapEditor.OctocamoFaceFilter}"/>
+                            <WrapPanel Grid.Row="3">
+                                <Button Content="Select all filtered" Click="OnSelectAllFilteredOctocamoFaces"/>
+                                <Button Content="Clear selection" Click="OnClearOctocamoBatchSelection"/>
+                                <Button Content="Edit selected camo…" IsEnabled="{Binding MapEditor.CanEditOctocamoBatch}"
+                                        Click="OnEditOctocamoBatch"/>
+                            </WrapPanel>
+                            <TextBlock Grid.Row="4" Text="{Binding MapEditor.OctocamoBatchSummary}" TextWrapping="Wrap"
+                                       Foreground="{DynamicResource MutedTextBrush}"/>
+                            <ListBox Grid.Row="5" MaxHeight="260"
+                                     ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                                     ItemsSource="{Binding MapEditor.FilteredOctocamoBoxFaces}"
+                                     SelectedItem="{Binding MapEditor.SelectedOctocamoFace, Mode=TwoWay}">
+                                <ListBox.Styles>
+                                    <Style Selector="ListBoxItem">
+                                        <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+                                    </Style>
+                                </ListBox.Styles>
+                                <ListBox.ItemTemplate>
+                                    <DataTemplate x:DataType="editors:OctocamoFaceCandidate">
+                                        <Grid ColumnDefinitions="Auto,*" ColumnSpacing="6" ToolTip.Tip="{Binding ScopeText}">
+                                            <CheckBox IsChecked="{Binding IsBatchSelected, Mode=TwoWay}" VerticalAlignment="Top"
+                                                      ToolTip.Tip="Include this face in the batch edit"/>
+                                            <StackPanel Grid.Column="1" Spacing="2">
+                                            <TextBlock Text="{Binding AddressText}" FontWeight="SemiBold"/>
+                                            <TextBlock Text="{Binding MaterialText}" TextWrapping="Wrap"/>
+                                            <TextBlock Text="{Binding DetailsText}" TextWrapping="Wrap"
+                                                       Foreground="{DynamicResource MutedTextBrush}"/>
+                                            </StackPanel>
+                                        </Grid>
+                                    </DataTemplate>
+                                </ListBox.ItemTemplate>
+                            </ListBox>
+                        </Grid>
+                        <TreeView Grid.Row="5"
                                   Name="MapOutlineTreeView"
                                   ItemsSource="{Binding MapEditor.Outline}"
                                   SelectedItem="{Binding MapEditor.SelectedOutlineItem}"
@@ -126,6 +184,19 @@
                                     <TextBlock FontWeight="SemiBold" Text="{Binding DisplayName}"/>
                                 </TreeDataTemplate>
                                 <DataTemplate DataType="editors:PlacementEntity">
+                                    <TextBlock Text="{Binding DisplayName}"/>
+                                </DataTemplate>
+                                <DataTemplate DataType="editors:SpectatorCameraEntity">
+                                    <TextBlock Text="{Binding DisplayName}"/>
+                                </DataTemplate>
+                                <DataTemplate DataType="editors:SdmAreaEntity">
+                                    <TextBlock Text="{Binding DisplayName}"/>
+                                </DataTemplate>
+                                <TreeDataTemplate DataType="vegetation:VegetationGroupEntity"
+                                                  ItemsSource="{Binding Children}">
+                                    <TextBlock Text="{Binding DisplayName}"/>
+                                </TreeDataTemplate>
+                                <DataTemplate DataType="vegetation:VegetationInstanceEntity">
                                     <TextBlock Text="{Binding DisplayName}"/>
                                 </DataTemplate>
                                 <TreeDataTemplate DataType="editors:CollisionBlockViewModel"
@@ -175,8 +246,20 @@
                         Background="{DynamicResource PanelBackgroundBrush}"
                         BorderBrush="{DynamicResource PanelBorderBrush}"
                         BorderThickness="1"
-                        ToolTip.Tip="Click to select. Drag to move; hold Shift to adjust height only, or hold X, Y, or Z to constrain an axis.">
-                    <ContentControl Content="{Binding ViewportControl}"/>
+                        ToolTip.Tip="Click to select. Shift + left-drag lists contact faces in OctoCamo view (including overlaps), or selects effects in normal view. Box-select faces also enables plain left-drag. Drag selected effects to move them; X, Y or Z constrains an axis.">
+                    <Grid>
+                        <ContentControl Content="{Binding ViewportControl}"/>
+                        <Canvas IsHitTestVisible="False">
+                            <Border Canvas.Left="{Binding MapEditor.SelectionBoxLeft}"
+                                    Canvas.Top="{Binding MapEditor.SelectionBoxTop}"
+                                    Width="{Binding MapEditor.SelectionBoxWidth}"
+                                    Height="{Binding MapEditor.SelectionBoxHeight}"
+                                    IsVisible="{Binding MapEditor.SelectionBoxVisible}"
+                                    Background="#333B82F6"
+                                    BorderBrush="#FF60A5FA"
+                                    BorderThickness="1"/>
+                        </Canvas>
+                    </Grid>
                 </Border>
 
                 <Border Grid.Column="4"
@@ -209,8 +292,12 @@
                                                     IsEnabled="{Binding CanDuplicate}"
                                                     ToolTip.Tip="{Binding DuplicateToolTip}"
                                                     Click="OnDuplicatePlacement"/>
+                                            <Button Content="Snap To Floor"
+                                                    IsEnabled="{Binding CanEditPosition}"
+                                                    ToolTip.Tip="Move this placement vertically onto the GEOM collision directly below it."
+                                                    Click="OnSnapToFloor"/>
                                             <Grid ColumnDefinitions="Auto,*"
-                                                  RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto"
+                                                  RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto"
                                                   RowSpacing="5" ColumnSpacing="10">
                                                 <TextBlock Grid.Row="0" Text="Model hash"/>
                                                 <ComboBox Grid.Row="0" Grid.Column="1"
@@ -236,12 +323,22 @@
                                                 <TextBox Grid.Row="3" Grid.Column="1"
                                                          IsEnabled="{Binding CanEditPosition}"
                                                          Text="{Binding PositionZ, UpdateSourceTrigger=LostFocus}"/>
-                                                <TextBlock Grid.Row="4" Text="Rotation"/>
-                                                <TextBlock Grid.Row="4" Grid.Column="1" Text="{Binding RotationText}" TextWrapping="Wrap"/>
-                                                <TextBlock Grid.Row="5" Text="Effect"/>
-                                                <TextBlock Grid.Row="5" Grid.Column="1" Text="{Binding EffectText}"/>
-                                                <TextBlock Grid.Row="6" Text="Collision mesh" VerticalAlignment="Center"/>
-                                                <ComboBox Grid.Row="6" Grid.Column="1"
+                                                <TextBlock Grid.Row="4" Text="Rotation X°"/>
+                                                <TextBox Grid.Row="4" Grid.Column="1" IsEnabled="{Binding CanEditRotation}"
+                                                         Tag="X" LostFocus="OnPlacementRotationLostFocus" KeyDown="OnPlacementRotationKeyDown"
+                                                         Text="{Binding RotationX, Mode=OneWay}"/>
+                                                <TextBlock Grid.Row="5" Text="Rotation Y°"/>
+                                                <TextBox Grid.Row="5" Grid.Column="1" IsEnabled="{Binding CanEditRotation}"
+                                                         Tag="Y" LostFocus="OnPlacementRotationLostFocus" KeyDown="OnPlacementRotationKeyDown"
+                                                         Text="{Binding RotationY, Mode=OneWay}"/>
+                                                <TextBlock Grid.Row="6" Text="Rotation Z°"/>
+                                                <TextBox Grid.Row="6" Grid.Column="1" IsEnabled="{Binding CanEditRotation}"
+                                                         Tag="Z" LostFocus="OnPlacementRotationLostFocus" KeyDown="OnPlacementRotationKeyDown"
+                                                         Text="{Binding RotationZ, Mode=OneWay}"/>
+                                                <TextBlock Grid.Row="7" Text="Effect"/>
+                                                <TextBlock Grid.Row="7" Grid.Column="1" Text="{Binding EffectText}"/>
+                                                <TextBlock Grid.Row="8" Text="Collision mesh" VerticalAlignment="Center"/>
+                                                <ComboBox Grid.Row="8" Grid.Column="1"
                                                           MinWidth="150"
                                                           IsEnabled="{Binding CanEditCollisionReference}"
                                                           ItemsSource="{Binding GeoReferences}"
@@ -265,6 +362,108 @@
                                                        TextWrapping="Wrap"
                                                        IsVisible="{Binding HasCollisionReferenceEditMessage}"
                                                        Text="{Binding CollisionReferenceEditMessage}"/>
+                                        </StackPanel>
+                                    </DataTemplate>
+
+                                    <DataTemplate DataType="editors:SpectatorCameraEntity">
+                                        <StackPanel Spacing="8">
+                                            <TextBlock FontSize="14" FontWeight="SemiBold" Text="{Binding DisplayName}"/>
+                                            <TextBlock Text="{Binding SourceText}" TextWrapping="Wrap"/>
+                                            <Button Content="Use current view" Click="OnCameraFromView"/>
+                                            <Button Content="Look through camera" Click="OnViewCamera"/>
+                                            <TextBlock Text="Moving carries the look-at point with the camera. Yaw 0 faces +Z; positive pitch looks up. No roll is stored." TextWrapping="Wrap"/>
+                                            <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto" RowSpacing="5" ColumnSpacing="10">
+                                                <TextBlock Text="Position X"/><TextBox Grid.Column="1" Text="{Binding PositionX, UpdateSourceTrigger=LostFocus}"/>
+                                                <TextBlock Grid.Row="1" Text="Position Y"/><TextBox Grid.Row="1" Grid.Column="1" Text="{Binding PositionY, UpdateSourceTrigger=LostFocus}"/>
+                                                <TextBlock Grid.Row="2" Text="Position Z"/><TextBox Grid.Row="2" Grid.Column="1" Text="{Binding PositionZ, UpdateSourceTrigger=LostFocus}"/>
+                                                <TextBlock Grid.Row="3" Text="Yaw °"/><TextBox Grid.Row="3" Grid.Column="1" Text="{Binding Yaw, UpdateSourceTrigger=LostFocus}"/>
+                                                <TextBlock Grid.Row="4" Text="Pitch °"/><TextBox Grid.Row="4" Grid.Column="1" Text="{Binding Pitch, UpdateSourceTrigger=LostFocus}"/>
+                                                <TextBlock Grid.Row="5" Text="Look-at X"/><TextBox Grid.Row="5" Grid.Column="1" Text="{Binding TargetX, UpdateSourceTrigger=LostFocus}"/>
+                                                <TextBlock Grid.Row="6" Text="Look-at Y"/><TextBox Grid.Row="6" Grid.Column="1" Text="{Binding TargetY, UpdateSourceTrigger=LostFocus}"/>
+                                                <TextBlock Grid.Row="7" Text="Look-at Z"/><TextBox Grid.Row="7" Grid.Column="1" Text="{Binding TargetZ, UpdateSourceTrigger=LostFocus}"/>
+                                            </Grid>
+                                            <TextBlock Text="{Binding EditStatus}" TextWrapping="Wrap"/>
+                                            <TextBlock Text="Save Map writes these edits to the loaded GCX. All stored rows are shown; the game chooses which subset to cycle." TextWrapping="Wrap"/>
+                                        </StackPanel>
+                                    </DataTemplate>
+
+                                    <DataTemplate DataType="editors:SdmAreaEntity">
+                                        <StackPanel Spacing="8">
+                                            <TextBlock FontSize="14" FontWeight="SemiBold" Text="{Binding DisplayName}"/>
+                                            <TextBlock Text="{Binding SourceText}" TextWrapping="Wrap"/>
+                                            <Grid ColumnDefinitions="Auto,*"
+                                                  RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto"
+                                                  RowSpacing="5" ColumnSpacing="10">
+                                                <TextBlock Text="Property directory"/>
+                                                <TextBlock Grid.Column="1" Text="{Binding PropertyDirectoryText}"/>
+                                                <TextBlock Grid.Row="1" Text="Center"/>
+                                                <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding CenterText}" TextWrapping="Wrap"/>
+                                                <TextBlock Grid.Row="2" Text="Starting radius ×1000"/>
+                                                <TextBox Grid.Row="2" Grid.Column="1"
+                                                         Text="{Binding AreaMaximum, UpdateSourceTrigger=LostFocus}"/>
+                                                <TextBlock Grid.Row="3" Text="World radius"/>
+                                                <TextBlock Grid.Row="3" Grid.Column="1" Text="{Binding StartingRadiusText}"/>
+                                                <TextBlock Grid.Row="4" Text="Final radius"/>
+                                                <TextBlock Grid.Row="4" Grid.Column="1" Text="{Binding MinimumRadiusText}"/>
+                                                <TextBlock Grid.Row="5" Text="Timing"/>
+                                                <TextBlock Grid.Row="5" Grid.Column="1" Text="{Binding TimingText}"/>
+                                            </Grid>
+                                            <TextBlock Foreground="{DynamicResource MutedTextBrush}"
+                                                       Text="{Binding EditStatus}" TextWrapping="Wrap"/>
+                                            <TextBlock Text="{Binding VisualizationText}" TextWrapping="Wrap"/>
+                                            <TextBlock Text="Save Map writes the changed radius to the loaded GCX. Undo and redo are supported." TextWrapping="Wrap"/>
+                                        </StackPanel>
+                                    </DataTemplate>
+
+                                    <DataTemplate DataType="vegetation:VegetationGroupEntity">
+                                        <StackPanel Spacing="8">
+                                            <TextBlock FontSize="14" FontWeight="SemiBold" Text="{Binding DisplayName}"/>
+                                            <Grid ColumnDefinitions="Auto,*"
+                                                  RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto"
+                                                  RowSpacing="5" ColumnSpacing="10">
+                                                <TextBlock Grid.Row="0" Text="PDL"/>
+                                                <TextBlock Grid.Row="0" Grid.Column="1" Text="{Binding PdlName}"/>
+                                                <TextBlock Grid.Row="1" Text="Model"/>
+                                                <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding ModelText}" TextWrapping="Wrap"/>
+                                                <TextBlock Grid.Row="2" Text="Instances"/>
+                                                <TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding InstanceCount}"/>
+                                                <TextBlock Grid.Row="3" Text="Centroid X"/>
+                                                <TextBox Grid.Row="3" Grid.Column="1" Text="{Binding PositionX, UpdateSourceTrigger=LostFocus}"/>
+                                                <TextBlock Grid.Row="4" Text="Centroid Y"/>
+                                                <TextBox Grid.Row="4" Grid.Column="1" Text="{Binding PositionY, UpdateSourceTrigger=LostFocus}"/>
+                                                <TextBlock Grid.Row="5" Text="Centroid Z"/>
+                                                <TextBox Grid.Row="5" Grid.Column="1" Text="{Binding PositionZ, UpdateSourceTrigger=LostFocus}"/>
+                                            </Grid>
+                                            <TextBlock Foreground="{DynamicResource MutedTextBrush}"
+                                                       TextWrapping="Wrap"
+                                                       Text="{Binding EditStatus}"/>
+                                        </StackPanel>
+                                    </DataTemplate>
+
+                                    <DataTemplate DataType="vegetation:VegetationInstanceEntity">
+                                        <StackPanel Spacing="8">
+                                            <TextBlock FontSize="14" FontWeight="SemiBold" Text="{Binding DisplayName}"/>
+                                            <Grid ColumnDefinitions="Auto,*"
+                                                  RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto"
+                                                  RowSpacing="5" ColumnSpacing="10">
+                                                <TextBlock Grid.Row="0" Text="PDL"/>
+                                                <TextBlock Grid.Row="0" Grid.Column="1" Text="{Binding PdlName}"/>
+                                                <TextBlock Grid.Row="1" Text="Group"/>
+                                                <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding GroupText}"/>
+                                                <TextBlock Grid.Row="2" Text="Model"/>
+                                                <TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding ModelText}" TextWrapping="Wrap"/>
+                                                <TextBlock Grid.Row="3" Text="Position X"/>
+                                                <TextBox Grid.Row="3" Grid.Column="1" Text="{Binding PositionX, UpdateSourceTrigger=LostFocus}"/>
+                                                <TextBlock Grid.Row="4" Text="Position Y"/>
+                                                <TextBox Grid.Row="4" Grid.Column="1" Text="{Binding PositionY, UpdateSourceTrigger=LostFocus}"/>
+                                                <TextBlock Grid.Row="5" Text="Position Z"/>
+                                                <TextBox Grid.Row="5" Grid.Column="1" Text="{Binding PositionZ, UpdateSourceTrigger=LostFocus}"/>
+                                                <TextBlock Grid.Row="6" Text="Preview scale"/>
+                                                <TextBlock Grid.Row="6" Grid.Column="1" Text="{Binding PreviewScale}"/>
+                                            </Grid>
+                                            <TextBlock Foreground="{DynamicResource MutedTextBrush}"
+                                                       TextWrapping="Wrap"
+                                                       Text="{Binding EditStatus}"/>
                                         </StackPanel>
                                     </DataTemplate>
 
@@ -413,6 +612,73 @@
                                                     <TextBox Grid.Column="1" Text="{Binding GeoPrim.AttributeText, UpdateSourceTrigger=LostFocus}"/>
                                                 </Grid>
                                             </StackPanel>
+                                            <StackPanel Spacing="6" IsVisible="{Binding HasOctocamo}">
+                                                <TextBlock FontWeight="SemiBold" Text="OctoCamo contact"/>
+                                                <TextBlock Text="Contact material / muscle-suit pattern"/>
+                                                <ComboBox ItemsSource="{Binding Octocamo.Materials}"
+                                                          IsEnabled="{Binding Octocamo.CanEdit}"
+                                                          SelectedItem="{Binding Octocamo.SelectedMaterial, Mode=TwoWay}">
+                                                    <ComboBox.ItemTemplate>
+                                                        <DataTemplate x:DataType="editors:OctocamoMaterialOption">
+                                                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                                                <Image Source="{Binding Preview}" Width="40" Height="32" Stretch="UniformToFill"/>
+                                                                <TextBlock Text="{Binding DisplayName}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center"/>
+                                                            </StackPanel>
+                                                        </DataTemplate>
+                                                    </ComboBox.ItemTemplate>
+                                                </ComboBox>
+                                                <TextBlock Text="{Binding Octocamo.PatternText}" TextWrapping="Wrap"/>
+                                                <Image Source="{Binding Octocamo.PatternPreview}" Width="160" Height="160" Stretch="Uniform" HorizontalAlignment="Left"/>
+                                                <TextBlock Text="Cloth colour"/>
+                                                <ComboBox ItemsSource="{Binding Octocamo.Colours}"
+                                                          IsEnabled="{Binding Octocamo.CanEdit}"
+                                                          SelectedItem="{Binding Octocamo.SelectedColour, Mode=TwoWay}">
+                                                    <ComboBox.ItemTemplate>
+                                                        <DataTemplate x:DataType="editors:OctocamoColourOption">
+                                                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                                                <Border Width="20" Height="16" Background="{Binding Preview}"/>
+                                                                <TextBlock Text="{Binding DisplayName}" TextTrimming="CharacterEllipsis"/>
+                                                            </StackPanel>
+                                                        </DataTemplate>
+                                                    </ComboBox.ItemTemplate>
+                                                </ComboBox>
+                                                <StackPanel Orientation="Horizontal" Spacing="6">
+                                                    <Border Width="36" Height="24" Background="{Binding Octocamo.ClothPreview}"/>
+                                                    <TextBlock Text="{Binding Octocamo.ClothText}" VerticalAlignment="Center"/>
+                                                </StackPanel>
+                                                <TextBlock Text="{Binding Octocamo.Status}" TextWrapping="Wrap"/>
+                                                <TextBlock Text="{Binding Octocamo.ScopeText}" TextWrapping="Wrap"/>
+                                                <TextBlock Foreground="{DynamicResource MutedTextBrush}"
+                                                           Text="{Binding Octocamo.PreviewExplanation}"
+                                                           TextWrapping="Wrap"/>
+                                            </StackPanel>
+                                        </StackPanel>
+                                    </DataTemplate>
+
+                                    <DataTemplate DataType="editors:EffectSelectionEntity">
+                                        <StackPanel Spacing="8">
+                                            <TextBlock FontSize="14" FontWeight="SemiBold" Text="{Binding DisplayName}"/>
+                                            <Grid ColumnDefinitions="Auto,*" ColumnSpacing="10">
+                                                <TextBlock VerticalAlignment="Center" Text="Rotation Y°"/>
+                                                <TextBox Grid.Column="1"
+                                                         Text="{Binding RotationYText, Mode=OneWay}"
+                                                         Watermark="Mixed"
+                                                         LostFocus="OnEffectSelectionRotationLostFocus"
+                                                         KeyDown="OnEffectSelectionRotationKeyDown"/>
+                                            </Grid>
+                                            <TextBlock Foreground="{DynamicResource MutedTextBrush}"
+                                                       TextWrapping="Wrap"
+                                                       Text="{Binding RotationYHint}"/>
+                                            <TextBlock Foreground="#FF6B6B"
+                                                       TextWrapping="Wrap"
+                                                       IsVisible="{Binding HasRotationEditStatus}"
+                                                       Text="{Binding RotationEditStatus}"/>
+                                            <TextBlock Foreground="{DynamicResource MutedTextBrush}"
+                                                       TextWrapping="Wrap"
+                                                       Text="Drag any highlighted marker to move every selected effect while preserving their relative positions."/>
+                                            <TextBlock Foreground="{DynamicResource MutedTextBrush}"
+                                                       TextWrapping="Wrap"
+                                                       Text="Hold X, Y, or Z while dragging to constrain the movement axis; Y provides height-only movement."/>
                                         </StackPanel>
                                     </DataTemplate>
 
@@ -420,6 +686,9 @@
                                         <StackPanel Spacing="8">
                                             <TextBlock FontSize="14" FontWeight="SemiBold" Text="{Binding DisplayName}"/>
                                             <Button Content="Snap To Camera" Click="OnSnapEffectToCamera"/>
+                                            <Button Content="Snap To Floor"
+                                                    ToolTip.Tip="Move this event vertically onto the GEOM collision directly below it."
+                                                    Click="OnSnapToFloor"/>
                                             <Button Content="Delete Effect"
                                                     ToolTip.Tip="Delete this effect and all of its child effects."
                                                     Click="OnDeleteEffect"/>

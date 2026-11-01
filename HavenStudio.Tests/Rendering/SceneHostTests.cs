@@ -11,7 +11,7 @@ namespace HavenStudio.Tests.Rendering;
 public sealed class SceneHostTests
 {
     [Fact]
-    public void Collision_and_lights_are_hidden_by_default()
+    public void Collision_lights_and_sdm_area_are_hidden_by_default()
     {
         var host = new SceneHost();
 
@@ -19,6 +19,7 @@ public sealed class SceneHostTests
         Assert.False(host.IsLayerVisible(SceneLayer.Lights));
         Assert.True(host.IsLayerVisible(SceneLayer.VisualModels));
         Assert.True(host.IsLayerVisible(SceneLayer.Effects));
+        Assert.False(host.IsLayerVisible(SceneLayer.SdmArea));
     }
 
     [Fact]

@@ -1,4 +1,5 @@
 using HavenStudio.Rendering;
+using Avalonia3DControl.Core.Models;
 using OpenTK.Mathematics;
 
 namespace HavenStudio.Tests.Rendering;
@@ -93,5 +94,23 @@ public sealed class MapManipulationControllerTests
 
         Assert.True(success);
         Assert.Equal(new Vector3(10, 17, 20), position);
+    }
+
+    [Fact]
+    public void Group_preview_preserves_each_models_offset_from_the_anchor()
+    {
+        var host = new SceneHost();
+        var controller = new MapManipulationController(host);
+        var first = new Model3D { Position = new Vector3(10, 5, 20) };
+        var second = new Model3D { Position = new Vector3(14, 8, 18) };
+        var target = new MapManipulationTarget(
+            new object(),
+            new Vector3(12, 6.5f, 19),
+            [first, second]);
+
+        controller.PreviewPosition(target, new Vector3(22, 16.5f, 29));
+
+        Assert.Equal(new Vector3(20, 15, 30), first.Position);
+        Assert.Equal(new Vector3(24, 18, 28), second.Position);
     }
 }

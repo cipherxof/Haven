@@ -10,6 +10,7 @@ public class DlzFile
 {
     private const int SegmentSize = 0x20000;
     private const int FileAlignment = 0x800;
+    public const int DecompressedChunkSize = 0x4000;
     private readonly List<DlzRegion> _layout = new();
 
     public IReadOnlyList<DlzSeg> Segs => _layout
@@ -58,6 +59,37 @@ public class DlzFile
 
         segments.Add(segment);
         RebuildCanonicalLayout(segments);
+    }
+
+    /// <summary>
+    /// Packs an unpacked DLD byte stream using the 16 KiB paging used by the
+    /// retail MGO2 archives. The game reads DLZ chunks as fixed-size pages and
+    /// rejects the larger, merely format-valid chunks accepted by Haven's
+    /// general-purpose inflater.
+    /// </summary>
+    public static DlzFile Pack(
+        ReadOnlySpan<byte> unpacked,
+        int compressionLevel = Utils.Compression.DefaultCompressionLevel)
+    {
+        if (compressionLevel is < 0 or > 9)
+            throw new ArgumentOutOfRangeException(nameof(compressionLevel), "DEFLATE level must be between 0 and 9.");
+
+        var containers = new List<DlzDataContainer>();
+        for (var offset = 0; offset < unpacked.Length; offset += DecompressedChunkSize)
+        {
+            var length = Math.Min(DecompressedChunkSize, unpacked.Length - offset);
+            var page = unpacked.Slice(offset, length).ToArray();
+            var compressed = Utils.Compression.DeflateBuffer(page, compressionLevel);
+            if (compressed.Length > ushort.MaxValue)
+            {
+                throw new InvalidOperationException(
+                    $"A {length}-byte DLZ page compressed beyond the 16-bit size field.");
+            }
+
+            containers.Add(new DlzDataContainer(compressed.Length, page.Length, compressed));
+        }
+
+        return new DlzFile(containers);
     }
 
     public void Save(string path, Endianness endianness)

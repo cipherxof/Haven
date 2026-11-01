@@ -1,7 +1,9 @@
 using System;
+using System.Buffers.Binary;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using HavenStudio.Extensions;
@@ -284,8 +286,18 @@ public sealed class WorkspaceCatalog : IWorkspaceCatalog
 
     private void ReplaceDarEntry(WorkspacePath path, byte[] replacement)
     {
+        var source = File.ReadAllBytes(path.PhysicalPath);
+        var payload = FindDarPayload(source, path.ArchiveEntryName!);
+        if (payload.Length == replacement.Length)
+        {
+            var patchedBytes = (byte[])source.Clone();
+            replacement.CopyTo(patchedBytes, payload.Offset);
+            WriteAtomic(path.PhysicalPath, patchedBytes);
+            return;
+        }
+
         Dar archive;
-        using (var input = File.OpenRead(path.PhysicalPath))
+        using (var input = new MemoryStream(source, writable: false))
         {
             archive = DarFile.Read(input, Endianness);
         }
@@ -298,6 +310,54 @@ public sealed class WorkspaceCatalog : IWorkspaceCatalog
 
         using var output = new FileStream(path.PhysicalPath, FileMode.Create, FileAccess.Write, FileShare.None);
         DarFile.Write(output, archive, Endianness);
+    }
+
+    private (int Offset, int Length) FindDarPayload(ReadOnlySpan<byte> bytes, string entryName)
+    {
+        if (bytes.Length < 4)
+            throw new InvalidDataException("DAR header is truncated.");
+        var entryCount = ReadDarInt32(bytes[..4]);
+        var cursor = 4;
+        for (var index = 0; index < entryCount; index++)
+        {
+            var terminator = bytes[cursor..].IndexOf((byte)0);
+            if (terminator < 0)
+                throw new InvalidDataException($"DAR entry {index} name is not terminated.");
+            var name = Encoding.Latin1.GetString(bytes.Slice(cursor, terminator));
+            cursor = Align(checked(cursor + terminator + 1), 4);
+            if (cursor > bytes.Length - 4)
+                throw new InvalidDataException($"DAR entry {index} size is truncated.");
+            var length = ReadDarInt32(bytes.Slice(cursor, 4));
+            cursor = Align(checked(cursor + 4), 16);
+            if (length < 0 || cursor > bytes.Length - length)
+                throw new InvalidDataException($"DAR entry {index} payload is truncated.");
+            if (string.Equals(name, entryName, StringComparison.Ordinal))
+                return (cursor, length);
+            cursor = checked(cursor + length + 1);
+        }
+        throw new FileNotFoundException($"Entry '{entryName}' was not found in the DAR.");
+    }
+
+    private int ReadDarInt32(ReadOnlySpan<byte> bytes) => Endianness == Endianness.Big
+        ? BinaryPrimitives.ReadInt32BigEndian(bytes)
+        : BinaryPrimitives.ReadInt32LittleEndian(bytes);
+
+    private static int Align(int value, int alignment) =>
+        checked((value + alignment - 1) / alignment * alignment);
+
+    private static void WriteAtomic(string path, byte[] bytes)
+    {
+        var temporary = $"{path}.haven-{Guid.NewGuid():N}.tmp";
+        try
+        {
+            File.WriteAllBytes(temporary, bytes);
+            File.Move(temporary, path, overwrite: true);
+        }
+        finally
+        {
+            if (File.Exists(temporary))
+                File.Delete(temporary);
+        }
     }
 
     private void RefreshPhysicalFileInSnapshot(WorkspacePath path, long length)

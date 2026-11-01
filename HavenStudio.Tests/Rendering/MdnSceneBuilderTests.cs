@@ -58,6 +58,21 @@ public sealed class MdnSceneBuilderTests
         var model = Assert.Single(MdnSceneBuilder.BuildModels(mdn));
         Assert.True(model.BlendEnabled);
         Assert.Equal(ModelBlendMode.Additive, model.BlendMode);
+        Assert.False(model.WriteDepth);
+    }
+
+    [Fact]
+    public void BuildModels_BlendProjectionWithoutRawNoDepthBitStillDoesNotWriteDepth()
+    {
+        // JJ's s02a23a ground gravel overlay uses this exact flag. It is a blended
+        // projection but omits 0x0200, so editor markers must still test against the
+        // opaque floor rather than the decal surface.
+        var mdn = BuildMesh(4, new[] { (Flag: 0x8010, Group: 0) });
+
+        var model = Assert.Single(MdnSceneBuilder.BuildModels(mdn));
+
+        Assert.True(model.BlendEnabled);
+        Assert.False(model.WriteDepth);
     }
 
     [Fact]

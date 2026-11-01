@@ -13,8 +13,7 @@ namespace HavenStudio.Tests.Services;
 public sealed class MapPersistenceTests
 {
     private const uint EffectHash = 0x445566;
-    private static readonly uint ResolvedEffectHash = HavenStudio.Utils.String.HashString(
-        EffectHash.ToString(System.Globalization.CultureInfo.InvariantCulture));
+    private const uint ResolvedEffectHash = EffectHash;
 
     [Fact]
     public void Map_json_round_trip_preserves_untouched_gcx_and_geom_bytes()
@@ -120,6 +119,11 @@ public sealed class MapPersistenceTests
             mapEditor.AddEffectAtCamera();
             var firstAdded = collisionEditor.Effects[1];
             Assert.Same(firstAdded, collisionEditor.SelectedEffect);
+            var firstAddedDuplicate = collisionEditor.DuplicateEffectForPlacement(firstAdded.Effect);
+            Assert.Equal(3, collisionEditor.Effects.Count);
+            collisionEditor.RemoveEffect(
+                firstAddedDuplicate.Change,
+                firstAddedDuplicate.Change.PreviousSelection);
             mapEditor.AddEffectAtCamera();
             Assert.Equal(3, collisionEditor.Effects.Count);
             Assert.Equal(3, mapEditor.Outline[2].Children.Count);
@@ -157,12 +161,15 @@ public sealed class MapPersistenceTests
     public async Task Placement_effect_duplicates_use_the_next_available_hash_and_copy_transform()
     {
         var path = Path.Combine(Path.GetTempPath(), $"haven-effect-duplicate-{Guid.NewGuid():N}.geom");
-        await File.WriteAllBytesAsync(path, BuildGeomFixture());
+        var originalBytes = BuildGeomFixture();
+        await File.WriteAllBytesAsync(path, originalBytes);
         try
         {
             var host = new SceneHost();
             var collisionEditor = new CollisionEditorViewModel(host);
             await collisionEditor.LoadFromFilePathAsync(path);
+            var groups = collisionEditor.GeomFile!.GetChunkFromType(GeoChunkType.GROUPS)!;
+            var references = collisionEditor.GeomFile.GetChunkFromType(GeoChunkType.REFS)!;
             var source = Assert.Single(collisionEditor.Effects);
 
             var first = collisionEditor.DuplicateEffectForPlacement(source.Effect);
@@ -175,6 +182,21 @@ public sealed class MapPersistenceTests
             Assert.Equal(source.Y, first.Change.Effect.Y);
             Assert.Equal(source.Z, first.Change.Effect.Z);
             Assert.Equal(unchecked((int)first.Hash), first.Change.Effect.Effect.Name);
+
+            await collisionEditor.SaveAsync();
+            var savedBytes = await File.ReadAllBytesAsync(path);
+            Assert.Equal(
+                originalBytes.AsSpan(groups.DataOffset, groups.Size).ToArray(),
+                savedBytes.AsSpan(groups.DataOffset, groups.Size).ToArray());
+            Assert.Equal(
+                originalBytes.AsSpan(references.DataOffset, references.Size).ToArray(),
+                savedBytes.AsSpan(references.DataOffset, references.Size).ToArray());
+
+            var reloaded = new GeomFile(
+                new MemoryStream(savedBytes, writable: false),
+                Endianness.Big);
+            Assert.Equal(3, TreeTraversal.Flatten(reloaded.GeoEffects, effect => effect.Children).Count());
+            reloaded.CloseStream();
         }
         finally
         {

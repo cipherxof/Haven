@@ -175,7 +175,11 @@ public static class GcxCommandBuilder
         // -eft
         if (hasEft)
         {
-            charaBytes.AddRange(new byte[] { 0x55, 0x65, 0x34, 0xA1, 0x01, 0x09 });
+            // Effect references are direct string codes. The 0x58 parameter wrapper and
+            // 0x06 value tag match the stock MGO2 NewPutObject encoding. Using the numeric
+            // 0x09 form makes the decompiler consume the bytes as an expression and turns
+            // the requested hash into an unrelated synthetic value (commonly 0x28D7FB).
+            charaBytes.AddRange(new byte[] { 0x58, 0x65, 0x34, 0xA1, 0x01, 0x06 });
             charaBytes.AddRange(StrCodeBytes(eftHash));
         }
 

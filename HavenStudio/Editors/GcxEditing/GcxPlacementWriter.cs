@@ -14,6 +14,39 @@ public sealed record GcxPlacementWriteResult(byte[] Bytes, bool CommandResized);
 
 public static class GcxPlacementWriter
 {
+    public static GcxPlacementWriteResult DeletePlacement(
+        byte[] scriptBytes,
+        GcxPlacementSite site,
+        int? foreachRowIndex = null)
+    {
+        ArgumentNullException.ThrowIfNull(scriptBytes);
+        ArgumentNullException.ThrowIfNull(site);
+
+        if (site.Foreach != null)
+        {
+            if (foreachRowIndex is not { } rowIndex)
+            {
+                throw new InvalidOperationException("The selected foreach placement row could not be identified.");
+            }
+
+            return DeleteForeachRow(scriptBytes, site.Foreach, rowIndex);
+        }
+        if (site.IsNested)
+        {
+            throw new InvalidOperationException(
+                "This nested placement is not part of a writable foreach data table.");
+        }
+
+        ReadTaggedBlock(scriptBytes, site.CommandOffset, site.CommandLength, "command");
+        var rewritten = ReplaceRange(
+            scriptBytes,
+            site.CommandOffset,
+            site.CommandLength,
+            ReadOnlySpan<byte>.Empty);
+        UpdateProcedureSize(scriptBytes, rewritten);
+        return new GcxPlacementWriteResult(rewritten, CommandResized: true);
+    }
+
     public static GcxPlacementWriteResult DuplicatePlacement(
         byte[] scriptBytes,
         GcxPlacementSite site,
@@ -38,7 +71,8 @@ public static class GcxPlacementWriter
                 transformSourceSite,
                 replacementTransformHash);
         }
-        if (site.IsNested)
+        if (site.IsNested &&
+            (site.CommandHash != 0x07A516 || site.EnclosingBlocks.Count == 0))
         {
             throw new InvalidOperationException(
                 "This nested placement is not part of a writable foreach data table.");
@@ -51,13 +85,101 @@ public static class GcxPlacementWriter
             site.CommandOffset,
             transformSourceSite,
             replacementTransformHash);
-        var rewritten = ReplaceRange(
-            scriptBytes,
-            site.CommandOffset + site.CommandLength,
-            0,
-            command);
-        UpdateProcedureSize(rewritten);
+        var rewritten = site.IsNested
+            ? InsertIntoNestedContainers(scriptBytes, site, command)
+            : ReplaceRange(
+                scriptBytes,
+                site.CommandOffset + site.CommandLength,
+                0,
+                command);
+        UpdateProcedureSize(scriptBytes, rewritten);
         return new GcxPlacementWriteResult(rewritten, CommandResized: true);
+    }
+
+    private static byte[] InsertIntoNestedContainers(
+        byte[] scriptBytes,
+        GcxPlacementSite site,
+        ReadOnlySpan<byte> command)
+    {
+        if (site.CommandHash != 0x07A516)
+        {
+            throw new InvalidOperationException(
+                "Only nested NewPutObject commands can currently be duplicated safely.");
+        }
+
+        var enclosingBlocks = site.EnclosingBlocks;
+        if (enclosingBlocks.Count == 0)
+        {
+            throw new InvalidDataException(
+                "The nested placement does not include its enclosing GCX block path.");
+        }
+
+        var insertionOffset = checked(site.CommandOffset + site.CommandLength);
+        var rewritten = ReplaceRange(scriptBytes, insertionOffset, 0, command);
+        foreach (var container in enclosingBlocks)
+        {
+            var block = ReadTaggedBlock(
+                scriptBytes,
+                container.Offset,
+                container.Length,
+                "enclosing block");
+            if (site.CommandOffset < block.PayloadOffset ||
+                insertionOffset > block.PayloadOffset + block.PayloadLength)
+            {
+                throw new InvalidDataException(
+                    "The recorded nested GCX container path no longer encloses the placement.");
+            }
+
+            IncreaseTaggedBlockPayloadSize(
+                scriptBytes,
+                rewritten,
+                container.Offset,
+                block.PayloadLength,
+                command.Length);
+        }
+
+        return rewritten;
+    }
+
+    private static void IncreaseTaggedBlockPayloadSize(
+        byte[] original,
+        byte[] rewritten,
+        int offset,
+        int payloadLength,
+        int increase)
+    {
+        var resizedPayloadLength = checked(payloadLength + increase);
+        var sizeCode = original[offset] & 0x0F;
+        if (sizeCode == 0x0E)
+        {
+            if (resizedPayloadLength > ushort.MaxValue)
+            {
+                throw new InvalidDataException(
+                    "The duplicated placement would exceed a nested GCX block's 16-bit size limit.");
+            }
+            BinaryPrimitives.WriteUInt16LittleEndian(
+                rewritten.AsSpan(offset + 1, 2),
+                (ushort)resizedPayloadLength);
+            return;
+        }
+        if (sizeCode == 0x0D)
+        {
+            if (resizedPayloadLength > byte.MaxValue)
+            {
+                throw new InvalidDataException(
+                    "The duplicated placement would require expanding a nested GCX block header.");
+            }
+            rewritten[offset + 1] = (byte)resizedPayloadLength;
+            return;
+        }
+        if (sizeCode <= 0x0C && resizedPayloadLength <= 0x0C)
+        {
+            rewritten[offset] = (byte)((original[offset] & 0xF0) | resizedPayloadLength);
+            return;
+        }
+
+        throw new InvalidDataException(
+            "The duplicated placement would require expanding a compact nested GCX block header.");
     }
 
     public static GcxPlacementWriteResult WriteModelHash(
@@ -246,7 +368,7 @@ public static class GcxPlacementWriter
 
         var hash = collisionReferenceHash.GetValueOrDefault();
         var reference = site.CollisionReference;
-        if (site.IsNested && hash == 0)
+        if (site.IsNested && hash == 0 && site.EnclosingBlocks.Count == 0)
         {
             throw new InvalidOperationException(
                 "A nested collision reference can be changed, but it cannot be removed safely.");
@@ -298,10 +420,20 @@ public static class GcxPlacementWriter
             site.CommandOffset,
             site.CommandLength,
             commandBytes);
-        if (!GcxScriptEditor.UpdateProcSize(rewritten))
+        if (site.IsNested)
         {
-            throw new InvalidDataException("GCX placement belongs to a script without a procedure-size header.");
+            if (site.CommandHash != 0x07A516 || site.EnclosingBlocks.Count == 0)
+            {
+                throw new InvalidOperationException(
+                    "This nested placement does not have a safely resizable NewPutObject container path.");
+            }
+            AdjustNestedContainerPayloadSizes(
+                scriptBytes,
+                rewritten,
+                site,
+                commandBytes.Length - site.CommandLength);
         }
+        UpdateProcedureSize(scriptBytes, rewritten);
         return new GcxPlacementWriteResult(rewritten, CommandResized: true);
     }
 
@@ -388,10 +520,7 @@ public static class GcxPlacementWriter
             site.CommandOffset,
             site.CommandLength,
             commandBytes);
-        if (!GcxScriptEditor.UpdateProcSize(rewritten))
-        {
-            throw new InvalidDataException("GCX placement belongs to a script without a procedure-size header.");
-        }
+        UpdateProcedureSize(scriptBytes, rewritten);
         return rewritten;
     }
 
@@ -448,8 +577,131 @@ public static class GcxPlacementWriter
             foreachSite.CommandOffset,
             foreachSite.CommandLength,
             commandBytes);
-        UpdateProcedureSize(rewritten);
+        UpdateProcedureSize(scriptBytes, rewritten);
         return new GcxPlacementWriteResult(rewritten, CommandResized: true);
+    }
+
+    private static void AdjustNestedContainerPayloadSizes(
+        byte[] original,
+        byte[] rewritten,
+        GcxPlacementSite site,
+        int delta)
+    {
+        foreach (var container in site.EnclosingBlocks)
+        {
+            var block = ReadTaggedBlock(original, container.Offset, container.Length, "enclosing block");
+            if (site.CommandOffset < block.PayloadOffset ||
+                site.CommandOffset + site.CommandLength > block.PayloadOffset + block.PayloadLength)
+            {
+                throw new InvalidDataException(
+                    "The recorded nested GCX container path no longer encloses the placement.");
+            }
+            IncreaseTaggedBlockPayloadSize(original, rewritten, container.Offset, block.PayloadLength, delta);
+        }
+    }
+
+    private static GcxPlacementWriteResult DeleteForeachRow(
+        byte[] scriptBytes,
+        GcxForeachSite foreachSite,
+        int rowIndex)
+    {
+        if (rowIndex < 0 || rowIndex >= foreachSite.Rows.Count)
+        {
+            throw new InvalidOperationException("The selected foreach placement row is stale.");
+        }
+        if (foreachSite.Rows.Count <= 1 || foreachSite.Repeat.Value <= 1)
+        {
+            throw new InvalidOperationException(
+                "The last foreach row cannot be removed without deleting its owning command.");
+        }
+
+        var commandBlock = ReadTaggedBlock(
+            scriptBytes,
+            foreachSite.CommandOffset,
+            foreachSite.CommandLength,
+            "foreach command");
+        var commandPayload = scriptBytes
+            .AsSpan(commandBlock.PayloadOffset, commandBlock.PayloadLength)
+            .ToArray();
+        var replacements = new[]
+        {
+            new BlockReplacement(
+                foreachSite.DataParameterOffset - commandBlock.PayloadOffset,
+                foreachSite.DataParameterLength,
+                DeleteDataRow(scriptBytes, foreachSite, rowIndex)),
+            new BlockReplacement(
+                foreachSite.RepeatParameterOffset - commandBlock.PayloadOffset,
+                foreachSite.RepeatParameterLength,
+                DecrementRepeatParameter(scriptBytes, foreachSite))
+        };
+        foreach (var replacement in replacements.OrderByDescending(item => item.Offset))
+        {
+            commandPayload = ReplaceRange(
+                commandPayload,
+                replacement.Offset,
+                replacement.Length,
+                replacement.Bytes);
+        }
+
+        var commandBytes = GcxCommandBuilder.WrapTaggedPayload(
+            (byte)(scriptBytes[foreachSite.CommandOffset] & 0xF0),
+            commandPayload);
+        var rewritten = ReplaceRange(
+            scriptBytes,
+            foreachSite.CommandOffset,
+            foreachSite.CommandLength,
+            commandBytes);
+        UpdateProcedureSize(scriptBytes, rewritten);
+        return new GcxPlacementWriteResult(rewritten, CommandResized: true);
+    }
+
+    private static byte[] DeleteDataRow(
+        byte[] scriptBytes,
+        GcxForeachSite foreachSite,
+        int rowIndex)
+    {
+        var parameterBlock = ReadTaggedBlock(
+            scriptBytes,
+            foreachSite.DataParameterOffset,
+            foreachSite.DataParameterLength,
+            "foreach data parameter");
+        var parameterPayload = scriptBytes
+            .AsSpan(parameterBlock.PayloadOffset, parameterBlock.PayloadLength)
+            .ToArray();
+        var row = foreachSite.Rows[rowIndex];
+        EnsureRange(scriptBytes, row.Offset, row.Length, "foreach data row");
+        parameterPayload = ReplaceRange(
+            parameterPayload,
+            row.Offset - parameterBlock.PayloadOffset,
+            row.Length,
+            ReadOnlySpan<byte>.Empty);
+        return GcxCommandBuilder.WrapTaggedPayload(
+            (byte)(scriptBytes[foreachSite.DataParameterOffset] & 0xF0),
+            parameterPayload);
+    }
+
+    private static byte[] DecrementRepeatParameter(
+        byte[] scriptBytes,
+        GcxForeachSite foreachSite)
+    {
+        var parameterBlock = ReadTaggedBlock(
+            scriptBytes,
+            foreachSite.RepeatParameterOffset,
+            foreachSite.RepeatParameterLength,
+            "foreach repeat parameter");
+        var repeat = foreachSite.Repeat;
+        EnsureRange(scriptBytes, repeat.Offset, repeat.Width, "foreach repeat literal");
+        var parameterPayload = scriptBytes
+            .AsSpan(parameterBlock.PayloadOffset, parameterBlock.PayloadLength)
+            .ToArray();
+        parameterPayload = ReplaceRange(
+            parameterPayload,
+            repeat.Offset - parameterBlock.PayloadOffset,
+            repeat.Width,
+            GcxCommandBuilder.Int32LiteralBytes(checked(repeat.Value - 1)));
+        return GcxCommandBuilder.WrapTaggedPayload(
+            (byte)(scriptBytes[foreachSite.RepeatParameterOffset] & 0xF0),
+            parameterPayload);
     }
 
     private static byte[] DuplicateDataRow(
@@ -540,12 +792,61 @@ public static class GcxPlacementWriter
             parameterPayload);
     }
 
-    private static void UpdateProcedureSize(byte[] bytes)
+    private static void UpdateProcedureSize(byte[] original, byte[] rewritten)
     {
-        if (!GcxScriptEditor.UpdateProcSize(bytes))
+        if (original.Length < 2 || rewritten.Length < 2 || original[0] != rewritten[0])
         {
             throw new InvalidDataException("GCX placement belongs to a script without a procedure-size header.");
         }
+
+        int headerSize;
+        int declaredSize;
+        if (original[0] == 0x8D)
+        {
+            headerSize = 2;
+            declaredSize = original[1];
+        }
+        else if (original[0] == 0x8E && original.Length >= 3 && rewritten.Length >= 3)
+        {
+            headerSize = 3;
+            declaredSize = original[1] | original[2] << 8;
+        }
+        else
+        {
+            throw new InvalidDataException("GCX placement belongs to a script without a procedure-size header.");
+        }
+
+        // Shipped GCX procedures can share a physical allocation and retain
+        // non-executable bytes after their declared command boundary. Preserve
+        // that suffix instead of expanding the procedure declaration over it.
+        var trailingLength = original.Length - headerSize - declaredSize;
+        if (trailingLength < 0)
+        {
+            throw new InvalidDataException("The GCX procedure declares more bytes than its physical allocation.");
+        }
+        var rewrittenDeclaredSize = rewritten.Length - headerSize - trailingLength;
+        if (rewrittenDeclaredSize < 0)
+        {
+            throw new InvalidDataException("The resized GCX procedure is shorter than its preserved trailing data.");
+        }
+
+        if (headerSize == 2)
+        {
+            if (rewrittenDeclaredSize > byte.MaxValue)
+            {
+                throw new InvalidDataException(
+                    $"GCX 0x8D procedure body is {rewrittenDeclaredSize} bytes; the format limit is {byte.MaxValue} bytes.");
+            }
+            rewritten[1] = (byte)rewrittenDeclaredSize;
+            return;
+        }
+        if (rewrittenDeclaredSize > ushort.MaxValue)
+        {
+            throw new InvalidDataException(
+                $"GCX 0x8E procedure body is {rewrittenDeclaredSize} bytes; the format limit is {ushort.MaxValue} bytes.");
+        }
+        rewritten[1] = (byte)(rewrittenDeclaredSize & 0xFF);
+        rewritten[2] = (byte)((rewrittenDeclaredSize >> 8) & 0xFF);
     }
 
     private static void PatchLiteral(byte[] bytes, GcxLiteralSite literal, int value)

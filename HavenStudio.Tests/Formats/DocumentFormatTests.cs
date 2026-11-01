@@ -291,6 +291,27 @@ public sealed class DocumentFormatTests
     }
 
     [Fact]
+    public void Dlz_pack_uses_retail_16_kib_decompressed_pages()
+    {
+        var payload = Enumerable.Range(0, (DlzFile.DecompressedChunkSize * 3) + 123)
+            .Select(i => (byte)(i * 31))
+            .ToArray();
+
+        var document = DlzFile.Pack(payload);
+        var indexes = document.Segs.SelectMany(segment => segment.SegIndex).ToArray();
+        using var unpacked = new MemoryStream();
+        document.Unpack(unpacked);
+
+        Assert.Equal(4, indexes.Length);
+        Assert.All(indexes.Take(3), index =>
+            Assert.Equal(DlzFile.DecompressedChunkSize, index.SizeDecompressed));
+        Assert.Equal(123, indexes[^1].SizeDecompressed);
+        Assert.All(indexes, index =>
+            Assert.InRange(index.SizeDecompressed, (ushort)1, (ushort)DlzFile.DecompressedChunkSize));
+        Assert.Equal(payload, unpacked.ToArray());
+    }
+
+    [Fact]
     public void Dlz_read_write_preserves_padding_reserved_slots_and_spillover_chunks()
     {
         const int segmentSize = 0x20000;

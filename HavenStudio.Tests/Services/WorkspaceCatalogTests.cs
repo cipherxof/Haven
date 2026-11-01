@@ -11,6 +11,71 @@ namespace HavenStudio.Tests.Services;
 public sealed class WorkspaceCatalogTests
 {
     [Fact]
+    public async Task Stage_manifest_selects_its_configured_geom_instead_of_alphabetical_first()
+    {
+        using var temp = new TempDirectory();
+        File.WriteAllText(temp.GetPath("data.cnf"), ".cache\r\nstage_b.geom\r\nscenerio.gcx\r\n");
+        File.WriteAllBytes(temp.GetPath("stage_a.geom"), [0x01]);
+        File.WriteAllBytes(temp.GetPath("stage_b.geom"), [0x02]);
+        var catalog = new WorkspaceCatalog(temp.Path, Endianness.Big);
+        var snapshot = await catalog.ScanAsync();
+
+        var selected = StageManifestResolver.FindGeomPath(catalog, snapshot);
+
+        Assert.NotNull(selected);
+        Assert.Equal("stage_b.geom", selected!.FileName);
+    }
+
+    [Fact]
+    public async Task Stage_manifest_selects_gcx_beside_selected_geom_instead_of_nested_backup()
+    {
+        using var temp = new TempDirectory();
+        Directory.CreateDirectory(temp.GetPath("old"));
+        File.WriteAllText(temp.GetPath("data.cnf"), ".cache\r\nstage_b.geom\r\nscenerio.gcx\r\n");
+        File.WriteAllBytes(temp.GetPath("stage_b.geom"), [0x02]);
+        File.WriteAllBytes(temp.GetPath("scenerio.gcx"), [0xAA]);
+        File.WriteAllBytes(temp.GetPath(Path.Combine("old", "scenerio.gcx")), [0xBB]);
+        var catalog = new WorkspaceCatalog(temp.Path, Endianness.Big);
+        var snapshot = await catalog.ScanAsync();
+        var geom = StageManifestResolver.FindGeomPath(catalog, snapshot);
+
+        var selected = StageManifestResolver.FindGcxPath(catalog, snapshot, geom);
+
+        Assert.NotNull(selected);
+        Assert.Equal(temp.GetPath("scenerio.gcx"), selected!.PhysicalPath);
+    }
+
+    [Fact]
+    public async Task Stage_manifest_lists_only_active_cache_files_and_excludes_backups()
+    {
+        using var temp = new TempDirectory();
+        Directory.CreateDirectory(temp.GetPath("hold"));
+        File.WriteAllText(
+            temp.GetPath("data.cnf"),
+            ".nocache\r\n@cache.qar\r\ncache.dlz\r\ncache_d.dlz\r\n");
+        File.WriteAllBytes(temp.GetPath("cache.qar"), [0x01]);
+        File.WriteAllBytes(temp.GetPath("cache.dlz"), [0x02]);
+        File.WriteAllBytes(temp.GetPath("cache_d.dlz"), [0x03]);
+        File.WriteAllBytes(temp.GetPath("cache_012000.dlz"), [0x04]);
+        File.WriteAllBytes(temp.GetPath(Path.Combine("hold", "cache.dlz")), [0x05]);
+        var catalog = new WorkspaceCatalog(temp.Path, Endianness.Big);
+        var snapshot = await catalog.ScanAsync();
+
+        var listed = StageManifestResolver.FindListedPhysicalPaths(
+            catalog,
+            snapshot,
+            ".qar",
+            ".dlz");
+
+        Assert.Equal(3, listed.Count);
+        Assert.Contains(temp.GetPath("cache.qar"), listed);
+        Assert.Contains(temp.GetPath("cache.dlz"), listed);
+        Assert.Contains(temp.GetPath("cache_d.dlz"), listed);
+        Assert.DoesNotContain(temp.GetPath("cache_012000.dlz"), listed);
+        Assert.DoesNotContain(temp.GetPath(Path.Combine("hold", "cache.dlz")), listed);
+    }
+
+    [Fact]
     public void Workspace_path_centralizes_legacy_path_parsing()
     {
         using var temp = new TempDirectory();

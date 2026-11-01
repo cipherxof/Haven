@@ -19,16 +19,22 @@ public enum MapDragAxis
 
 public sealed class MapManipulationTarget
 {
+    private readonly IReadOnlyDictionary<Model3D, Vector3> _modelOffsets;
+
     public MapManipulationTarget(object entity, Vector3 position, IEnumerable<Model3D> models)
     {
         Entity = entity ?? throw new ArgumentNullException(nameof(entity));
         Position = position;
         Models = models?.Distinct().ToArray() ?? throw new ArgumentNullException(nameof(models));
+        _modelOffsets = Models.ToDictionary(model => model, model => model.Position - position);
     }
 
     public object Entity { get; }
     public Vector3 Position { get; }
     public IReadOnlyList<Model3D> Models { get; }
+
+    public Vector3 GetModelPosition(Model3D model, Vector3 targetPosition) =>
+        targetPosition + _modelOffsets[model];
 }
 
 public readonly record struct MapDragUpdate(
@@ -167,7 +173,7 @@ public sealed class MapManipulationController
     {
         foreach (var model in target.Models)
         {
-            model.Position = position;
+            model.Position = target.GetModelPosition(model, position);
         }
 
         _sceneHost.ViewportControl.RequestNextFrameRendering();

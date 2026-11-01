@@ -80,6 +80,57 @@ public sealed class GcxEditorViewModel : INotifyPropertyChanged, IDisposable
     public double ProgressValue => _progressValue;
     public string ProgressText => _progressText;
     public bool HasDocument => _documentSession.HasDocument;
+    public IReadOnlyList<GcxCameraReference> GetSpectatorCameras()
+    {
+        return SettingsStore.Current.IsMgs3 || _documentSession.Document is not { } document
+            ? [] : GcxCameraWriter.ScanDocument(document);
+    }
+
+    public IReadOnlyList<GcxSdmAreaReference> GetSdmAreas() =>
+        GcxSdmAreaScanner.Scan(_decompiledScripts);
+
+    public byte[] GetSdmAreaScriptBytes(GcxSdmAreaReference area)
+    {
+        ArgumentNullException.ThrowIfNull(area);
+        var node = ScriptItems.SingleOrDefault(candidate =>
+            !candidate.IsAggregate && candidate.Script != null &&
+            candidate.Name.Equals(area.CallerScript, StringComparison.OrdinalIgnoreCase));
+        return node?.Script?.Bytes.ToArray() ?? throw new InvalidOperationException(
+            $"The SDM caller {area.CallerScript} is no longer loaded.");
+    }
+
+    public void ApplySdmAreaScript(GcxSdmAreaReference area, byte[] bytes)
+    {
+        ArgumentNullException.ThrowIfNull(area);
+        ArgumentNullException.ThrowIfNull(bytes);
+        var node = ScriptItems.SingleOrDefault(candidate =>
+            !candidate.IsAggregate && candidate.Script != null &&
+            candidate.Name.Equals(area.CallerScript, StringComparison.OrdinalIgnoreCase));
+        if (node?.Script == null)
+        {
+            throw new InvalidOperationException(
+                $"The SDM caller {area.CallerScript} is no longer loaded.");
+        }
+
+        _scriptEditor.ReplaceScriptBytes(node.Script, bytes.ToArray());
+        _decompiledScripts[node.Name] = GcxDecompiler.Decompile(bytes, node.Name);
+        _documentSession.MarkDirty();
+        UpdateMetadata();
+        PublishSelection();
+        OnPropertyChanged(nameof(IsDirty));
+    }
+
+    public void ApplyCameraScript(GcxCameraReference camera, byte[] bytes)
+    {
+        if (!ScriptItems.Any(node => ReferenceEquals(node.Script, camera.Script)))
+            throw new InvalidOperationException("The camera's GCX document is no longer loaded.");
+        _scriptEditor.ReplaceScriptBytes(camera.Script, bytes.ToArray());
+        _decompiledScripts[camera.ScriptName] = GcxDecompiler.Decompile(bytes, camera.ScriptName);
+        _documentSession.MarkDirty();
+        UpdateMetadata();
+        PublishSelection();
+        OnPropertyChanged(nameof(IsDirty));
+    }
     public SceneLightSettings? SystemLighting => GcxSystemLightParser.Parse(_decompiledScripts.Values);
     public IReadOnlyList<string> ProcedureNames => ScriptItems
         .Where(node => !node.IsAggregate && node.Script != null)
@@ -110,6 +161,42 @@ public sealed class GcxEditorViewModel : INotifyPropertyChanged, IDisposable
             : ProjectModelLoader.BuildPathLookup(_workspaceSnapshot);
     }
 
+    public IReadOnlySet<uint> GetRegisteredRaceGoalHashes(IEnumerable<uint> knownRaceGoalHashes)
+    {
+        var candidates = knownRaceGoalHashes.ToArray();
+        var result = GcxRaceGoalScanner.FindRegisteredGoals(
+            _decompiledScripts.Values,
+            candidates);
+        if (result.Count > 0 || _documentSession.Document is not { } document)
+        {
+            return result;
+        }
+
+        var scripts = _decompilationService.DecompileDocument(document, isMgs3: false);
+        return GcxRaceGoalScanner.FindRegisteredGoals(scripts.Values, candidates);
+    }
+
+    public IReadOnlyDictionary<uint, IReadOnlySet<uint>> GetRaceGoalLinks(
+        IEnumerable<uint> knownRaceGoalHashes)
+    {
+        var candidates = knownRaceGoalHashes.ToArray();
+        var result = GcxRaceGoalScanner.FindGoalLinks(_decompiledScripts.Values, candidates);
+        if (_documentSession.Document is { } document)
+        {
+            var scripts = _decompilationService.DecompileDocument(document, isMgs3: false);
+            var completeResult = GcxRaceGoalScanner.FindGoalLinks(scripts.Values, candidates);
+            if (RaceGraphScore(completeResult) > RaceGraphScore(result))
+            {
+                result = completeResult;
+            }
+        }
+        return result;
+    }
+
+    private static int RaceGraphScore(
+        IReadOnlyDictionary<uint, IReadOnlySet<uint>> graph) =>
+        checked((graph.Count * 1000) + graph.Values.Sum(links => links.Count));
+
     public void SetWorkspace(IWorkspaceCatalog workspace, WorkspaceSnapshot snapshot)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
@@ -128,6 +215,109 @@ public sealed class GcxEditorViewModel : INotifyPropertyChanged, IDisposable
         if (_documentSession.Document != null)
         {
             _ = RefreshProjectModelsSafelyAsync();
+        }
+    }
+
+    public IReadOnlyList<GcxVegetationReference> GetVegetationReferences()
+    {
+        var references = _documentSession.Document is { } loadedDocument
+            ? GcxVegetationReferenceScanner.Scan(loadedDocument)
+            : GcxVegetationReferenceScanner.Scan(_decompiledScripts.Values);
+        if (references.Count > 0 || _documentSession.Document is not { } document)
+        {
+            return references;
+        }
+
+        // Workspace loading can request vegetation immediately after the GCX
+        // document is published. Recover from the document itself if the
+        // decompilation cache has not been populated (or was reset) yet.
+        var isMgs3 = SettingsStore.Current.IsMgs3;
+        var scripts = _decompilationService.DecompileDocument(document, isMgs3);
+        _decompiledScripts = new Dictionary<string, string>(
+            scripts,
+            StringComparer.OrdinalIgnoreCase);
+        references = GcxVegetationReferenceScanner.Scan(_decompiledScripts.Values);
+        if (references.Count == 0 && isMgs3)
+        {
+            // NewGrassMng_03 is an MGO2 stage command. A persisted MGS3
+            // decompilation preference can still be active when an MGO2 map is
+            // opened, and that dialect does not expose the grass parameters.
+            scripts = _decompilationService.DecompileDocument(document, isMgs3: false);
+            _decompiledScripts = new Dictionary<string, string>(
+                scripts,
+                StringComparer.OrdinalIgnoreCase);
+            references = GcxVegetationReferenceScanner.Scan(_decompiledScripts.Values);
+            Log.Debug(
+                "MGO2 vegetation fallback recovered {VegetationReferenceCount} reference(s) after the MGS3 dialect returned none",
+                references.Count);
+        }
+        Log.Debug(
+            "Recovered {VegetationReferenceCount} vegetation reference(s) directly from the loaded GCX",
+            references.Count);
+        return references;
+    }
+
+    public IReadOnlyList<GcxVegetationReference> GetVegetationReferences(
+        IWorkspaceCatalog workspace,
+        WorkspacePath gcxPath)
+    {
+        ArgumentNullException.ThrowIfNull(workspace);
+        ArgumentNullException.ThrowIfNull(gcxPath);
+        var references = GetVegetationReferences();
+        if (references.Count > 0)
+        {
+            return references;
+        }
+
+        // Keep vegetation discovery independent from any transformations made
+        // while analysing the editor's live GCX document. This is deliberately
+        // the same fresh-byte path used by the repair-tool inspector.
+        using var stream = workspace.OpenRead(gcxPath);
+        var document = GcxFile.Read(stream);
+        references = GcxVegetationReferenceScanner.Scan(document);
+        if (references.Count > 0)
+        {
+            Log.Debug(
+                "Structural GCX scan recovered {VegetationReferenceCount} vegetation reference(s) from {GcxPath}",
+                references.Count,
+                gcxPath.ToString());
+            return references;
+        }
+        var scripts = new GcxDecompilationService().DecompileDocument(
+            document,
+            isMgs3: false);
+        references = GcxVegetationReferenceScanner.Scan(scripts.Values);
+        Log.Debug(
+            "Fresh GCX byte scan recovered {VegetationReferenceCount} vegetation reference(s) from {GcxPath}",
+            references.Count,
+            gcxPath.ToString());
+        return references;
+    }
+
+    public async Task RefreshProjectModelsAsync(CancellationToken cancellationToken = default)
+    {
+        var cancellation = BeginOperation();
+        var cancellationRegistration = cancellationToken.Register(cancellation.Cancel);
+        try
+        {
+            var analysis = await AnalyzeDocumentAsync(
+                forceDecompilation: false,
+                cancellationToken: cancellation.Token);
+            _decompiledScripts = new Dictionary<string, string>(
+                analysis.DecompiledScripts,
+                StringComparer.OrdinalIgnoreCase);
+            await LoadProjectModelsAsync(analysis.References, cancellation.Token);
+        }
+        finally
+        {
+            cancellationRegistration.Dispose();
+            if (ReferenceEquals(_operationCancellation, cancellation))
+            {
+                _operationCancellation = null;
+                EndProgress();
+            }
+
+            cancellation.Dispose();
         }
     }
 
@@ -151,14 +341,21 @@ public sealed class GcxEditorViewModel : INotifyPropertyChanged, IDisposable
 
     public async Task SaveSelectedScriptAsync(CancellationToken cancellationToken = default)
     {
-        if (!_scriptEditor.HasSelectedScript || !_documentSession.HasDocument)
+        if (!_documentSession.HasDocument)
         {
             return;
         }
 
-        _scriptEditor.CommitHexDocument();
-        await RefreshDecompilationAsync(_scriptEditor.SelectedScript, cancellationToken);
-        PublishSelection();
+        // Map-editor placement changes update the owning GCX script directly and
+        // do not require the Scripting tab to have a selected node.  Only commit
+        // the hex editor when there is an actual selection, but always persist a
+        // dirty GCX document.
+        if (_scriptEditor.HasSelectedScript)
+        {
+            _scriptEditor.CommitHexDocument();
+            await RefreshDecompilationAsync(_scriptEditor.SelectedScript, cancellationToken);
+            PublishSelection();
+        }
         await _documentSession.SaveAsync(cancellationToken);
         UpdateMetadata();
         OnPropertyChanged(nameof(IsDirty));
@@ -457,6 +654,21 @@ public sealed class GcxEditorViewModel : INotifyPropertyChanged, IDisposable
             return null;
         }
 
+
+        var existingSites = new List<GcxPlacementSite>();
+        GcxDecompiler.Decompile(
+            target.Script.Bytes,
+            target.Name,
+            SettingsStore.Current.IsMgs3,
+            existingSites);
+        if (existingSites.Any(site => site.IsModelPlacement && site.IsNested))
+        {
+            throw new InvalidOperationException(
+                $"{target.Name} creates its objects inside nested control flow. " +
+                "Appending a top-level object would not run in the same initialization branch. " +
+                "Duplicate a working placement from that branch instead.");
+        }
+
         BeginProgress("Adding map object...", indeterminate: true);
         try
         {
@@ -662,32 +874,16 @@ public sealed class GcxEditorViewModel : INotifyPropertyChanged, IDisposable
 
     private async Task RefreshProjectModelsSafelyAsync()
     {
-        var cancellation = BeginOperation();
         try
         {
-            var analysis = await AnalyzeDocumentAsync(
-                forceDecompilation: false,
-                cancellationToken: cancellation.Token);
-            _decompiledScripts = new Dictionary<string, string>(analysis.DecompiledScripts, StringComparer.OrdinalIgnoreCase);
-            var references = analysis.References;
-            await LoadProjectModelsAsync(references, cancellation.Token);
+            await RefreshProjectModelsAsync();
         }
-        catch (OperationCanceledException) when (cancellation.IsCancellationRequested)
+        catch (OperationCanceledException)
         {
         }
         catch (Exception exception)
         {
             Log.Error(exception, "Failed to refresh GCX project models after GEOM changed");
-        }
-        finally
-        {
-            if (ReferenceEquals(_operationCancellation, cancellation))
-            {
-                _operationCancellation = null;
-                EndProgress();
-            }
-
-            cancellation.Dispose();
         }
     }
 

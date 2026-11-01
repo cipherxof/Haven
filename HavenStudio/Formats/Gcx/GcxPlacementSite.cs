@@ -8,7 +8,9 @@ public enum GcxLiteralEncoding
 {
     PackedNumber,
     Int16,
-    Int32
+    Int32,
+    UInt8,
+    UInt16
 }
 
 public sealed record GcxLiteralSite(
@@ -22,6 +24,8 @@ public sealed record GcxStringCodeSite(
     int ParameterLength,
     int ValueOffset,
     uint Value);
+
+public sealed record GcxTaggedBlockSite(int Offset, int Length);
 
 public sealed record GcxForeachRowSite(int Offset, int Length);
 
@@ -68,6 +72,9 @@ public sealed class GcxPlacementSite
     public uint? EffectHash { get; init; }
     public uint? CollisionReferenceHash { get; init; }
     public uint? PropertyPositionHash { get; init; }
+    public uint? VegetationModelHash { get; init; }
+    public uint? VegetationPdlHash { get; init; }
+    public IReadOnlyList<int> VegetationScaleValues { get; init; } = [];
     public GcxVectorSite? Position { get; init; }
     public GcxVectorSite? Direction { get; init; }
     public GcxStringCodeSite? Model { get; init; }
@@ -79,6 +86,7 @@ public sealed class GcxPlacementSite
     public int ForeachRowCount { get; init; }
     public GcxForeachSite? Foreach { get; init; }
     public GcxStringCodeSite? CollisionReference { get; init; }
+    public IReadOnlyList<GcxTaggedBlockSite> EnclosingBlocks { get; init; } = [];
     public bool IsNested { get; init; }
     public bool IsModelPlacement { get; init; }
     public bool Editable { get; init; }

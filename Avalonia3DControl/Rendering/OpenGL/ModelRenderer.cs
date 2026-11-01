@@ -114,6 +114,7 @@ namespace Avalonia3DControl.Rendering.OpenGL
 
             // Per-packet coverage/alpha-test state (decoded from the MDN packet flag).
             SetBool(shaderProgram, "uUseVertexAlpha", model.UseVertexAlpha);
+            SetBool(shaderProgram, "uEditorVertexOnly", model.MaterialIndex < 0);
             SetFloat(shaderProgram, "uAlphaTestRef", model.AlphaTestRef);
             SetBool(shaderProgram, "uForceOpaqueAlpha", model.ForceOpaqueAlpha);
 
@@ -207,10 +208,15 @@ namespace Avalonia3DControl.Rendering.OpenGL
 
             try
             {
+                GL.BindVertexArray(renderData.VAO);
                 GL.BindBuffer(BufferTarget.ArrayBuffer, renderData.VBO);
-                var vertices = BuildVertexData(model, out _);
+                var vertices = BuildVertexData(model, out var stride);
                 GL.BufferData(BufferTarget.ArrayBuffer, vertices.Length * sizeof(float), vertices, BufferUsageHint.DynamicDraw);
+                // Editor previews can add UVs after the mesh's VAO was created.
+                // Refresh offsets/stride as well as data when changing preview mode.
+                SetupVertexAttributes(stride);
                 GL.BindBuffer(BufferTarget.ArrayBuffer, 0);
+                GL.BindVertexArray(0);
             }
             catch (Exception ex)
             {

@@ -74,6 +74,37 @@ public sealed class GeomMeshExchangeTests
     }
 
     [Fact]
+    public void Reference_blocks_can_alias_group_allocations_and_survive_save_reload()
+    {
+        using var source = new MemoryStream(BuildAliasedReferenceGeomFixture(), writable: false);
+        var geometry = new GeomFile(source, Endianness.Big);
+
+        Assert.Equal(2, geometry.GeomBlocks.Count);
+        var reference = Assert.Single(geometry.GeomRefs);
+        var referenceBlock = Assert.Single(geometry.GeomRefBlocks[reference]);
+        Assert.True(geometry.BlockVertexData.ContainsKey(referenceBlock));
+        Assert.True(GeomMeshDecoder.TryDecodeBlock(
+            geometry.BlockVertexData[referenceBlock],
+            geometry.BlockFaceData[referenceBlock],
+            out var decoded));
+        Assert.Equal(2, decoded.TriangleCount);
+
+        using var saved = new MemoryStream();
+        geometry.Save(saved, Endianness.Big);
+        geometry.CloseStream();
+
+        using var reloadedSource = new MemoryStream(saved.ToArray(), writable: false);
+        var reloaded = new GeomFile(reloadedSource, Endianness.Big);
+        var reloadedReference = Assert.Single(reloaded.GeomRefs);
+        var reloadedBlock = Assert.Single(reloaded.GeomRefBlocks[reloadedReference]);
+        var owner = Assert.Single(reloaded.GeomGroupBlocks.Values.SelectMany(blocks => blocks));
+        Assert.InRange(reloadedBlock.FaceOffset, owner.FaceOffset, owner.FaceOffset + owner.Size - 1);
+        Assert.InRange(reloadedBlock.VertexOffset, owner.FaceOffset, owner.FaceOffset + owner.Size - 1);
+        Assert.True(reloaded.BlockVertexData.ContainsKey(reloadedBlock));
+        reloaded.CloseStream();
+    }
+
+    [Fact]
     public void Unmodified_gltf_import_is_byte_identical_and_position_edits_reencode_offsets()
     {
         var canonical = Canonicalize(BuildGeomFixture());
@@ -351,6 +382,61 @@ public sealed class GeomMeshExchangeTests
 
         output.Position = refsOffset;
         writer.Write(new byte[0x70]);
+        writer.Flush();
+        return output.ToArray();
+    }
+
+    private static byte[] BuildAliasedReferenceGeomFixture()
+    {
+        const int refsOffset = 0x190;
+        const int referenceBlockOffset = 0x270;
+        const int trailingChunksOffset = 0x290;
+        var original = BuildGeomFixture();
+        using var output = new MemoryStream(new byte[trailingChunksOffset], writable: true);
+        output.Write(original);
+        using var writer = new EndianBinaryWriter(output, Endianness.Big, leaveOpen: true);
+
+        output.Position = 4;
+        writer.Write((uint)trailingChunksOffset);
+        output.Position = 0x30;
+        writer.Write(trailingChunksOffset - refsOffset);
+        writer.Write(refsOffset);
+        for (var chunkIndex = 2; chunkIndex < 5; chunkIndex++)
+        {
+            output.Position = 0x20 + chunkIndex * 0x0C + 8;
+            writer.Write(trailingChunksOffset);
+        }
+
+        output.Position = refsOffset;
+        writer.Write(0f);
+        writer.Write(0f);
+        writer.Write(0f);
+        writer.Write((ushort)0);
+        writer.Write((ushort)1);
+        writer.Write(0f);
+        writer.Write(0f);
+        writer.Write(0f);
+        writer.Write(0u);
+        for (var index = 0; index < 16; index++)
+        {
+            writer.Write(index % 5 == 0 ? 1f : 0f);
+        }
+        writer.Write(0UL);
+        writer.Write(referenceBlockOffset);
+        writer.Write(0x12345678u);
+
+        output.Position = referenceBlockOffset;
+        writer.Write((byte)0x10);
+        writer.Write((byte)1);
+        writer.Write((ushort)0xA0);
+        writer.Write((ushort)0);
+        writer.Write(ushort.MaxValue);
+        writer.Write((ushort)0);
+        writer.Write((ushort)0);
+        writer.Write(0x150);
+        writer.Write(0xF0);
+        writer.Write(0);
+        writer.Write(GeoCollisionAttributes.Floor);
         writer.Flush();
         return output.ToArray();
     }

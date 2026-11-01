@@ -9,6 +9,52 @@ namespace HavenStudio.Tests.Editors;
 public sealed class LitDocumentSessionTests
 {
     [Fact]
+    public async Task Async_save_notifies_on_callers_context_and_preserves_newer_edits()
+    {
+        using var temp = new TempDirectory();
+        var path = temp.GetPath("mo_st01_d.lt2");
+        File.Copy(FixturePath("mo_st01_d.lt2"), path);
+        var workspace = new WorkspaceCatalog(temp.Path, Endianness.Little);
+        await workspace.ScanAsync();
+        var session = LitDocumentSession.Load(workspace, WorkspacePath.Physical(path));
+        session.MarkDirty();
+        var savedBytes = session.Document.ToArray();
+        var callerThread = Environment.CurrentManagedThreadId;
+        var notificationThreads = new List<int>();
+        session.Changed += () => notificationThreads.Add(Environment.CurrentManagedThreadId);
+        var previous = SynchronizationContext.Current;
+        using var context = new PumpContext();
+        try
+        {
+            SynchronizationContext.SetSynchronizationContext(context);
+            var save = session.SaveAsync();
+            session.MarkDirty(); // Edits during the write must remain unsaved.
+            while (!save.IsCompleted)
+            {
+                Assert.True(context.Callbacks.TryTake(out var callback, TimeSpan.FromSeconds(10)));
+                callback.Callback(callback.State);
+            }
+            await save;
+        }
+        finally
+        {
+            SynchronizationContext.SetSynchronizationContext(previous);
+        }
+        Assert.Equal(2, notificationThreads.Count);
+        Assert.All(notificationThreads, thread => Assert.Equal(callerThread, thread));
+        Assert.True(session.IsDirty);
+        Assert.Equal(savedBytes, File.ReadAllBytes(path));
+        Assert.Equal(savedBytes, session.OriginalBytes);
+    }
+
+    private sealed class PumpContext : SynchronizationContext, IDisposable
+    {
+        public readonly System.Collections.Concurrent.BlockingCollection<(SendOrPostCallback Callback, object? State)> Callbacks = new();
+        public override void Post(SendOrPostCallback callback, object? state) => Callbacks.Add((callback, state));
+        public void Dispose() => Callbacks.Dispose();
+    }
+
+    [Fact]
     public async Task Untouched_session_save_is_byte_identical()
     {
         using var temp = new TempDirectory();

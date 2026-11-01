@@ -11,6 +11,8 @@ public sealed class GeoEffectChunkPatcherTests
     {
         Assert.Equal(MathF.PI / 2f, GeoEffectChunkPatcher.DecodeAngle(0x4000), 6);
         Assert.Equal(-MathF.PI, GeoEffectChunkPatcher.DecodeAngle(short.MinValue), 6);
+        Assert.Equal(-MathF.PI / 2f, GeoEffectChunkPatcher.DecodeRotationX(0x4000), 6);
+        Assert.Equal(0x4000, GeoEffectChunkPatcher.EncodeRotationX(-MathF.PI / 2f));
     }
 
     [Fact]
@@ -37,7 +39,7 @@ public sealed class GeoEffectChunkPatcherTests
             Y = -2.5f,
             Z = 3.75f,
             W = 1f,
-            RotationX = GeoEffectChunkPatcher.DecodeAngle(1234),
+            RotationX = GeoEffectChunkPatcher.DecodeRotationX(1234),
             RotationY = GeoEffectChunkPatcher.DecodeAngle(-2345),
             RotationZ = GeoEffectChunkPatcher.DecodeAngle(32767)
         };
@@ -74,7 +76,7 @@ public sealed class GeoEffectChunkPatcherTests
             Y = 2f,
             Z = 3f,
             W = 4f,
-            RotationX = GeoEffectChunkPatcher.DecodeAngle(100),
+            RotationX = GeoEffectChunkPatcher.DecodeRotationX(100),
             RotationY = GeoEffectChunkPatcher.DecodeAngle(-400),
             RotationZ = GeoEffectChunkPatcher.DecodeAngle(300)
         };
@@ -196,6 +198,33 @@ public sealed class GeoEffectChunkPatcherTests
         Assert.Equal(0xA5, rebuilt[0x17]);
         Assert.Equal(0xA5, rebuilt[0x37]);
         Assert.Equal(2, BinaryPrimitives.ReadInt32BigEndian(rebuilt.AsSpan(0x28)));
+    }
+
+    [Fact]
+    public void Structural_builder_promotes_position_effect_without_misaligning_following_records()
+    {
+        var chunk = new byte[0x40];
+        WriteEffectHeader(chunk, 0x00, next: 0x20, child: 0, name: 1, index: 2);
+        WriteEffectHeader(chunk, 0x20, next: 0, child: 0, name: 2, index: 2);
+        WriteBigEndianSingle(chunk, 0x10, 1f);
+        WriteBigEndianSingle(chunk, 0x1C, 1f);
+        WriteBigEndianSingle(chunk, 0x30, 2f);
+        WriteBigEndianSingle(chunk, 0x3C, 1f);
+        var promoted = new GeoEffect { ChunkOffset = 0, Name = 1, Index = 2, X = 1f, W = 1f };
+        var following = new GeoEffect { ChunkOffset = 0x20, Name = 2, Index = 2, X = 2f, W = 1f };
+        var roots = new List<GeoEffect> { promoted, following };
+        var layout = GeoEffectChunkBuilder.Capture(chunk, roots, Endianness.Big);
+
+        promoted.Index |= 4 << 10;
+        promoted.RotationY = MathF.PI;
+        var rebuilt = layout.Rebuild(roots);
+
+        Assert.Equal(0x50, rebuilt.Length);
+        Assert.Equal(0x30, BinaryPrimitives.ReadInt32BigEndian(rebuilt));
+        Assert.Equal(0x30, following.ChunkOffset);
+        Assert.Equal(0, following.ChunkOffset & 0x0F);
+        Assert.Equal(2, BinaryPrimitives.ReadInt32BigEndian(rebuilt.AsSpan(0x38)));
+        Assert.Equal(short.MinValue, BinaryPrimitives.ReadInt16BigEndian(rebuilt.AsSpan(0x22)));
     }
 
     private static void WriteBigEndianSingle(byte[] destination, int offset, float value)

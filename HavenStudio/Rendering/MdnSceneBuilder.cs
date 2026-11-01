@@ -144,7 +144,6 @@ public static class MdnSceneBuilder
 
     // MDN packet flag bits, decoded from DG_ChainModel / _DG_DrawModelStage / DG_SetBlendMode.
     private const int FlagBlendEnable  = 0x10;   // bits 0-3 select the blend equation
-    private const int FlagNoDepthWrite = 0x200;  // terrain/decal blend layers
     private const int FlagAlphaTest50  = 0x400;  // foliage cutout
 
     private static void ApplyPacketFlag(Model3D model, int flag)
@@ -152,13 +151,16 @@ public static class MdnSceneBuilder
         if ((flag & FlagBlendEnable) != 0)
         {
             // Blend layer: composite over what is already drawn using the vertex-alpha mask,
-            // skip depth writes when bit 0x200 is set, and discard fully transparent texels
-            // (the engine turns on an alpha-test NOTEQUAL 0 whenever blending is enabled).
+            // and discard fully transparent texels (the engine turns on an alpha-test
+            // NOTEQUAL 0 whenever blending is enabled). Haven always keeps projection/blend
+            // packets out of the depth buffer: some shipped ground decals use 0x8010 without
+            // the usual 0x0200 no-depth bit, and otherwise incorrectly occlude editor markers
+            // even though the opaque floor beneath them should be the depth boundary.
             model.BlendEnabled = true;
             model.BlendMode = (ModelBlendMode)(flag & 0xF);
             model.UseVertexAlpha = true;
             model.ForceOpaqueAlpha = false;
-            model.WriteDepth = (flag & FlagNoDepthWrite) == 0;
+            model.WriteDepth = false;
             model.AlphaTestRef = 1.0f / 255.0f;
         }
         else if ((flag & FlagAlphaTest50) != 0)

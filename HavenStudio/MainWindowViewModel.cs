@@ -193,7 +193,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
         OnPropertyChanged(nameof(WorkspaceSnapshot));
 
         // Load geom first so placed objects can resolve positions from effects
-        var geomPath = snapshot.WithExtension(".geom").FirstOrDefault()?.Path;
+        var geomPath = StageManifestResolver.FindGeomPath(catalog, snapshot);
         _log.Debug("Loading GEOM from: {GeomPath}", geomPath?.ToString() ?? "(not found)");
         await CollisionEditor.LoadFromWorkspacePathAsync(geomPath);
         _log.Debug("GEOM loaded: {HasGeom}", CollisionEditor.GeomFile != null);
@@ -205,7 +205,8 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
 
         GcxEditor.SetGeomFile(CollisionEditor.GeomFile);
 
-        var gcxPath = snapshot.WithExtension(".gcx").FirstOrDefault()?.Path;
+        var gcxPath = StageManifestResolver.FindGcxPath(catalog, snapshot, geomPath);
+        _log.Debug("Loading GCX from: {GcxPath}", gcxPath?.ToString() ?? "(not found)");
         await GcxEditor.LoadFromWorkspacePathAsync(gcxPath);
 
         if (loadGeneration != Volatile.Read(ref _workspaceLoadGeneration))
@@ -214,7 +215,12 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
         }
 
         var stageStem = Path.GetFileNameWithoutExtension(geomPath?.FileName ?? gcxPath?.FileName);
+        var vegetationReferences = gcxPath == null
+            ? GcxEditor.GetVegetationReferences()
+            : GcxEditor.GetVegetationReferences(catalog, gcxPath);
+        await MapEditor.DiscoverVegetationAsync(catalog, vegetationReferences);
         await MapEditor.DiscoverLightsAsync(catalog, stageStem);
+        await MapEditor.DiscoverOctocamoAsync(catalog);
 
         _ = LoadMinimapAsync(catalog, loadGeneration);
     }
@@ -287,12 +293,16 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IDisposable
     {
         await CollisionEditor.LoadFromFilePathAsync(geomPath);
         GcxEditor.SetGeomFile(CollisionEditor.GeomFile);
+        if (Workspace is { } workspace)
+            await MapEditor.DiscoverOctocamoAsync(workspace);
     }
 
     public async Task LoadGeomFromWorkspacePathAsync(WorkspacePath geomPath)
     {
         await CollisionEditor.LoadFromWorkspacePathAsync(geomPath);
         GcxEditor.SetGeomFile(CollisionEditor.GeomFile);
+        if (Workspace is { } workspace)
+            await MapEditor.DiscoverOctocamoAsync(workspace);
     }
 
     public Task LoadLightsFromWorkspacePathAsync(

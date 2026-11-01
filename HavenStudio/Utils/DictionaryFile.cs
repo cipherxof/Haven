@@ -16,7 +16,17 @@ public static class DictionaryFile
     {
         try
         {
-            if (File.Exists(dictionaryFilename))
+            var dictionaryExists = File.Exists(dictionaryFilename);
+            var aliasesExist = File.Exists(aliasFilename);
+            if (!dictionaryExists && !aliasesExist)
+            {
+                return false;
+            }
+
+            Lookup.Clear();
+            Alias.Clear();
+
+            if (dictionaryExists)
             {
                 var lines = File.ReadAllLines(dictionaryFilename);
 
@@ -30,7 +40,7 @@ public static class DictionaryFile
                 }
             }
 
-            if (File.Exists(aliasFilename))
+            if (aliasesExist)
             {
                 var aliasLines = File.ReadAllLines(aliasFilename);
                 foreach (var line in aliasLines)

@@ -66,6 +66,16 @@ public sealed class MdnTextureResolver
         }
 
         var txnFiles = snapshot.WithExtension(".txn").ToList();
+        var listedQarPaths = StageManifestResolver.FindListedPhysicalPaths(
+            workspace,
+            snapshot,
+            ".qar");
+        if (listedQarPaths.Count > 0)
+        {
+            txnFiles = txnFiles
+                .Where(file => file.Path.IsArchiveEntry && listedQarPaths.Contains(file.Path.PhysicalPath))
+                .ToList();
+        }
 
         if (txnFiles.Count == 0)
         {
@@ -257,7 +267,22 @@ public sealed class MdnTextureResolver
     
     private List<DldFile> LoadDlds(IWorkspaceCatalog workspace, WorkspaceSnapshot snapshot)
     {
-        foreach (var dldFile in snapshot.WithExtension(".dld"))
+        var listedDataPaths = StageManifestResolver.FindListedPhysicalPaths(
+            workspace,
+            snapshot,
+            ".dld",
+            ".dlz");
+        var dldFiles = snapshot.WithExtension(".dld")
+            .Where(file => !file.Path.IsArchiveEntry);
+        var dlzFiles = snapshot.WithExtension(".dlz")
+            .Where(file => !file.Path.IsArchiveEntry);
+        if (listedDataPaths.Count > 0)
+        {
+            dldFiles = dldFiles.Where(file => listedDataPaths.Contains(file.Path.PhysicalPath));
+            dlzFiles = dlzFiles.Where(file => listedDataPaths.Contains(file.Path.PhysicalPath));
+        }
+
+        foreach (var dldFile in dldFiles)
         {
             if (_dldCache.ContainsKey(dldFile.Path))
             {
@@ -268,7 +293,7 @@ public sealed class MdnTextureResolver
             _dldCache[dldFile.Path] = new DldFile(stream, workspace.Endianness);
         }
 
-        foreach (var dlzFile in snapshot.WithExtension(".dlz"))
+        foreach (var dlzFile in dlzFiles)
         {
             if (_dldCache.ContainsKey(dlzFile.Path))
             {

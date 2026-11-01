@@ -479,48 +479,10 @@ public sealed class TxnTextureEditorService
     private byte[] BuildDlzBytes(ContainerRef container)
     {
         var dldBytes = BuildDldBytes(container.Dld);
-
-        var chunks = BuildDlzChunks(dldBytes);
-        var dlz = new DlzFile(chunks);
+        var dlz = DlzFile.Pack(dldBytes);
         using var memory = new MemoryStream();
         dlz.Save(memory, _endianness);
         return memory.ToArray();
-    }
-
-    private static List<DlzDataContainer> BuildDlzChunks(byte[] dldBytes)
-    {
-        var chunks = new List<DlzDataContainer>();
-        int offset = 0;
-
-        while (offset < dldBytes.Length)
-        {
-            int chunkSize = Math.Min(60000, dldBytes.Length - offset);
-            byte[] chunkData;
-            byte[] compressed;
-
-            while (true)
-            {
-                chunkData = new byte[chunkSize];
-                Buffer.BlockCopy(dldBytes, offset, chunkData, 0, chunkSize);
-                compressed = Compression.DeflateBuffer(chunkData);
-
-                if (compressed.Length <= ushort.MaxValue)
-                {
-                    break;
-                }
-
-                chunkSize /= 2;
-                if (chunkSize <= 1024)
-                {
-                    throw new InvalidOperationException("Unable to pack DLZ data: compressed chunk too large.");
-                }
-            }
-
-            chunks.Add(new DlzDataContainer(compressed.Length, chunkData.Length, compressed));
-            offset += chunkSize;
-        }
-
-        return chunks;
     }
 
     private static bool TryGetTxnFourCc(string fourCc, out ushort value)

@@ -79,12 +79,16 @@ public static class MessageDialog
             });
         }
 
-        panel.Children.Add(new TextBlock
+        panel.Children.Add(new ScrollViewer
         {
-            Text = message,
-            TextWrapping = TextWrapping.Wrap,
-            Margin = new Thickness(16, 0, 16, 8),
-            Foreground = Brushes.White,
+            MaxHeight = 360,
+            Content = new TextBlock
+            {
+                Text = message,
+                TextWrapping = TextWrapping.Wrap,
+                Margin = new Thickness(16, 0, 16, 8),
+                Foreground = Brushes.White,
+            },
         });
 
         var okButton = new Button

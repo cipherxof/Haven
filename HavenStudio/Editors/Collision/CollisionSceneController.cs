@@ -26,11 +26,13 @@ public sealed class CollisionSceneController
     private static readonly Vector3 SelectedBlockColor = new(0.05f, 0.85f, 0.20f);
     private static readonly Vector3 PrimHighlightColor = new(0.05f, 0.95f, 0.20f);
     private static readonly Vector3 EffectColor = new(0.95f, 0.15f, 0.15f);
-    private static readonly Vector3 SelectedEffectColor = new(1.0f, 0.35f, 0.35f);
+    private static readonly Vector3 SelectedEffectColor = new(1.0f, 0.55f, 0.05f);
+    private static readonly Vector3 RelatedEffectColor = new(0.10f, 1.0f, 0.20f);
 
     private readonly SceneHost _sceneHost;
     private readonly Dictionary<Model3D, CollisionBlockViewModel> _blockModelLookup = new();
     private readonly Dictionary<CollisionBlockViewModel, Model3D> _blockModels = new();
+    private readonly HashSet<Model3D> _referenceBlockModels = [];
     private readonly Dictionary<Model3D, CollisionEffectViewModel> _effectModelLookup = new();
     private readonly Dictionary<CollisionEffectViewModel, Model3D> _effectModels = new();
     private readonly Dictionary<Model3D, int[]> _trianglePrimLookup = new();
@@ -43,10 +45,25 @@ public sealed class CollisionSceneController
 
     private Model3D? _hoveredBlockModel;
     private Model3D? _selectedBlockModel;
-    private Model3D? _selectedEffectModel;
+    private readonly HashSet<Model3D> _selectedEffectModels = [];
+    private readonly HashSet<Model3D> _selectedRaceEffectModels = [];
+    private readonly HashSet<Model3D> _relatedEffectModels = [];
+    private readonly HashSet<Model3D> _unavailableEffectModels = [];
     private CollisionPrimViewModel? _selectedPrim;
     private CollisionGeoPrimViewModel? _selectedGeoPrim;
     private ulong? _attributeFilter;
+    private OctocamoSurfaceCatalog? _octocamoCatalog;
+    private Avalonia3DControl.Materials.ShadingMode? _preOctocamoShading;
+    private readonly Model3D _selectedOctocamoPreview = new()
+    {
+        Name = "SelectedOctocamoFacePreview",
+        Visible = false,
+        Alpha = 1f,
+        ForceOpaqueAlpha = true,
+        WriteDepth = false,
+        DepthBias = -2f,
+        RenderAfterTransparent = true
+    };
 
     public CollisionSceneController(SceneHost sceneHost)
     {
@@ -71,6 +88,7 @@ public sealed class CollisionSceneController
             out _,
             out var trianglePrimIndex,
             out var trianglePolyIndex);
+        var staticBlocks = geom.GeomGroupBlocks.Values.SelectMany(items => items).ToHashSet();
 
         foreach (var model in blockModels)
         {
@@ -88,7 +106,9 @@ public sealed class CollisionSceneController
 
             _blockModelLookup[model] = blockView;
             _blockModels[blockView] = model;
+            if (!staticBlocks.Contains(block)) _referenceBlockModels.Add(model);
             model.Visible = blockView.IsVisible;
+            if (_octocamoCatalog != null && _referenceBlockModels.Contains(model)) model.Visible = false;
             if (trianglePrimIndex.TryGetValue(model, out var primitiveMap) &&
                 trianglePolyIndex.TryGetValue(model, out var polygonMap))
             {
@@ -99,7 +119,7 @@ public sealed class CollisionSceneController
             }
         }
 
-        if (_attributeFilter != null)
+        if (_attributeFilter != null || _octocamoCatalog != null)
         {
             foreach (var model in blockModels)
             {
@@ -116,7 +136,10 @@ public sealed class CollisionSceneController
             _effectModels[effectView] = model;
         }
 
-        _sceneHost.ReplaceLayer(SceneLayer.Collision, blockModels);
+        _sceneHost.SetModelVisible(SceneLayer.Collision, _selectedOctocamoPreview, false);
+        _selectedOctocamoPreview.Visible = false;
+        _sceneHost.ReplaceLayer(SceneLayer.Collision, blockModels.Append(_selectedOctocamoPreview));
+        if (_octocamoCatalog != null) SetOctocamoCatalog(_octocamoCatalog);
         _sceneHost.ReplaceLayer(SceneLayer.Effects, effectModels);
         var grid = GeomSceneBuilder.BuildGridModel(geom);
         _sceneHost.ReplaceLayer(SceneLayer.Grid, grid == null ? Array.Empty<Model3D>() : new[] { grid });
@@ -146,6 +169,15 @@ public sealed class CollisionSceneController
 
     public bool TryResolveHit(SelectionHit hit, out CollisionSceneSelection selection)
     {
+        if (ReferenceEquals(hit.Model, _selectedOctocamoPreview) &&
+            _selectedBlockModel != null && _selectedPrim != null && _selectedGeoPrim != null &&
+            hit.TriangleIndex >= 0 && hit.TriangleIndex < _selectedOctocamoPreview.IndexCount / 3 &&
+            _selectedOctocamoPreview.Visible)
+        {
+            selection = new CollisionSceneSelection(_blockModelLookup[_selectedBlockModel],
+                _selectedPrim, _selectedGeoPrim, null);
+            return true;
+        }
         if (_effectModelLookup.TryGetValue(hit.Model, out var effect))
         {
             selection = new CollisionSceneSelection(null, null, null, effect);
@@ -180,6 +212,12 @@ public sealed class CollisionSceneController
         return true;
     }
 
+    public IReadOnlyList<CollisionGeoPrimViewModel?>? GetTrianglePolygons(Model3D model) =>
+        _triangleGeoPrimLookup.GetValueOrDefault(model);
+
+    public Model3D? GetBlockModel(CollisionBlockViewModel block) =>
+        _blockModels.GetValueOrDefault(block);
+
     public void SetSelection(
         CollisionBlockViewModel? block,
         CollisionPrimViewModel? prim,
@@ -187,9 +225,7 @@ public sealed class CollisionSceneController
         CollisionEffectViewModel? effect)
     {
         var previousBlockModel = _selectedBlockModel;
-        var previousEffectModel = _selectedEffectModel;
         _selectedBlockModel = block != null && _blockModels.TryGetValue(block, out var blockModel) ? blockModel : null;
-        _selectedEffectModel = effect != null && _effectModels.TryGetValue(effect, out var effectModel) ? effectModel : null;
         _selectedPrim = prim;
         _selectedGeoPrim = geoPrim;
 
@@ -199,10 +235,137 @@ public sealed class CollisionSceneController
         }
 
         UpdateBlockColor(_selectedBlockModel);
-        UpdateEffectColor(previousEffectModel);
-        UpdateEffectColor(_selectedEffectModel);
+        SetEffectSelection(effect == null ? [] : [effect]);
         ApplyPrimHighlight();
     }
+
+    public void SetOctocamoCatalog(OctocamoSurfaceCatalog? catalog)
+    {
+        _octocamoCatalog = catalog;
+        foreach (var model in _blockModelLookup.Keys)
+        {
+            if (_referenceBlockModels.Contains(model))
+                _sceneHost.SetModelVisible(SceneLayer.Collision, model,
+                    catalog == null && _blockModelLookup[model].IsVisible);
+            ApplyAttributeFilter(model);
+        }
+        var atlas = catalog?.PreviewMusclePatterns == true ? catalog.PatternAtlas : null;
+        if (atlas != null)
+        {
+            _preOctocamoShading ??= _sceneHost.ViewportControl.CurrentShadingMode;
+            _sceneHost.ViewportControl.SetShadingMode(Avalonia3DControl.Materials.ShadingMode.Texture);
+        }
+        else if (catalog == null && _preOctocamoShading is { } previous)
+        {
+            _sceneHost.ViewportControl.SetShadingMode(previous);
+            _preOctocamoShading = null;
+        }
+        _sceneHost.ViewportControl.ApplySharedPreviewTexture("octocamo", _blockModelLookup.Keys.Append(_selectedOctocamoPreview).ToArray(),
+            atlas?.Width ?? 0, atlas?.Height ?? 0, atlas?.Rgba);
+        ApplyPrimHighlight();
+    }
+
+    public void SetEffectSelection(IEnumerable<CollisionEffectViewModel> effects)
+    {
+        ArgumentNullException.ThrowIfNull(effects);
+        var previousModels = _selectedEffectModels.ToArray();
+        _selectedEffectModels.Clear();
+        foreach (var effect in effects)
+        {
+            if (_effectModels.TryGetValue(effect, out var model))
+            {
+                _selectedEffectModels.Add(model);
+            }
+        }
+
+        foreach (var model in previousModels.Concat(_selectedEffectModels).Distinct())
+        {
+            if (_effectModelLookup.TryGetValue(model, out var effect))
+            {
+                if (IsEffectBeacon(model))
+                {
+                    ApplyVerticalBeaconShape(model);
+                }
+                else
+                {
+                    model.Rotation = new Vector3(effect.RotationX, effect.RotationY, effect.RotationZ);
+                    model.Scale = Vector3.One;
+                    ApplyEffectShape(effect, model, GetEffectSize(effect));
+                }
+            }
+            UpdateEffectColor(model);
+        }
+    }
+
+    public void SetRelatedEffectHighlight(IEnumerable<CollisionEffectViewModel> effects)
+    {
+        SetRaceEffectHighlights([], effects, []);
+    }
+
+    public void SetRaceEffectHighlights(
+        IEnumerable<CollisionEffectViewModel> selectedRaceEffects,
+        IEnumerable<CollisionEffectViewModel> availableEffects,
+        IEnumerable<CollisionEffectViewModel> unavailableEffects)
+    {
+        ArgumentNullException.ThrowIfNull(selectedRaceEffects);
+        ArgumentNullException.ThrowIfNull(availableEffects);
+        ArgumentNullException.ThrowIfNull(unavailableEffects);
+        var previousModels = _selectedRaceEffectModels
+            .Concat(_relatedEffectModels)
+            .Concat(_unavailableEffectModels)
+            .ToArray();
+        _selectedRaceEffectModels.Clear();
+        _relatedEffectModels.Clear();
+        _unavailableEffectModels.Clear();
+        foreach (var effect in selectedRaceEffects)
+        {
+            if (_effectModels.TryGetValue(effect, out var model))
+            {
+                _selectedRaceEffectModels.Add(model);
+            }
+        }
+        foreach (var effect in availableEffects)
+        {
+            if (_effectModels.TryGetValue(effect, out var model))
+            {
+                _relatedEffectModels.Add(model);
+            }
+        }
+        foreach (var effect in unavailableEffects)
+        {
+            if (_effectModels.TryGetValue(effect, out var model))
+            {
+                _unavailableEffectModels.Add(model);
+            }
+        }
+
+        foreach (var model in previousModels
+                     .Concat(_selectedRaceEffectModels)
+                     .Concat(_relatedEffectModels)
+                     .Concat(_unavailableEffectModels)
+                     .Distinct())
+        {
+            if (_effectModelLookup.TryGetValue(model, out var effect))
+            {
+                if (IsEffectBeacon(model))
+                {
+                    ApplyVerticalBeaconShape(model);
+                }
+                else
+                {
+                    model.Rotation = new Vector3(effect.RotationX, effect.RotationY, effect.RotationZ);
+                    model.Scale = Vector3.One;
+                    ApplyEffectShape(effect, model, GetEffectSize(effect));
+                }
+            }
+            UpdateEffectColor(model);
+        }
+    }
+
+    private bool IsEffectBeacon(Model3D model) =>
+        _selectedRaceEffectModels.Contains(model) ||
+        _relatedEffectModels.Contains(model) ||
+        _unavailableEffectModels.Contains(model);
 
     public void ClearHover()
     {
@@ -220,8 +383,11 @@ public sealed class CollisionSceneController
     {
         if (_blockModels.TryGetValue(block, out var model))
         {
-            _sceneHost.SetModelVisible(SceneLayer.Collision, model, block.IsVisible);
+            _sceneHost.SetModelVisible(SceneLayer.Collision, model,
+                block.IsVisible && (_octocamoCatalog == null || !_referenceBlockModels.Contains(model)));
         }
+        if (_selectedBlockModel != null && _blockModels.GetValueOrDefault(block) == _selectedBlockModel)
+            ApplyPrimHighlight();
     }
 
     public void RefreshBlockAppearance(CollisionBlockViewModel block)
@@ -231,7 +397,7 @@ public sealed class CollisionSceneController
             return;
         }
 
-        if (_attributeFilter != null)
+        if (_attributeFilter != null || _octocamoCatalog != null)
         {
             ApplyAttributeFilter(model);
         }
@@ -239,7 +405,7 @@ public sealed class CollisionSceneController
         {
             ApplyPrimHighlight();
         }
-        else if (_attributeFilter == null)
+        else if (_attributeFilter == null && _octocamoCatalog == null)
         {
             UpdateBlockColor(model);
         }
@@ -279,7 +445,10 @@ public sealed class CollisionSceneController
         ArgumentNullException.ThrowIfNull(effects);
         _effectModelLookup.Clear();
         _effectModels.Clear();
-        _selectedEffectModel = null;
+        _selectedEffectModels.Clear();
+        _selectedRaceEffectModels.Clear();
+        _relatedEffectModels.Clear();
+        _unavailableEffectModels.Clear();
         var models = new List<Model3D>();
         foreach (var effect in TreeTraversal.Flatten(effects, effect => effect.Children))
         {
@@ -397,7 +566,7 @@ public sealed class CollisionSceneController
             primitiveMap,
             polygonMap,
             primitiveAttributes,
-            _attributeFilter);
+            _octocamoCatalog != null ? GeoCollisionAttributes.Player : _attributeFilter);
 
         model.Indices = filtered.Indices;
         model.IndexCount = filtered.Indices.Length;
@@ -423,6 +592,10 @@ public sealed class CollisionSceneController
 
     private void ApplyPrimHighlight()
     {
+        _sceneHost.SetModelVisible(SceneLayer.Collision, _selectedOctocamoPreview, false);
+        _selectedOctocamoPreview.Indices = [];
+        _selectedOctocamoPreview.IndexCount = 0;
+        _selectedOctocamoPreview.IndicesNeedUpdate = true;
         if (_selectedBlockModel == null)
         {
             return;
@@ -446,6 +619,35 @@ public sealed class CollisionSceneController
         }
 
         UpdateBlockColor(model);
+        // In OctoCamo view the selected face is the colour being edited. A solid
+        // selection tint would conceal every cloth-colour change until deselection.
+        if (_octocamoCatalog != null)
+        {
+            // GEOM can contain independent, coplanar contact polygons in multiple
+            // spatial blocks. Later triangles otherwise hide a correctly updated
+            // face. Preview ONLY the selected polygon above depth ties, using its
+            // real UVs/cloth colours, never a selection tint or a neighbour edit.
+            if (_selectedGeoPrim != null && _geoPrimTriangleLookup.TryGetValue(_selectedGeoPrim, out var selectedTriangles) &&
+                _blockModelLookup[model].IsVisible &&
+                !_referenceBlockModels.Contains(model))
+            {
+                _selectedOctocamoPreview.Positions = model.Positions;
+                _selectedOctocamoPreview.Colors = model.Colors;
+                _selectedOctocamoPreview.UVs = model.UVs;
+                _selectedOctocamoPreview.Position = model.Position;
+                _selectedOctocamoPreview.Rotation = model.Rotation;
+                _selectedOctocamoPreview.Scale = model.Scale;
+                _selectedOctocamoPreview.VertexCount = model.VertexCount;
+                _selectedOctocamoPreview.Indices = selectedTriangles
+                    .Where(triangle => triangle >= 0 && triangle * 3 + 2 < model.Indices.Length)
+                    .SelectMany(triangle => model.Indices.Skip(triangle * 3).Take(3)).ToArray();
+                _selectedOctocamoPreview.IndexCount = _selectedOctocamoPreview.Indices.Length;
+                _selectedOctocamoPreview.VerticesNeedUpdate = true;
+                _sceneHost.SetModelVisible(SceneLayer.Collision, _selectedOctocamoPreview,
+                    _selectedOctocamoPreview.IndexCount > 0);
+            }
+            return;
+        }
         var colors = model.Colors.ToArray();
         foreach (var triangle in triangles)
         {
@@ -473,8 +675,8 @@ public sealed class CollisionSceneController
             return;
         }
 
-        var useHighlightColor = model == _hoveredBlockModel ||
-            model == _selectedBlockModel && _selectedPrim == null;
+        var useHighlightColor = _octocamoCatalog == null &&
+            (model == _hoveredBlockModel || model == _selectedBlockModel && _selectedPrim == null);
         model.Alpha = GeomSceneBuilder.CollisionMeshAlpha;
 
         if (useHighlightColor)
@@ -487,12 +689,23 @@ public sealed class CollisionSceneController
                  _trianglePrimLookup.TryGetValue(model, out var primitiveIndices))
         {
             var primitiveAttributes = block.Prims.Select(prim => prim.Prim.Attribute).ToArray();
-            model.Color = DefaultBlockColor;
-            model.Colors = GeomSceneBuilder.BuildCollisionVertexColors(
-                model.Positions,
-                model.Indices,
-                primitiveIndices,
-                primitiveAttributes);
+            model.Color = _octocamoCatalog == null ? DefaultBlockColor : Vector3.One;
+            if (_octocamoCatalog != null && _triangleGeoPrimLookup.TryGetValue(model, out var polygonMap))
+            {
+                var polygonIndices = BuildPolygonIndices(block, primitiveIndices, polygonMap);
+                var faces = block.Prims.Select(prim => prim.Prim).ToArray();
+                if (_octocamoCatalog.PreviewMusclePatterns && _octocamoCatalog.PatternAtlas != null)
+                {
+                    model.Colors = new float[model.Positions.Length / 3 * 4];
+                    Array.Fill(model.Colors, 1f);
+                    model.UVs = GeomSceneBuilder.BuildOctocamoTextureUvs(model.Positions, model.Indices,
+                        primitiveIndices, polygonIndices, faces, block.Block, _octocamoCatalog);
+                }
+                else model.Colors = GeomSceneBuilder.BuildOctocamoVertexColors(model.Positions, model.Indices,
+                    primitiveIndices, polygonIndices, faces, block.Block, _octocamoCatalog);
+            }
+            else model.Colors = GeomSceneBuilder.BuildCollisionVertexColors(
+                model.Positions, model.Indices, primitiveIndices, primitiveAttributes);
         }
 
         model.VerticesNeedUpdate = true;
@@ -506,9 +719,30 @@ public sealed class CollisionSceneController
             return;
         }
 
-        model.Color = model == _selectedEffectModel ? SelectedEffectColor : EffectColor;
+        var isSelected = _selectedEffectModels.Contains(model);
+        model.Color = isSelected
+            ? SelectedEffectColor
+            : _relatedEffectModels.Contains(model)
+                ? RelatedEffectColor
+                : EffectColor;
+        model.Alpha = 1.0f;
+        model.RenderAfterTransparent = true;
         model.VerticesNeedUpdate = true;
         _sceneHost.ViewportControl.RequestNextFrameRendering();
+    }
+
+    private static int[] BuildPolygonIndices(
+        CollisionBlockViewModel block, int[] primitiveIndices,
+        CollisionGeoPrimViewModel?[] polygons)
+    {
+        var result = new int[primitiveIndices.Length];
+        for (var i = 0; i < result.Length; i++)
+        {
+            var primIndex = primitiveIndices[i];
+            result[i] = primIndex >= 0 && primIndex < block.Prims.Count && i < polygons.Length
+                ? block.Prims[primIndex].Children.IndexOf(polygons[i]!) : -1;
+        }
+        return result;
     }
 
     private static void ApplyVertexHighlight(float[] colors, int vertexIndex, Vector3 color)
@@ -531,11 +765,12 @@ public sealed class CollisionSceneController
         {
             Name = $"Effect_{effect.IndexText}",
             Color = EffectColor,
-            Alpha = 0.85f,
+            Alpha = 1.0f,
             MaterialIndex = -1,
             Position = new Vector3(effect.X, effect.Y, effect.Z),
             Rotation = new Vector3(effect.RotationX, effect.RotationY, effect.RotationZ),
-            Scale = Vector3.One
+            Scale = Vector3.One,
+            RenderAfterTransparent = true
         };
         ApplyEffectShape(effect, model, GetEffectSize(effect));
         return model;
@@ -559,18 +794,30 @@ public sealed class CollisionSceneController
         }
         else
         {
+            // The cube's arrowhead points along local +Z. Because the complete
+            // marker uses the effect transform, it turns with spawn points and
+            // other directional effects without changing their stored data.
             positions =
             [
                 -0.5f, -0.5f, -0.5f, 0.5f, -0.5f, -0.5f,
                  0.5f,  0.5f, -0.5f, -0.5f, 0.5f, -0.5f,
                 -0.5f, -0.5f,  0.5f, 0.5f, -0.5f, 0.5f,
-                 0.5f,  0.5f,  0.5f, -0.5f, 0.5f, 0.5f
+                 0.5f,  0.5f,  0.5f, -0.5f, 0.5f, 0.5f,
+
+                // Triangular direction wedge on the +Z face (bottom, then top).
+                -0.28f, -0.35f, 0.5f, 0.28f, -0.35f, 0.5f, 0.0f, -0.35f, 0.92f,
+                -0.28f,  0.35f, 0.5f, 0.28f,  0.35f, 0.5f, 0.0f,  0.35f, 0.92f
             ];
             indices =
             [
                 0, 1, 2, 2, 3, 0, 4, 5, 6, 6, 7, 4,
                 0, 1, 5, 5, 4, 0, 2, 3, 7, 7, 6, 2,
-                0, 3, 7, 7, 4, 0, 1, 2, 6, 6, 5, 1
+                0, 3, 7, 7, 4, 0, 1, 2, 6, 6, 5, 1,
+
+                8, 10, 9, 11, 12, 13,
+                8, 9, 12, 12, 11, 8,
+                9, 10, 13, 13, 12, 9,
+                10, 8, 11, 11, 13, 10
             ];
         }
 
@@ -582,6 +829,31 @@ public sealed class CollisionSceneController
         model.Indices = indices;
         model.VertexCount = positions.Length / 3;
         model.IndexCount = indices.Length;
+        model.VerticesNeedUpdate = true;
+        model.IndicesNeedUpdate = true;
+    }
+
+    private static void ApplyVerticalBeaconShape(Model3D model)
+    {
+        const float halfWidth = 125.0f;
+        const float height = 20000.0f;
+        model.Positions =
+        [
+            -halfWidth, 0, -halfWidth,  halfWidth, 0, -halfWidth,
+             halfWidth, height, -halfWidth, -halfWidth, height, -halfWidth,
+            -halfWidth, 0,  halfWidth,  halfWidth, 0,  halfWidth,
+             halfWidth, height,  halfWidth, -halfWidth, height,  halfWidth
+        ];
+        model.Indices =
+        [
+            0, 1, 2, 2, 3, 0, 4, 5, 6, 6, 7, 4,
+            0, 1, 5, 5, 4, 0, 2, 3, 7, 7, 6, 2,
+            0, 3, 7, 7, 4, 0, 1, 2, 6, 6, 5, 1
+        ];
+        model.VertexCount = 8;
+        model.IndexCount = model.Indices.Length;
+        model.Rotation = Vector3.Zero;
+        model.Scale = Vector3.One;
         model.VerticesNeedUpdate = true;
         model.IndicesNeedUpdate = true;
     }
@@ -627,8 +899,17 @@ public sealed class CollisionSceneController
 
     private void ClearLookups()
     {
+        _sceneHost.SetModelVisible(SceneLayer.Collision, _selectedOctocamoPreview, false);
+        _selectedOctocamoPreview.Visible = false;
+        _selectedOctocamoPreview.Positions = [];
+        _selectedOctocamoPreview.Colors = [];
+        _selectedOctocamoPreview.UVs = [];
+        _selectedOctocamoPreview.Indices = [];
+        _selectedOctocamoPreview.VertexCount = 0;
+        _selectedOctocamoPreview.IndexCount = 0;
         _blockModelLookup.Clear();
         _blockModels.Clear();
+        _referenceBlockModels.Clear();
         _effectModelLookup.Clear();
         _effectModels.Clear();
         _trianglePrimLookup.Clear();
@@ -640,7 +921,10 @@ public sealed class CollisionSceneController
         _unfilteredTrianglePolyLookup.Clear();
         _hoveredBlockModel = null;
         _selectedBlockModel = null;
-        _selectedEffectModel = null;
+        _selectedEffectModels.Clear();
+        _selectedRaceEffectModels.Clear();
+        _relatedEffectModels.Clear();
+        _unavailableEffectModels.Clear();
         _selectedPrim = null;
         _selectedGeoPrim = null;
     }

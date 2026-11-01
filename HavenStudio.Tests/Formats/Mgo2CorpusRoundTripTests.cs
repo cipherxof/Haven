@@ -18,10 +18,122 @@ namespace HavenStudio.Tests.Formats;
 public sealed class Mgo2CorpusRoundTripTests
 {
     private const string CorpusDirectoryEnvironmentVariable = "HAVENSTUDIO_MGO2_CORPUS_DIRECTORY";
+    private const string N023aGeomEnvironmentVariable = "HAVENSTUDIO_N023A_GEOM";
     private const string DefaultCorpusDirectory =
         "/home/trigger/.config/rpcs3/dev_hdd0/game/NPMG00020/USRDIR/o/dl/p/stage";
     private const int ComparisonBufferSize = 64 * 1024;
     private const int MaximumReportedIssuesPerFormat = 10;
+
+    [Fact]
+    [Trait("Category", "Corpus")]
+    public void N023a_position_only_property_effect_can_gain_native_rotation()
+    {
+        var path = Environment.GetEnvironmentVariable(N023aGeomEnvironmentVariable);
+        if (string.IsNullOrWhiteSpace(path) || !File.Exists(path))
+        {
+            return;
+        }
+
+        var original = File.ReadAllBytes(path);
+        var geometry = new GeomFile(new MemoryStream(original, writable: false), Endianness.Big);
+        var groups = geometry.GetChunkFromType(GeoChunkType.GROUPS)!;
+        var references = geometry.GetChunkFromType(GeoChunkType.REFS)!;
+        var layout = GeoEffectChunkBuilder.Capture(geometry.GeomChunk6, geometry.GeoEffects, Endianness.Big);
+        var effect = TreeTraversal.Flatten(geometry.GeoEffects, item => item.Children)
+            .Single(item => unchecked((uint)item.Name) == 0x0049835C);
+        Assert.Equal(0, GeoEffectLayout.GetRotationSlot(effect.Index));
+
+        effect.Index |= 4 << 10;
+        effect.RotationY = MathF.PI;
+        geometry.GeomChunk6 = layout.Rebuild(geometry.GeoEffects);
+        geometry.CloseStream();
+        using var output = new MemoryStream();
+        geometry.SaveEffectTransforms(original, output, Endianness.Big);
+        var rewritten = output.ToArray();
+
+        Assert.Equal(original.Length + 0x10, rewritten.Length);
+        Assert.Equal(
+            original.AsSpan(groups.DataOffset, groups.Size).ToArray(),
+            rewritten.AsSpan(groups.DataOffset, groups.Size).ToArray());
+        Assert.Equal(
+            original.AsSpan(references.DataOffset, references.Size).ToArray(),
+            rewritten.AsSpan(references.DataOffset, references.Size).ToArray());
+
+        var reloaded = new GeomFile(new MemoryStream(rewritten, writable: false), Endianness.Big);
+        var rotated = TreeTraversal.Flatten(reloaded.GeoEffects, item => item.Children)
+            .Single(item => unchecked((uint)item.Name) == 0x0049835C);
+        Assert.Equal(4, GeoEffectLayout.GetRotationSlot(rotated.Index));
+        Assert.Equal(-MathF.PI, rotated.RotationY, 5);
+        Assert.All(
+            TreeTraversal.Flatten(reloaded.GeoEffects, item => item.Children),
+            item => Assert.Equal(0, item.ChunkOffset & 0x0F));
+        reloaded.CloseStream();
+    }
+
+    [Fact]
+    [Trait("Category", "Corpus")]
+    public void N023a_property_child_can_be_duplicated_with_surgical_effect_save()
+    {
+        var path = Environment.GetEnvironmentVariable(N023aGeomEnvironmentVariable);
+        if (string.IsNullOrWhiteSpace(path) || !File.Exists(path))
+        {
+            return;
+        }
+
+        var original = File.ReadAllBytes(path);
+        var geometry = new GeomFile(new MemoryStream(original, writable: false), Endianness.Big);
+        var groups = geometry.GetChunkFromType(GeoChunkType.GROUPS)!;
+        var references = geometry.GetChunkFromType(GeoChunkType.REFS)!;
+        var layout = GeoEffectChunkBuilder.Capture(
+            geometry.GeomChunk6,
+            geometry.GeoEffects,
+            Endianness.Big);
+        var allEffects = TreeTraversal.Flatten(geometry.GeoEffects, item => item.Children).ToArray();
+        var source = allEffects.Single(item => unchecked((uint)item.Name) == 0x0049835C);
+        var parent = allEffects.Single(item => item.Children.Contains(source));
+        var usedHashes = allEffects.Select(item => unchecked((uint)item.Name)).ToHashSet();
+        var cloneHash = unchecked((uint)source.Name);
+        do
+        {
+            cloneHash = (cloneHash + 1) & 0xFFFFFF;
+        }
+        while (cloneHash == 0 || usedHashes.Contains(cloneHash));
+
+        var clone = new GeoEffect
+        {
+            Name = unchecked((int)cloneHash),
+            Index = source.Index,
+            X = source.X,
+            Y = source.Y,
+            Z = source.Z,
+            W = source.W,
+            RotationX = source.RotationX,
+            RotationY = source.RotationY,
+            RotationZ = source.RotationZ
+        };
+        layout.CloneRecord(source, clone);
+        parent.Children.Insert(parent.Children.IndexOf(source) + 1, clone);
+        geometry.GeomChunk6 = layout.Rebuild(geometry.GeoEffects);
+        geometry.CloseStream();
+
+        using var output = new MemoryStream();
+        geometry.SaveEffectTransforms(original, output, Endianness.Big);
+        var rewritten = output.ToArray();
+
+        Assert.Equal(original.Length + 0x20, rewritten.Length);
+        Assert.Equal(
+            original.AsSpan(groups.DataOffset, groups.Size).ToArray(),
+            rewritten.AsSpan(groups.DataOffset, groups.Size).ToArray());
+        Assert.Equal(
+            original.AsSpan(references.DataOffset, references.Size).ToArray(),
+            rewritten.AsSpan(references.DataOffset, references.Size).ToArray());
+
+        var reloaded = new GeomFile(new MemoryStream(rewritten, writable: false), Endianness.Big);
+        var reloadedEffects = TreeTraversal.Flatten(reloaded.GeoEffects, item => item.Children).ToArray();
+        Assert.Single(reloadedEffects, item => unchecked((uint)item.Name) == cloneHash);
+        Assert.All(reloadedEffects, item => Assert.Equal(0, item.ChunkOffset & 0x0F));
+        reloaded.CloseStream();
+    }
 
     private static readonly IReadOnlyDictionary<string, Action<Stream, Stream>> RoundTrips =
         new Dictionary<string, Action<Stream, Stream>>(StringComparer.OrdinalIgnoreCase)
@@ -346,7 +458,7 @@ public sealed class Mgo2CorpusRoundTripTests
 
                 var data = geometry.GeomChunk6.AsSpan(rotationOffset, 6);
                 Assert.Equal(
-                    GeoEffectChunkPatcher.DecodeAngle(BinaryPrimitives.ReadInt16BigEndian(data)),
+                    GeoEffectChunkPatcher.DecodeRotationX(BinaryPrimitives.ReadInt16BigEndian(data)),
                     effect.RotationX);
                 Assert.Equal(
                     GeoEffectChunkPatcher.DecodeAngle(BinaryPrimitives.ReadInt16BigEndian(data[2..])),

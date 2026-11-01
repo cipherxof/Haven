@@ -16,11 +16,17 @@ namespace HavenStudio.Rendering;
 public enum SceneLayer
 {
     VisualModels,
+    Vegetation,
     Collision,
+    PlacementCollision,
     Effects,
+    Cameras,
+    SdmArea,
     Lights,
     Grid,
-    Overlay
+    Overlay,
+    OctocamoSelection,
+    OctocamoFocus
 }
 
 public sealed class SceneHost
@@ -30,7 +36,8 @@ public sealed class SceneHost
     private readonly Dictionary<SceneLayer, bool> _layerVisibility =
         Enum.GetValues<SceneLayer>().ToDictionary(
             layer => layer,
-            layer => layer is not SceneLayer.Collision and not SceneLayer.Lights);
+            layer => layer is not SceneLayer.Collision and not SceneLayer.PlacementCollision and
+                not SceneLayer.SdmArea and not SceneLayer.Lights);
     private readonly Dictionary<Model3D, bool> _modelVisibility = new();
     private readonly Dictionary<Model3D, RenderMode?> _modelRenderModes = new();
     private readonly Dictionary<SceneLayer, RenderMode?> _layerRenderModes =

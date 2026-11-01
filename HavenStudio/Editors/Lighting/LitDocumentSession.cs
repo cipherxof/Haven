@@ -1,5 +1,7 @@
 using System;
 using System.IO;
+using System.Threading;
+using System.Threading.Tasks;
 using HavenStudio.Formats.Lit;
 using HavenStudio.Services.Workspace;
 
@@ -7,6 +9,7 @@ namespace HavenStudio.Editors.Lighting;
 
 public sealed class LitDocumentSession
 {
+    private long _editVersion;
     private LitDocumentSession(
         IWorkspaceCatalog workspace,
         WorkspacePath path,
@@ -41,11 +44,24 @@ public sealed class LitDocumentSession
 
     public void MarkDirty()
     {
+        _editVersion++;
         IsDirty = true;
         Changed?.Invoke();
     }
 
     public void NotifyChanged() => Changed?.Invoke();
+
+    public async Task SaveAsync(CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        var version = _editVersion;
+        var bytes = Document.ToArray();
+        await Task.Run(() => Workspace.Replace(Path, bytes), cancellationToken);
+        // Resume on the caller's UI context before notifying scene/UI subscribers.
+        OriginalBytes = bytes;
+        IsDirty = _editVersion != version;
+        Changed?.Invoke();
+    }
 
     public void Save()
     {

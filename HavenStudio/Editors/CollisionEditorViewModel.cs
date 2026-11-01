@@ -8,6 +8,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Avalonia;
 using Avalonia3DControl;
+using Avalonia3DControl.Core.Models;
 using HavenStudio.Formats.Geo;
 using HavenStudio.Rendering;
 using HavenStudio.Services.Workspace;
@@ -81,7 +82,56 @@ public sealed class CollisionEditorViewModel : INotifyPropertyChanged
     public string BlockSummary => $"Blocks: {Blocks.Count} | Effects: {CountEffects(Effects)}";
     public bool HasGeomLoaded => _documentSession.HasDocument;
     public GeomFile? GeomFile => _documentSession.Document;
+    public void SetOctocamoCatalog(OctocamoSurfaceCatalog? catalog) =>
+        _sceneController.SetOctocamoCatalog(catalog);
+    public void SetPolygonAttributeWithAliases(CollisionGeoPrimViewModel polygon, ushort attribute)
+    {
+        var index = polygon.ParentPrim.Children.IndexOf(polygon);
+        if (polygon.Poly == null || index < 0) return;
+        var offset = polygon.ParentPrim.Prim.Offset + 0x20 + index * 8 + 6;
+        foreach (var block in Blocks)
+        foreach (var primitive in block.Prims)
+        for (var childIndex = 0; childIndex < primitive.Children.Count; childIndex++)
+        {
+            var child = primitive.Children[childIndex];
+            if (child.Poly != null && primitive.Prim.Offset + 0x20 + childIndex * 8 + 6 == offset)
+                child.AttributeText = $"0x{attribute:X4}";
+        }
+    }
+    private bool _batchPolygonEdits;
+    public IReadOnlyList<CollisionGeoPrimViewModel> GetPolygonAliases(IEnumerable<int> offsets)
+    {
+        var wanted = offsets.ToHashSet();
+        return Blocks.SelectMany(block => block.Prims).SelectMany(prim => prim.Children)
+            .Where(child => child.Poly != null && wanted.Contains(child.ParentPrim.Prim.Offset + 0x26 +
+                child.ParentPrim.Children.IndexOf(child) * 8)).ToArray();
+    }
+    public void SetPolygonAttributesWithAliases(IReadOnlyList<OctocamoPolygonEdit> edits, bool forward)
+    {
+        var changes = edits.ToDictionary(edit => edit.Offset, edit => forward ? edit.After : edit.Before);
+        var affected = new HashSet<CollisionBlockViewModel>();
+        _batchPolygonEdits = true;
+        try
+        {
+            foreach (var block in Blocks)
+            foreach (var prim in block.Prims)
+            for (var index = 0; index < prim.Children.Count; index++)
+            {
+                var child = prim.Children[index];
+                if (child.Poly == null || !changes.TryGetValue(prim.Prim.Offset + 0x26 + index * 8, out var attribute) ||
+                    child.Poly.Attribute == attribute) continue;
+                child.AttributeText = $"0x{attribute:X4}";
+                affected.Add(block);
+            }
+        }
+        finally
+        {
+            _batchPolygonEdits = false;
+            foreach (var block in affected) _sceneController.RefreshBlockAppearance(block);
+        }
+    }
     public bool IsDirty => _documentSession.IsDirty;
+    public string? LastSaveBackupPath => _documentSession.LastSaveBackupPath;
     public bool HasSelectedBlock => _selectedBlock != null;
     public bool HasSelectedPrim => _selectedPrim != null;
     public bool HasSelectedGeoPrim => _selectedGeoPrim != null;
@@ -259,7 +309,10 @@ public sealed class CollisionEditorViewModel : INotifyPropertyChanged
 
     public async Task SaveAsync(CancellationToken cancellationToken = default)
     {
-        RebuildEffectChunk();
+        if (_documentSession.RequiresFullRebuild)
+        {
+            RebuildEffectChunk();
+        }
         if (await _documentSession.SaveAsync(cancellationToken))
         {
             OnPropertyChanged(nameof(IsDirty));
@@ -303,6 +356,30 @@ public sealed class CollisionEditorViewModel : INotifyPropertyChanged
     public bool TryResolveHit(SelectionHit hit, out CollisionSceneSelection selection)
     {
         return _sceneController.TryResolveHit(hit, out selection);
+    }
+
+    public IReadOnlyList<CollisionGeoPrimViewModel?>? GetTrianglePolygons(Model3D model) =>
+        _sceneController.GetTrianglePolygons(model);
+
+    public Model3D? GetBlockModel(CollisionBlockViewModel block) =>
+        _sceneController.GetBlockModel(block);
+
+    public void HighlightEffects(IEnumerable<CollisionEffectViewModel> effects)
+    {
+        _sceneController.SetEffectSelection(effects);
+    }
+
+    public void HighlightRelatedEffects(IEnumerable<CollisionEffectViewModel> effects)
+    {
+        _sceneController.SetRelatedEffectHighlight(effects);
+    }
+
+    public void HighlightRaceEffects(
+        IEnumerable<CollisionEffectViewModel> selectedEffects,
+        IEnumerable<CollisionEffectViewModel> availableEffects,
+        IEnumerable<CollisionEffectViewModel> unavailableEffects)
+    {
+        _sceneController.SetRaceEffectHighlights(selectedEffects, availableEffects, unavailableEffects);
     }
 
     public void Select(CollisionSceneSelection selection)
@@ -382,6 +459,7 @@ public sealed class CollisionEditorViewModel : INotifyPropertyChanged
             Z = position.Z,
             W = 1f
         };
+        _effectLayout.RegisterNewRecord(effect);
         var viewModel = BuildEffectViewModel(effect, null);
         var change = new CollisionEffectStructureChange(
             viewModel,
@@ -553,6 +631,54 @@ public sealed class CollisionEditorViewModel : INotifyPropertyChanged
         return true;
     }
 
+    public bool TrySetEffectRotation(GeoEffect effect, Vector3 rotation)
+    {
+        ArgumentNullException.ThrowIfNull(effect);
+        var viewModel = TreeTraversal.Flatten(Effects, effect => effect.Children)
+            .FirstOrDefault(candidate => ReferenceEquals(candidate.Effect, effect));
+        if (viewModel == null || !CanStoreEffectRotation(effect))
+        {
+            return false;
+        }
+
+        if (GeoEffectLayout.GetRotationSlot(effect.Index) == 0)
+        {
+            var positionEnd = GeoEffectLayout.GetPositionSlot(effect.Index) + 2;
+            var scaleEnd = GeoEffectLayout.GetScaleSlot(effect.Index) + 2;
+            var rotationSlot = Math.Max(2, Math.Max(positionEnd, scaleEnd));
+            if (rotationSlot > GeoEffectLayout.SlotMask)
+            {
+                return false;
+            }
+            effect.Index = (effect.Index & ~(GeoEffectLayout.SlotMask << 10)) | (rotationSlot << 10);
+            RebuildEffectChunk();
+        }
+
+        viewModel.SetRotation(rotation.X, rotation.Y, rotation.Z);
+        return true;
+    }
+
+    public bool CanSetEffectRotation(GeoEffect effect)
+    {
+        ArgumentNullException.ThrowIfNull(effect);
+        return TreeTraversal.Flatten(Effects, candidate => candidate.Children)
+                   .Any(candidate => ReferenceEquals(candidate.Effect, effect)) &&
+               CanStoreEffectRotation(effect);
+    }
+
+    private static bool CanStoreEffectRotation(GeoEffect effect)
+    {
+        if (GeoEffectLayout.GetRotationSlot(effect.Index) != 0)
+        {
+            return true;
+        }
+
+        var positionEnd = GeoEffectLayout.GetPositionSlot(effect.Index) + 2;
+        var scaleEnd = GeoEffectLayout.GetScaleSlot(effect.Index) + 2;
+        var rotationSlot = Math.Max(2, Math.Max(positionEnd, scaleEnd));
+        return rotationSlot <= GeoEffectLayout.SlotMask;
+    }
+
     public bool TryGetEffectModel(CollisionEffectViewModel effect, out Avalonia3DControl.Core.Models.Model3D model)
     {
         return _sceneController.TryGetEffectModel(effect, out model!);
@@ -604,7 +730,13 @@ public sealed class CollisionEditorViewModel : INotifyPropertyChanged
         foreach (var block in geometry.GeomBlocks)
         {
             var prims = BuildPrimViewModels(geometry, block);
-            var viewModel = new CollisionBlockViewModel(block, index++, prims, MarkDirty, OnBlockVisibilityChanged);
+            var viewModel = new CollisionBlockViewModel(
+                block,
+                index++,
+                prims,
+                MarkDirty,
+                MarkStructuralDirty,
+                OnBlockVisibilityChanged);
             foreach (var prim in prims)
             {
                 prim.ParentBlock = viewModel;
@@ -630,14 +762,26 @@ public sealed class CollisionEditorViewModel : INotifyPropertyChanged
         for (var index = 0; index < faces.Count; index++)
         {
             CollisionPrimViewModel? viewModel = null;
-            viewModel = new CollisionPrimViewModel(faces[index], index, () =>
+            void RefreshAppearance()
             {
-                MarkDirty();
-                if (viewModel?.ParentBlock is { } parentBlock)
+                if (!_batchPolygonEdits && viewModel?.ParentBlock is { } parentBlock)
                 {
                     _sceneController.RefreshBlockAppearance(parentBlock);
                 }
-            });
+            }
+            viewModel = new CollisionPrimViewModel(
+                faces[index],
+                index,
+                () =>
+                {
+                    MarkDirty();
+                    RefreshAppearance();
+                },
+                () =>
+                {
+                    MarkStructuralDirty();
+                    RefreshAppearance();
+                });
             result.Add(viewModel);
         }
         return result;
@@ -645,7 +789,11 @@ public sealed class CollisionEditorViewModel : INotifyPropertyChanged
 
     private CollisionEffectViewModel BuildEffectViewModel(GeoEffect effect, CollisionEffectViewModel? parent)
     {
-        var viewModel = new CollisionEffectViewModel(effect, MarkDirty, OnEffectChanged) { Parent = parent };
+        var viewModel = new CollisionEffectViewModel(
+            effect,
+            MarkDirty,
+            MarkEffectStructureDirty,
+            OnEffectChanged) { Parent = parent };
         foreach (var child in effect.Children)
         {
             viewModel.Children.Add(BuildEffectViewModel(child, viewModel));
@@ -834,6 +982,22 @@ public sealed class CollisionEditorViewModel : INotifyPropertyChanged
     {
         var wasDirty = _documentSession.IsDirty;
         _documentSession.MarkDirty();
+        if (!wasDirty && _documentSession.IsDirty)
+        {
+            OnPropertyChanged(nameof(IsDirty));
+        }
+    }
+
+    private void MarkEffectStructureDirty()
+    {
+        RebuildEffectChunk();
+        MarkDirty();
+    }
+
+    private void MarkStructuralDirty()
+    {
+        var wasDirty = _documentSession.IsDirty;
+        _documentSession.MarkDirty(requiresFullRebuild: true);
         if (!wasDirty && _documentSession.IsDirty)
         {
             OnPropertyChanged(nameof(IsDirty));

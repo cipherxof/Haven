@@ -1,4 +1,5 @@
 using System;
+using System.Globalization;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
@@ -9,12 +10,31 @@ namespace HavenStudio.Views;
 
 public partial class MapEditorView : UserControl
 {
+    private bool _committingPlacementRotation;
+    private bool _committingEffectSelectionRotation;
+
     public MapEditorView()
     {
         InitializeComponent();
     }
 
     private MainWindowViewModel? ViewModel => DataContext as MainWindowViewModel;
+
+    private void OnClearOctocamoFaceBox(object? sender, RoutedEventArgs eventArgs) =>
+        ViewModel?.MapEditor.ClearOctocamoFaceBox();
+
+    private void OnSelectAllFilteredOctocamoFaces(object? sender, RoutedEventArgs eventArgs) =>
+        ViewModel?.MapEditor.SelectAllFilteredOctocamoFaces();
+
+    private void OnClearOctocamoBatchSelection(object? sender, RoutedEventArgs eventArgs) =>
+        ViewModel?.MapEditor.ClearOctocamoBatchSelection();
+
+    private async void OnEditOctocamoBatch(object? sender, RoutedEventArgs eventArgs)
+    {
+        if (ViewModel is not { } viewModel || TopLevel.GetTopLevel(this) is not Window owner) return;
+        try { await new OctocamoBatchEditWindow(viewModel.MapEditor.CreateOctocamoBatchEditor()).ShowDialog(owner); }
+        catch (Exception exception) { HavenStudio.Utils.MessageDialog.Error("OctoCamo Batch Edit", exception.Message); }
+    }
 
     private async void OnSaveCollision(object? sender, RoutedEventArgs eventArgs)
     {
@@ -53,6 +73,22 @@ public partial class MapEditorView : UserControl
     private void OnSnapEffectToCamera(object? sender, RoutedEventArgs eventArgs)
     {
         ViewModel?.CollisionEditor.SnapSelectedEffectToCamera();
+    }
+
+    private void OnCameraFromView(object? sender, RoutedEventArgs eventArgs)
+    {
+        if (ViewModel?.MapEditor.SetSelectedCameraFromView() is { } error)
+            HavenStudio.Utils.MessageDialog.Error("Spectator Camera", error);
+    }
+
+    private void OnViewCamera(object? sender, RoutedEventArgs eventArgs) => ViewModel?.MapEditor.ViewSelectedCamera();
+
+    private void OnSnapToFloor(object? sender, RoutedEventArgs eventArgs)
+    {
+        if (ViewModel?.MapEditor.SnapSelectedToFloor() is { } error)
+        {
+            HavenStudio.Utils.MessageDialog.Error("Snap To Floor", error);
+        }
     }
 
     private void OnAddEffect(object? sender, RoutedEventArgs eventArgs)
@@ -157,5 +193,119 @@ public partial class MapEditorView : UserControl
         }
 
         await viewModel.MapEditor.DuplicatePlacementAsync(placement);
+    }
+
+    private void OnPlacementRotationLostFocus(object? sender, RoutedEventArgs eventArgs)
+    {
+        CommitPlacementRotation(sender);
+    }
+
+    private void OnEffectSelectionRotationLostFocus(object? sender, RoutedEventArgs eventArgs)
+    {
+        CommitEffectSelectionRotation(sender);
+    }
+
+    private void OnEffectSelectionRotationKeyDown(object? sender, KeyEventArgs eventArgs)
+    {
+        if (eventArgs.Key != Key.Enter)
+        {
+            return;
+        }
+        CommitEffectSelectionRotation(sender);
+        eventArgs.Handled = true;
+    }
+
+    private void CommitEffectSelectionRotation(object? sender)
+    {
+        if (_committingEffectSelectionRotation ||
+            sender is not TextBox { DataContext: EffectSelectionEntity selection } textBox)
+        {
+            return;
+        }
+
+        var parsed = float.TryParse(
+            textBox.Text,
+            NumberStyles.Float,
+            CultureInfo.CurrentCulture,
+            out var degrees);
+        if (!parsed)
+        {
+            parsed = float.TryParse(
+                textBox.Text,
+                NumberStyles.Float,
+                CultureInfo.InvariantCulture,
+                out degrees);
+        }
+        if (!parsed)
+        {
+            textBox.Text = selection.RotationYText;
+            return;
+        }
+
+        _committingEffectSelectionRotation = true;
+        try
+        {
+            selection.TryUpdateRotationYDegrees(degrees, out _);
+            textBox.Text = selection.RotationYText;
+        }
+        finally
+        {
+            _committingEffectSelectionRotation = false;
+        }
+    }
+
+    private void OnPlacementRotationKeyDown(object? sender, KeyEventArgs eventArgs)
+    {
+        if (eventArgs.Key != Key.Enter)
+        {
+            return;
+        }
+        CommitPlacementRotation(sender);
+        eventArgs.Handled = true;
+    }
+
+    private void CommitPlacementRotation(object? sender)
+    {
+        if (_committingPlacementRotation)
+        {
+            return;
+        }
+        if (sender is not TextBox { DataContext: PlacementEntity placement } textBox ||
+            !float.TryParse(textBox.Text, NumberStyles.Float, CultureInfo.CurrentCulture, out var value))
+        {
+            return;
+        }
+
+        var degrees = new OpenTK.Mathematics.Vector3(
+            placement.RotationX,
+            placement.RotationY,
+            placement.RotationZ);
+        degrees = textBox.Tag?.ToString() switch
+        {
+            "X" => new OpenTK.Mathematics.Vector3(value, degrees.Y, degrees.Z),
+            "Y" => new OpenTK.Mathematics.Vector3(degrees.X, value, degrees.Z),
+            "Z" => new OpenTK.Mathematics.Vector3(degrees.X, degrees.Y, value),
+            _ => degrees
+        };
+
+        _committingPlacementRotation = true;
+        try
+        {
+            if (!placement.TryUpdateRotationDegrees(degrees, out var error) && !string.IsNullOrWhiteSpace(error))
+            {
+                textBox.Text = textBox.Tag?.ToString() switch
+                {
+                    "X" => placement.RotationX.ToString(CultureInfo.CurrentCulture),
+                    "Y" => placement.RotationY.ToString(CultureInfo.CurrentCulture),
+                    "Z" => placement.RotationZ.ToString(CultureInfo.CurrentCulture),
+                    _ => textBox.Text
+                };
+                HavenStudio.Utils.MessageDialog.Error("Placement Rotation Error", error);
+            }
+        }
+        finally
+        {
+            _committingPlacementRotation = false;
+        }
     }
 }

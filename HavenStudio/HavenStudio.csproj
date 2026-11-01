@@ -43,4 +43,19 @@
         <AvaloniaResource Include="Assets\savemgo.jpg" />
         <AvaloniaResource Include="Assets\Syntax\Tcl.xshd" />
     </ItemGroup>
+
+    <ItemGroup>
+        <Content Include="..\dictionary.txt" Link="dictionary.txt">
+            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+            <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+        </Content>
+        <Content Include="..\dictionary-aliases.txt" Link="dictionary-aliases.txt">
+            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+            <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+        </Content>
+        <Content Include="..\commands.txt" Link="commands.txt">
+            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+            <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+        </Content>
+    </ItemGroup>
 </Project>
